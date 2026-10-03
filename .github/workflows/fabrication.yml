@@ -21,15 +21,15 @@ jobs:
       matrix:
         python: ["3.9", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
       - name: Tests du moteur
         working-directory: engine
         run: |
           pip install pypdf
-          for t in flow sortie regles ia app; do python -m tests.test_$t; done
+          for t in flow sortie regles ia app mail; do python -m tests.test_$t; done
 
   app:
     needs: tests
@@ -52,9 +52,9 @@ jobs:
             llama: ""
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -71,7 +71,7 @@ jobs:
           SEP=":"; [ "$RUNNER_OS" = "Windows" ] && SEP=";"
           pyinstaller --onefile --noconsole --name bontoutou-engine \
             --add-data "static${SEP}static" --add-data "bontoutou/packs${SEP}bontoutou/packs" \
-            --collect-all llama_cpp --hidden-import pypdf \
+            --collect-all llama_cpp --hidden-import pypdf --hidden-import imaplib \
             $( [ "$RUNNER_OS" = "macOS" ] && echo "--collect-all ocrmac" ) \
             entry.py
           EXT=""; [ "$RUNNER_OS" = "Windows" ] && EXT=".exe"
@@ -84,7 +84,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
@@ -108,7 +108,7 @@ jobs:
 
       - name: Copie de l'app (même sans version marquée)
         if: "!startsWith(github.ref, 'refs/tags/v')"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: bon-toutou-${{ matrix.target }}
           path: desktop/src-tauri/target/${{ matrix.target }}/release/bundle/
