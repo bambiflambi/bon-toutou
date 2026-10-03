@@ -440,8 +440,7 @@
    "fn": [
     "paie",
     "salaire",
-    "payslip",
-    "bulletin"
+    "payslip"
    ],
    "par_emetteur": true
   },
@@ -807,6 +806,38 @@
    "suivi": "none",
    "kw": [],
    "fn": []
+  },
+  "bulletin_scolaire": {
+   "label": "Bulletin scolaire",
+   "slug": "Bulletin-scolaire",
+   "cat": "12",
+   "sub": "12-3",
+   "suivi": "none",
+   "kw": [
+    "bulletin scolaire",
+    "bulletin de notes",
+    "releve de notes",
+    "moyenne generale",
+    "appreciation",
+    "semestre",
+    "trimestre",
+    "conseil de classe",
+    "professeur principal"
+   ],
+   "fn": [
+    "semestre",
+    "trimestre",
+    "notes",
+    "scolaire"
+   ],
+   "must": [
+    "moyenne",
+    "semestre",
+    "trimestre",
+    "notes",
+    "appreciation",
+    "conseil de classe"
+   ]
   }
  },
  "contribution": {

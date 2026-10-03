@@ -63,5 +63,17 @@ try:
 except sortie.SortieRefusee:
     check(True, "sortie sans journal refusée")
 
+# 5. Adresse admin : IMAP chiffré seulement, avec accord et journal
+def imap_refused(**kw):
+    try:
+        sortie.imap_open(**kw); return False
+    except sortie.SortieRefusee:
+        return True
+logged = []
+check(imap_refused(host="imap.gmail.com", port=993, user="a", password="b", consent=False, log=logged.append) and not logged, "IMAP sans accord : refusé, rien noté")
+check(imap_refused(host="imap.gmail.com", port=143, user="a", password="b", consent=True, log=logged.append) and not logged, "IMAP non chiffré (143) : refusé")
+check(imap_refused(host="127.0.0.1", port=993, user="a", password="b", consent=True, log=logged.append), "IMAP vers une adresse non valide : refusé")
+check(imap_refused(host="imap.gmail.com", port=993, user="a", password="b", consent=True, log=None), "IMAP sans journal : refusé")
+
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)")
 sys.exit(1 if fails else 0)

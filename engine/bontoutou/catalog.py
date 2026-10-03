@@ -29,7 +29,8 @@ TYPES = {}           # chaque type porte "_origin"
 DETAILS = {}         # type -> [(motif, modèle, origine)]
 EXPIRY_HINTS = []
 TEMPLATES = {}
-ORGS = []            # (pays, nom, url https ou "", note) : organismes à prévenir (packs officiels seulement)
+ORGS = []            # (pays, nom, url https ou "", note, couvert par le service commun) : organismes à prévenir (packs officiels seulement)
+COORD = {}           # pays -> service officiel qui prévient plusieurs organismes d'un coup (FR : « Je change de coordonnées »)
 ECHEANCES = []       # (pays, libellé, MM-JJ, catégorie, note, origine) : dates fixes de l'année (déclarations…)
 RULES = []           # règles « contient X → champ = valeur » : (indice, champ, valeur, type, origine, id)
 CONTRIBUTION = {}    # où envoyer une proposition (pack Socle) : {"email": ..., "url": ...}
@@ -144,7 +145,10 @@ def _apply(p, kind):
             for o in p.get("organismes", []):
                 url = str(o.get("url") or "") if isinstance(o, dict) else ""
                 if isinstance(o, dict) and o.get("nom") and (not url or re.match(r"^https://[a-z0-9.-]+/[^\s\"'<>]*$", url)):
-                    ORGS.append((cc, o["nom"], url, o.get("note", "")))
+                    ORGS.append((cc, o["nom"], url, o.get("note", ""), bool(o.get("jcc"))))
+            c = p.get("coordonnees")
+            if cc and isinstance(c, dict) and re.match(r"^https://[a-z0-9.-]+\.gouv\.fr/[^\s\"'<>]*$", str(c.get("url") or "")):
+                COORD[cc] = {"nom": c.get("nom", ""), "url": c["url"], "note": c.get("note", "")}
     if official and isinstance(p.get("contribution"), dict):
         CONTRIBUTION.update(p["contribution"])
     # règles simples : un indice (texte exact, jamais une formule) -> un champ
@@ -172,6 +176,7 @@ def load(bureau_fm=None, disabled=()):
     """(Re)charge tout le catalogue. bureau_fm = dossier .bontoutou du bureau (packs importés + règles perso)."""
     for d in (COUNTRIES, CATEGORIES, CAT_FOLDERS_FR, SUB_FOLDERS_FR, COUNTRY_HINTS, TYPES, DETAILS, TEMPLATES):
         d.clear()
+    COORD.clear()
     for l in (EMITTERS, EXPIRY_HINTS, PACKS, WARNINGS, RULES, ECHEANCES, ORGS):
         del l[:]
     CONTRIBUTION.clear()

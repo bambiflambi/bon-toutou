@@ -464,32 +464,43 @@
   {
    "nom": "Impôts",
    "url": "https://www.impots.gouv.fr/",
-   "note": "Espace particulier › Gérer mon profil"
+   "note": "Espace particulier › Gérer mon profil",
+   "jcc": true
   },
   {
    "nom": "Assurance maladie (ameli)",
    "url": "https://www.ameli.fr/",
-   "note": "Mon compte › Mes informations"
+   "note": "Mon compte › Mes informations",
+   "jcc": true
   },
   {
    "nom": "CAF",
    "url": "https://www.caf.fr/",
-   "note": "Mon compte › Mes coordonnées"
+   "note": "Mon compte › Mes coordonnées",
+   "jcc": true
   },
   {
    "nom": "France Travail",
    "url": "https://www.francetravail.fr/",
-   "note": "Espace personnel › Mes coordonnées"
+   "note": "Espace personnel › Mes coordonnées",
+   "jcc": true
   },
   {
-   "nom": "Info Retraite",
+   "nom": "Caisses de retraite (Agirc-Arrco, MSA, Ircantec…)",
    "url": "https://www.info-retraite.fr/",
-   "note": "Mon compte retraite"
+   "note": "Mon compte retraite",
+   "jcc": true
   },
   {
    "nom": "ANTS (titres, permis, carte grise)",
    "url": "https://ants.gouv.fr/",
-   "note": "Mon espace › Mon profil"
+   "note": "Mon espace › Mon profil",
+   "jcc": true
+  },
+  {
+   "nom": "Fournisseur d'énergie",
+   "url": "",
+   "note": "EDF et Enercoop sont prévenus par « Je change de coordonnées » ; les autres, ton espace client"
   },
   {
    "nom": "Ma banque",
@@ -506,5 +517,10 @@
    "url": "",
    "note": "ton espace client"
   }
- ]
+ ],
+ "coordonnees": {
+  "nom": "Je change de coordonnées",
+  "url": "https://demarches.service-public.gouv.fr/mademarche/JeChangeDeCoordonnees/demarche",
+  "note": "Service officiel et gratuit de service-public.gouv.fr : adresse postale, e-mail et téléphone donnés en une fois à plus de 30 organismes (impôts, Assurance maladie, CAF, France Travail, France Titres, caisses de retraite, certains fournisseurs d'énergie). Ne change pas l'inscription sur les listes électorales."
+ }
 }

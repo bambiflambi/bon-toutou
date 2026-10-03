@@ -26,6 +26,7 @@ function homeView() {
     return `<div class="mcol${es.length ? " has" : ""}"><span class="mn">${M_[M.m]}</span><span class="dots">${es.slice(0, 4).map((e) => `<i style="background:${COLC[e.cc] || "var(--accent)"}" title="${esc(e.t)}"></i>`).join("") || "<em>—</em>"}</span></div>`; }).join("");
   const owner = (st.settings.owner || "").split(" ")[0];
   return `<div class="hello"><div><div class="label">${frd(st.today)}</div><h1>${n ? `${owner ? esc(owner) + ", " : ""}${n} petite${n > 1 ? "s" : ""} chose${n > 1 ? "s" : ""} aujourd'hui` : `Tout est à jour${owner ? ", " + esc(owner) : ""}`}</h1>
+    <p class="lead brandline" style="margin:4px 0 0">L'administration est absurde. <b>Bon toutou, lui, est dressé pour ça.</b></p>
     <p class="lead" style="margin:4px 0 0">${c.docs ? `Le reste est rangé. ${c.docs} ${plural(c.docs, "document")} à jour.` : "Ton bureau est prêt à recevoir tes premiers papiers."}</p></div></div>
   <div class="today">${items.join("") || `<div class="card" style="padding:18px">Rien d'urgent. Profite.</div>`}</div>
   <button class="calcard" data-go="cal"><div class="calhead"><span class="oi">${IC.calendar}</span><div class="grow"><b>Prochaines échéances</b><small>${ev.slice(0, 3).map((e) => `${esc(e.t)} · ${+e.d.slice(8)} ${M_[+e.d.slice(5, 7) - 1]}`).join("  ·  ") || "Aucune date connue pour l'instant : elles sont lues dans tes documents."}</small></div><span class="go">Calendrier ›</span></div><div class="mstrip">${strip}</div></button>
@@ -55,18 +56,11 @@ function calView() {
   <p class="sub" style="margin-top:18px">Les dates « à faire » sont indicatives (elles varient selon l'année et ta situation). Abonnement automatique à ton agenda : <button class="linkbtn" style="padding:0" data-go="reglages" data-sv="calendrier">Réglages › Calendrier</button>.</p>`;
 }
 
-/* ------------------------------------------------ CONTACTS (aperçu) */
+/* ------------------------------------------------ CONTACTS (bientôt) */
 function contactsView() {
-  const L = S.contacts || [], C = S.st.categories;
-  const cats = [...new Set(L.map((k) => k.cat || "99"))].sort();
-  const ini = (n) => esc(String(n).split(/[\s-]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase());
-  const ET = { envoye: "Transmis", finalise: "Finalisé, à envoyer", en_cours: "Dossier en cours" };
-  return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h1 style="margin:0">Contacts</h1><span class="pill acc">Aperçu</span></div>
-  <p class="lead" style="margin-top:6px">Tes interlocuteurs rangés par domaine, et pour chacun, ce que tu lui as transmis — avec la version exacte.</p>
-  <div class="soonbar" style="margin-bottom:6px">${IC.sparkles}<span>Aperçu construit avec tes documents (émetteurs) et tes dossiers (destinataires). Bientôt : coordonnées, notes, et ce qui arrive par ton adresse admin.</span></div>
-  ${cats.map((c) => `<div class="label" style="margin:18px 0 8px">${c === "99" ? "Autres" : c + " " + esc(C[c] || "")}</div><div class="card">${L.filter((k) => (k.cat || "99") === c).map((k) => `<div class="row drow ctrow k-${esc(k.cc)}"><span class="oi avatar">${ini(k.nom)}</span><div class="grow"><b>${esc(k.nom)}</b> ${cc(k.cc)}<div class="sub">${esc(k.role)}${k.docs ? ` · ${k.docs} ${plural(k.docs, "document")} reçu${k.docs > 1 ? "s" : ""}${k.dernier ? ", dernier le " + frd(k.dernier) : ""}` : ""}</div>
-      ${k.transmis.map((x) => `<button class="linkbtn" style="padding:0;font-size:12.5px;display:block" ${x.etat === "envoye" ? 'data-go="archives"' : `data-dos="${x.id}"`}>${ET[x.etat] || x.etat} · « ${esc(x.label)} » · ${frd(x.date)}${x.pieces ? ` · ${x.pieces} ${plural(x.pieces, "fichier")}` : ""}</button>`).join("")}</div></div>`).join("")}</div>`).join("")
-    || `<div class="card empty">Pas encore de contacts : ils apparaissent avec tes premiers documents rangés et tes premiers dossiers.</div>`}`;
+  return `<h1>Contacts</h1>
+  <div class="card" style="padding:32px;text-align:center;max-width:560px"><span class="oi" style="margin:0 auto 12px">${IC.name}</span><b style="font-size:17px">Bientôt disponible</b>
+    <p class="sub" style="margin:8px auto 0;max-width:42ch">Tes interlocuteurs administratifs, et pour chacun ce que tu lui as transmis. Rien n'est importé de ton carnet d'adresses.</p></div>`;
 }
 document.addEventListener("click", (e) => {
   const a = e.target.closest("[data-act=evnote]"); if (a) toast(a.dataset.n || "Échéance de ton pays");

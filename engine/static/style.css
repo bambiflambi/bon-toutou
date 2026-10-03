@@ -413,3 +413,36 @@ textarea.field{width:100%}
 .brand .mark svg{width:26px;height:26px;display:block}
 .brand small.tagline{min-height:15px;display:block}
 .hero-dog{width:84px;height:84px;border-radius:22px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));display:grid;place-items:center;margin:0 auto 14px}.hero-dog svg{width:62px;height:62px}
+
+/* ---------- v0.5 : Trier en cartes, rangement compris, adresse admin, organismes */
+.brandline{color:var(--text-secondary)}.brandline b{color:var(--text)}
+.thead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}.thead h1{margin:0}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:11px;background:var(--border-light)}
+.seg button{border:0;background:none;border-radius:8px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:600;color:var(--text-secondary)}
+.seg button.on{background:var(--card);color:var(--text);box-shadow:var(--shadow-sm)}
+.suresbar,.regroup,.jcc{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.regroup,.jcc{align-items:flex-start}
+.ccard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:0;overflow:hidden;margin-bottom:20px;min-height:520px}
+.ccard.moyenne{border-color:var(--accent)}.ccard.basse{border-color:var(--warning)}
+.cleft{position:relative;background:var(--border-light);display:flex;flex-direction:column;min-height:520px}
+.cframe{flex:1;width:100%;border:0;background:#fff;min-height:480px}
+.cimg{flex:1;width:100%;object-fit:contain;max-height:620px;background:#fff}
+.cnone{flex:1;display:grid;place-items:center;align-content:center;gap:8px}
+.copen{align-self:center;margin:6px 0}
+.cright{padding:20px 22px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.ctop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctitle{margin:0;font-size:21px;letter-spacing:-.3px;line-height:1.25}
+.cdl{display:grid;grid-template-columns:88px minmax(0,1fr);gap:7px 12px;margin:4px 0;font-size:13.5px}
+.cdl dt{color:var(--text-tertiary);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding-top:2px}.cdl dd{margin:0;overflow-wrap:anywhere}
+.cconf{border:1px solid var(--warning);background:var(--warning-light);border-radius:var(--radius-sm);padding:12px 14px;display:grid;gap:6px}.cconf .acts{display:flex;gap:8px;flex-wrap:wrap}
+.cfix{border-top:1px solid var(--border-light);padding-top:10px}
+.cacts{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:8px;margin-top:auto;padding-top:8px}.cacts button{justify-content:center}
+.cacts .ghost.on{background:var(--accent-light);border-color:var(--accent)}
+.ckeys{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px}.ckeys .sub{margin-left:auto}
+.linkbtn[disabled]{opacity:.45;cursor:default}
+.understood{margin-bottom:14px}.understood summary{cursor:pointer;list-style-position:outside}
+.rgrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}.rgrow .field{max-width:240px;font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px}
+.mailbox .lab2,.lab2{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-top:4px}.lab2 .field,.lab2 .fieldwrap{margin-top:6px}
+.lab2 .field{display:block;width:100%;font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-xs);background:var(--card);color:var(--text)}
+.consent{display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:13px;color:var(--text-secondary);cursor:pointer}.consent input{margin-top:3px}
+.hint.warn{background:var(--warning-light);color:var(--warning);border-color:var(--warning)}
+@media (max-width:820px){.ccard{grid-template-columns:1fr}.cleft{min-height:340px}.cframe{min-height:320px}.cacts{grid-template-columns:1fr 1fr}.cacts .cta{grid-column:1/-1}}

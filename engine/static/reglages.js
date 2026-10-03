@@ -3,7 +3,6 @@
 const noLabel = (h) => String(h || "").replace(/^\s*<div class="label">[^<]*<\/div>/, "");
 const has = (k) => ((S.st.settings.plus_done || []).includes(k));
 const SOON = [
-  ["imap", "mail", "Relève automatique de l'adresse admin", "Tes papiers arrivent seuls dans Trier, lus sur ton ordinateur"],
   ["agenda", "calendar", "Abonnement à ton agenda", "Les échéances apparaissent toutes seules dans Calendrier, Google Agenda ou Outlook"],
   ["contacts", "name", "Contacts complets", "Coordonnées, notes et historique de chaque interlocuteur"],
   ["auto", "globe", "Récupération sur les sites des organismes", "Mot de passe dans le trousseau de ton ordinateur, jamais vu par l'IA"],
@@ -14,7 +13,7 @@ const SOON = [
 function plusSteps() {
   const st = S.st, s = st.settings, O = st.orgs || [];
   return [
-    { id: "mail", lvl: 1, ic: "mail", t: "Choisir ton adresse admin", short: "adresse admin", s: "Une adresse rien que pour l'administratif : tes papiers arrivent au même endroit", min: 3, done: !!s.mail || has("mail"), sv: "mail" },
+    { id: "mail", lvl: 1, ic: "mail", t: "Relier ton adresse admin", short: "adresse admin", s: "Une adresse rien que pour l'administratif : ses pièces jointes arrivent dans Trier", min: 5, done: !!s.mail_saved || has("mail"), sv: "mail" },
     { id: "existing", lvl: 1, ic: "folder", t: "Importer tes papiers existants", short: "importer", s: "Bon toutou en fait une copie dans Trier et propose un rangement : l'original ne bouge pas", min: 5, done: has("existing") || st.counts.docs >= 10, go: "trier" },
     { id: "orgs", lvl: 1, ic: "building", t: "Prévenir tes organismes", short: "organismes", s: `Impôts, assurance maladie, banque… ${(s.orgs_done || []).length}/${O.length} prévenus`, min: 15, done: has("orgs") || (O.length > 0 && (s.orgs_done || []).length >= O.length), sv: "orgs" },
     { id: "cal", lvl: 1, ic: "calendar", t: "Mettre tes échéances dans ton agenda", short: "agenda", s: "Un fichier .ics avec un rappel 30 jours avant chaque date", min: 1, done: has("cal"), sv: "calendrier" },
@@ -27,9 +26,9 @@ const REG = [
   ["Toi", [["profil", "user", "Profil", () => `${S.st.settings.owner || "Ton nom"} · ${S.st.settings.countries.join(", ")}${(S.st.settings.holders || []).length ? ` · ${S.st.settings.holders.length} ${plural(S.st.settings.holders.length, "proche")}` : ""}`],
            ["priv", "lock", "Confidentialité", () => `${S.st.counts.egress} ${plural(S.st.counts.egress, "sortie")} de ton ordinateur · niveaux par catégorie`],
            ["apparence", "palette", "Apparence", () => (THEMES.find((t) => t[0] === (S.st.settings.theme || "champagne")) || THEMES[0])[1]]]],
-  ["Ce qui arrive et ce qui part", [["mail", "mail", "Adresse admin", () => S.st.settings.mail ? `Choisie : ${S.st.settings.mail}` : "Pas encore choisie", "relève bientôt"],
+  ["Ce qui arrive et ce qui part", [["mail", "mail", "Adresse admin", () => S.st.settings.mail ? `${S.st.settings.mail}${S.st.settings.mail_saved ? " · reliée" : " · pas encore reliée"}` : "Pas encore choisie"],
            ["calendrier", "calendar", "Calendrier", () => `${(S.st.events || []).filter((e) => !e.past).length} échéances · export .ics`],
-           ["contacts", "name", "Contacts", () => "Aperçu à partir de tes documents et dossiers", "bientôt"],
+           ["contacts", "name", "Contacts", () => "Bientôt disponible", "bientôt"],
            ["orgs", "building", "Organismes", () => `Checklist pour donner ta nouvelle adresse · ${(S.st.settings.orgs_done || []).length}/${(S.st.orgs || []).length}`]]],
   ["Comment Bon toutou lit tes papiers", [["ia", "sparkles", "IA locale", () => S.st.settings.use_ollama && S.st.settings.ollama_model ? `Activée · ${S.st.settings.ollama_model}` : "Facultative · tourne sur ton ordinateur"],
            ["lecture", "eye", "Lecture des documents", () => { const T = S.st.tools; return `PDF ${T.pypdf || T.pdftotext ? "✓" : "✗"} · scans et photos ${T.apple_vision || T.tesseract ? "✓" : "✗"}`; }],
@@ -99,15 +98,7 @@ function reglagesView() {
   }
   if (sv === "apparence") return `${setHead("palette", "Apparence", "Trois ambiances, pour cet appareil seulement.")}
     <div class="themes">${THEMES.map((t) => `<button class="theme-opt${(s.theme || "champagne") === t[0] ? " on" : ""}" data-theme="${t[0]}"><i class="sw ${t[2]}"></i>${t[1]}</button>`).join("")}</div>`;
-  if (sv === "mail") return `${setHead("mail", "Adresse admin", "Une adresse e-mail rien que pour l'administratif : impôts, banque, assurances, employeur. Tes papiers arrivent au même endroit, séparés de tes mails perso.")}
-    <div class="card box"><div class="fieldwrap" style="max-width:460px"><span class="oi">${IC.mail}</span><input id="mail_in" type="email" value="${esc(s.mail || "")}" placeholder="admin@mon-domaine.fr" aria-label="Adresse admin"></div>
-      <div class="acts" style="margin-top:10px"><button class="cta small" data-act="mail-save">Enregistrer</button>${s.mail ? `<button class="linkbtn" data-act="mail-clear">retirer</button>` : ""}</div>
-      <p class="sub">Elle est notée dans ton dossier, sur ton ordinateur. Bon toutou ne s'y connecte pas.</p></div>
-    <div class="label" style="margin:22px 0 8px">En attendant la relève automatique</div>
-    <div class="card"><div class="row"><span class="oi">${IC.up}</span><div class="grow"><b>Glisse les pièces jointes dans Trier</b><div class="sub">Depuis ta messagerie, enregistre les PDF reçus puis dépose-les : Bon toutou les lit et propose un rangement.</div></div><button class="ghost small" data-go="trier">Trier</button></div>
-      <div class="row"><span class="oi">${IC.building}</span><div class="grow"><b>Donne cette adresse à tes organismes</b><div class="sub">Une checklist avec les liens officiels, à ton rythme.</div></div><button class="ghost small" data-go="reglages" data-sv="orgs">Organismes</button></div></div>
-    <div style="margin-top:10px">${soonCard("imap", "Relève automatique : les pièces jointes arrivent seules dans Trier")}</div>
-    <p class="sub" style="margin-top:10px">Quand elle arrivera : connexion directe de ton ordinateur à ta boîte (IMAP), mot de passe gardé dans le trousseau de ton système, rien ne passe par un serveur Bon toutou.</p>`;
+  if (sv === "mail") return window.mailView ? mailView() : "";
   if (sv === "calendrier") { const ev = (st.events || []).filter((e) => !e.past);
     return `${setHead("calendar", "Calendrier", "Les dates lues dans tes documents et les échéances de tes pays, dans l'agenda que tu utilises déjà.")}
     <div class="card box"><b>Ajouter à ton agenda</b><p class="sub" style="margin:4px 0 10px">Un fichier .ics avec ${ev.length} ${plural(ev.length, "échéance")} et un rappel 30 jours avant chacune. Ouvre-le : Calendrier (Mac), Google Agenda ou Outlook l'importent. Il est créé sur ton ordinateur, rien ne sort.</p>
@@ -117,13 +108,16 @@ function reglagesView() {
     <div class="card">${ev.slice(0, 8).map((e) => `<div class="row">${cc(e.cc)}<div class="grow"><b>${esc(e.t)}</b><div class="sub">${e.k} · ${frd(e.d)}${e.note ? " · " + esc(e.note) : ""}</div></div></div>`).join("") || `<div class="row sub">Aucune date pour l'instant.</div>`}${ev.length > 8 ? `<div class="row sub">… et ${ev.length - 8} autres</div>` : ""}</div>
     <div style="margin-top:10px">${soonCard("agenda", "Abonnement : ton agenda se met à jour tout seul")}</div>`; }
   if (sv === "contacts") return `${setHead("name", "Contacts", "Tes interlocuteurs et ce que tu leur as transmis.")}
-    <div class="card box"><b>Aperçu disponible</b><p class="sub" style="margin:4px 0 10px">Construit à partir des émetteurs de tes documents et des destinataires de tes dossiers. Rien n'est importé de ton carnet d'adresses.</p><button class="ghost small" data-go="contacts">Voir l'aperçu</button></div>
-    <div style="margin-top:10px">${soonCard("contacts", "Contacts complets : coordonnées, notes, import d'un carnet (.vcf)")}</div>`;
+    <div>${soonCard("contacts", "Contacts complets : coordonnées, notes, import d'un carnet (.vcf)")}</div>`;
   if (sv === "orgs") { const O = st.orgs || [], D = s.orgs_done || [];
     return `${setHead("building", "Organismes", "Facultatif : donne ta nouvelle adresse (ou ton adresse admin) aux organismes, à ton rythme. Les liens ouvrent le site officiel dans ton navigateur.")}
     <div class="card pprog" style="margin-bottom:12px"><div class="grow"><b>${D.length} sur ${O.length} prévenus</b><div class="bar ${D.length >= O.length ? "ok" : ""}"><i style="width:${O.length ? Math.round((D.length / O.length) * 100) : 0}%"></i></div></div></div>
-    ${st.settings.countries.map((c) => { const L = O.filter((o) => o.cc === c); return L.length ? `<div class="label" style="margin:18px 0 8px">${cc(c)} ${esc(st.countries[c])}</div><div class="card">${L.map((o) => { const k = c + ":" + o.nom, dn = D.includes(k) || D.includes(o.nom);
-      return `<label class="row orgrow${dn ? " done" : ""}" style="cursor:pointer"><input type="checkbox" data-org="${esc(k)}" ${dn ? "checked" : ""}><div class="grow"><b>${esc(o.nom)}</b><div class="sub">${esc(o.note)}</div></div>${o.url ? `<button class="ghost small" data-ext="${esc(o.url)}">Ouvrir ↗</button>` : `<span class="sub">ton espace client</span>`}</label>`; }).join("")}</div>` : ""; }).join("")}
+    ${st.settings.countries.map((c) => { const L = O.filter((o) => o.cc === c), J = (st.coord || {})[c], nj = L.filter((o) => o.jcc).length; return L.length ? `<div class="label" style="margin:18px 0 8px">${cc(c)} ${esc(st.countries[c])}</div>
+      ${J ? `<div class="card box jcc"><span class="oi">${IC.send}</span><div class="grow"><b>Prévenir 30 organismes d'un coup</b><div class="sub">${esc(J.note)}</div>
+        <div class="acts" style="margin-top:10px"><button class="cta small" data-ext="${esc(J.url)}">${esc(J.nom)} ↗</button><button class="ghost small" data-act="orgs-jcc" data-occ="${esc(c)}">C'est fait : cocher les ${nj} couverts</button></div>
+        <div class="sub" style="margin-top:6px">Site officiel service-public.gouv.fr (connexion à ton compte service-public ou FranceConnect). Bon toutou ne s'y connecte pas : il ouvre la page, tu fais la démarche.</div></div></div>` : ""}
+      <div class="card">${L.map((o) => { const k = c + ":" + o.nom, dn = D.includes(k) || D.includes(o.nom);
+      return `<label class="row orgrow${dn ? " done" : ""}" style="cursor:pointer"><input type="checkbox" data-org="${esc(k)}" ${dn ? "checked" : ""}><div class="grow"><b>${esc(o.nom)}</b>${o.jcc && J ? ` <span class="pill acc">couvert par « ${esc(J.nom)} »</span>` : ""}<div class="sub">${esc(o.note)}</div></div>${o.url ? `<button class="ghost small" data-ext="${esc(o.url)}">Ouvrir ↗</button>` : `<span class="sub">ton espace client</span>`}</label>`; }).join("")}</div>` : ""; }).join("")}
     <p class="sub" style="margin-top:12px">Cocher reste sur ton ordinateur. Bon toutou ne se connecte pas à ces sites.</p>`; }
   if (sv === "ia") return `${setHead("sparkles", "IA locale", "Facultative : les règles de Bon toutou suffisent pour commencer. L'IA locale aide pour les papiers inhabituels, sans qu'aucun document ne sorte.")}${window.iaSection ? noLabel(iaSection()) : ""}`;
   if (sv === "lecture") { const T = st.tools, readOk = T.pypdf || T.pdftotext;
@@ -211,6 +205,9 @@ document.addEventListener("click", async (e) => {
   if (act === "mail-save") { const v = $("#mail_in").value.trim(); if (v && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return toast("Cette adresse ne semble pas valide");
     await api("/api/settings", { mail: v }); toast(v ? "Adresse admin enregistrée" : "Adresse retirée"); return load(); }
   if (act === "mail-clear") { await api("/api/settings", { mail: "" }); return load(); }
+  if (act === "orgs-jcc") { const c = a.dataset.occ, D = new Set(S.st.settings.orgs_done || []);
+    (S.st.orgs || []).filter((o) => o.cc === c && o.jcc).forEach((o) => D.add(c + ":" + o.nom));
+    await api("/api/settings", { orgs_done: [...D] }); toast("Organismes couverts cochés · il reste ceux de la liste"); return load(); }
   if (act === "trusted-save") { await api("/api/settings", { trusted: $("#trusted").value.trim() }); toast("Enregistré"); return load(); }
   if (act === "ics-dl") { const r = await api("/api/export", { kind: "ics" });
     toast(r.ok ? `Fichier enregistré dans ${r.folder} : ton calendrier va proposer de l'importer` : (r.msg || "Erreur"));

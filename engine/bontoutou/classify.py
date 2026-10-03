@@ -7,6 +7,7 @@ Chaque décision garde ses raisons, affichées dans « Pourquoi ? ».
 """
 import datetime as dt
 import json
+import os
 import re
 import unicodedata
 
@@ -232,7 +233,7 @@ PERSONS = set()  # mots du nom du titulaire et de ses proches (mis à jour par l
 _ADDR = re.compile(r"(?i)\b(rue|avenue|av\.|bd|boulevard|chemin|allee|allée|place|impasse|route|quai|cedex|bp|cs|lieu[- ]dit|zone|za|zi|"
                    r"street|st|road|rd|lane|drive|po box|private bag)\b|\b\d{4,5}\b")
 _NOT_NAME = re.compile(r"(?i)(bulletin|paie|salaire|periode|période|matricule|salari|emploi|qualification|coefficient|convention|"
-                       r"\bdate\b|\bpage\b|n°|\bno\b|siret|siren|urssaf|\bape\b|\bnaf\b|net\b|brut|montant|payslip|pay period|pay date|"
+                       r"\bautres?\b|\bdivers\b|\bsalarie|\bsalarié|\bentreprise\b|\bemployeur\b|\bemploye\b|\bemployé\b|\bcadre\b|\bstatut\b|\bdate\b|\bpage\b|n°|\bno\b|siret|siren|urssaf|\bape\b|\bnaf\b|net\b|brut|montant|payslip|pay period|pay date|"
                        r"cotisation|\btotal\b|heures|\btaux\b|\bbase\b|contrat|recu|reçu|solde|attestation|niveau|echelon|échelon|"
                        r"entree|entrée|anciennete|ancienneté|@|www\.|\btel\b|\btél\b|\bfax\b|\bird\b|tax code)")
 _TITLE = re.compile(r"(?i)^(m\.|mme|mlle|monsieur|madame|mr|mrs|ms|miss)\b")
@@ -304,7 +305,10 @@ def _employer(text):
                 return slugify(name)[:30], f"forme juridique lue dans l'en-tête (« {l[:60]} »)"
     for i, l in enumerate(lines):
         if re.search(r"(?i)\b(siret|siren|code ape|ape\b|naf\b|urssaf|ird number|nzbn)", l):
-            for c in lines[max(0, i - 6):i]:
+            for j in range(max(0, i - 6), i):
+                c = lines[j]
+                if j > 0 and _ADDR.search(lines[j - 1]):
+                    continue  # la ligne qui suit une adresse est une ville ou un complément, pas un nom d'entreprise
                 if _plausible(c):
                     return slugify(_clean_company(c))[:30], f"nom lu en haut du document, au-dessus du n° {re.search(r'(?i)siret|siren|ape|naf|urssaf|ird number|nzbn', l).group(0).upper()}"
             break
@@ -484,12 +488,154 @@ def analyze(text, filename, countries, today=None):
         reasons.append(f"Intitulé déduit : {detail} (lu : « {dsrc[:40]} ») [{dorg}]")
     return {
         "income_year": income_year, "detail": detail, "date_precision": precision, "date_note": date_note,
-        "emitter_approx": emitter_approx,
+        "emitter_approx": emitter_approx, "emitter_how": eorg if isinstance(eorg, str) else None, "emitter_rule": bool(rh),
         "type": type_id, "country": country, "emitter": emitter or "Inconnu",
         "date": (doc_date or today).isoformat(), "date_found": precision == "jour",
         "expiry": expiry.isoformat() if expiry else None,
         "confidence": level, "reasons": reasons, "engine": "règles",
     }
+
+
+# ---------- Indices du rangement de l'utilisateur (noms de dossiers et de fichiers, jamais le contenu) ----------
+MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."]
+PAY_DIRS = re.compile(r"(?i)\b(paye|paie|fiches?[ _-]de[ _-]pa[iy]e|bulletins?[ _-]de[ _-](paie|paye|salaire)|salaires?|payslips?|pay ?slips|wages)\b")
+_STOP_EMP = {"sas", "sarl", "sasu", "sa", "eurl", "sci", "snc", "ltd", "limited", "inc", "gmbh", "et", "de", "du", "des", "la", "le", "les",
+             "the", "and", "boulangerie", "restaurant", "hotel", "societe", "groupe", "france", "paris", "cie", "compagnie", "maison", "chez"}
+
+
+def _ym_ok(y, m, today):
+    return 1990 <= y <= today.year and 1 <= m <= 12 and (y, m) <= (today.year, today.month)
+
+
+def _end_of_month(y, m):
+    nxt = dt.date(y + (m == 12), 1 if m == 12 else m + 1, 1)
+    return nxt - dt.timedelta(days=1)
+
+
+def _period(s, today):
+    """« 2018-09:2020-07 », « 2020 09 - 2021 07 », « 2024-01:07 » -> ((2018, 9), (2020, 7)). Sinon None."""
+    m = re.search(r"(?<!\d)((?:19|20)\d\d)[\s._-]?(0[1-9]|1[0-2])\s*(?::|-|–|à|au|to)\s*(?:((?:19|20)\d\d)[\s._-]?)?(0[1-9]|1[0-2])(?!\d)", s)
+    if not m:
+        return None
+    y1, m1 = int(m.group(1)), int(m.group(2))
+    y2, m2 = int(m.group(3) or m.group(1)), int(m.group(4))
+    if not (_ym_ok(y1, m1, today) and _ym_ok(y2, m2, today)) or (y2, m2) <= (y1, m1):
+        return None
+    return (y1, m1), (y2, m2)
+
+
+def _month(s, today):
+    """Un seul mois dans un nom : « 2019 03 Bulletins », « SALAIRE 01 2025 », « 2024-02_paie ». Sinon None."""
+    for pat, order in ((r"(?<!\d)((?:19|20)\d\d)[\s._-](0[1-9]|1[0-2])(?![\d:])", "ym"), (r"(?<![\d:])(0[1-9]|1[0-2])[\s._-]((?:19|20)\d\d)(?!\d)", "my")):
+        m = re.search(pat, s)
+        if m:
+            y, mo = (int(m.group(1)), int(m.group(2))) if order == "ym" else (int(m.group(2)), int(m.group(1)))
+            if _ym_ok(y, mo, today):
+                return y, mo
+    return None
+
+
+def clean_folder_name(name, today=None):
+    """« 1.N Louis Fournil 2018-09:2020-07 » -> « Louis Fournil » : numéro d'ordre et période retirés."""
+    today = today or dt.date.today()
+    n = re.sub(r"^\s*\d{1,3}\s*[.)_-]?\s*(?:[A-Za-z]{1,2}\s*[.)_-]\s*|[A-Z]\b\s*)?", "", name or "").strip()
+    n = re.sub(r"(?<!\d)((?:19|20)\d\d)[\s._-]?(0[1-9]|1[0-2])\s*(?::|-|–|à|au|to)\s*(?:((?:19|20)\d\d)[\s._-]?)?(0[1-9]|1[0-2])(?!\d)", "", n)
+    n = re.sub(r"\b(?:19|20)\d\d\b", "", n)
+    return re.sub(r"\s{2,}", " ", n).strip(" -_.,:;")
+
+
+def emitter_key(name):
+    """Mots distinctifs d'un nom d'employeur : « Boulangerie-Fournil », « Louis Fournil », « FOURNIL SAS » -> {fournil, louis}…"""
+    toks = [t for t in slugify(name or "").lower().split("-") if t]
+    return {t for t in toks if len(t) >= 4 and t not in _STOP_EMP}
+
+
+def same_emitter(a, b):
+    """Deux noms désignent-ils le même employeur ? Il faut un mot distinctif commun (pas « Boulangerie » seul)."""
+    ka, kb = emitter_key(a), emitter_key(b)
+    return bool(ka and kb and (ka & kb))
+
+
+def path_hints(rel, today=None):
+    """Ce que le chemin d'un fichier importé dit, sans ouvrir le fichier : type, employeur, période, mois, lot."""
+    today = today or dt.date.today()
+    parts = [p for p in re.split(r"[\\/]+", rel or "") if p]
+    if not parts:
+        return {}
+    fname, folders = parts[-1], parts[:-1]
+    h = {"origin": "/".join(parts)}
+    for i, d in enumerate(folders):
+        if PAY_DIRS.search(d):
+            h["type"] = "bulletin_paie"
+            h["type_from"] = d
+            if i + 1 < len(folders):
+                emp = clean_folder_name(folders[i + 1], today)
+                if emp and len(emp) >= 2:
+                    h["emitter"], h["emitter_from"] = emp, folders[i + 1]
+                    per = _period(folders[i + 1], today)
+                    if per:
+                        h["folder_period"] = per
+            break
+    base = os.path.splitext(fname)[0]
+    lot = _period(base, today)
+    if lot:
+        h["lot"] = lot
+    else:
+        mo = _month(base, today)
+        if mo:
+            h["month"] = mo
+    return h
+
+
+def _fmt_ym(ym):
+    return f"{MOIS[ym[1] - 1]} {ym[0]}"
+
+
+def apply_hints(a, hints, text_employer=None, today=None):
+    """Le rangement de l'utilisateur fait foi ; le contenu sert à vérifier. Modifie et retourne l'analyse."""
+    if not hints:
+        return a
+    today = today or dt.date.today()
+    a["origin"] = hints.get("origin")
+    R = a["reasons"]
+    if hints.get("type") and (a["type"] not in EMPLOYMENT or a["type"] == "bulletin_paie") and a["type"] != "solde_tout_compte":
+        if a["type"] != hints["type"]:
+            R.append(f"Rangé par toi dans « {hints['type_from']} » : fiche de paie")
+        a["type"] = hints["type"]
+    if hints.get("emitter") and a["type"] in EMPLOYMENT:
+        mine = hints["emitter"]
+        strong = (a.get("emitter_how") or "").startswith(("employeur indiqué", "forme juridique"))
+        seen = text_employer or (a["emitter"] if a["emitter"] != "Inconnu" and strong else None)
+        a["emitter_display"] = mine
+        if seen and not same_emitter(seen, mine):
+            a["conflict"] = {"field": "emitter", "folder": mine, "content": seen.replace("-", " ")}
+            R.append(f"À vérifier : ton dossier dit « {mine} », le document met en avant « {seen.replace('-', ' ')} »")
+        else:
+            R.append(f"Employeur : « {mine} », d'après ton dossier « {hints['emitter_from']} »")
+        a["emitter"] = slugify(mine)[:40]
+        a["emitter_approx"] = False
+    if hints.get("lot"):
+        (y1, m1), (y2, m2) = hints["lot"]
+        a["lot"] = [f"{y1}-{m1:02d}", f"{y2}-{m2:02d}"]
+        a["date"] = _end_of_month(y2, m2).isoformat()
+        a["date_note"] = None
+        R.append(f"Plusieurs mois dans un seul fichier : de {_fmt_ym((y1, m1))} à {_fmt_ym((y2, m2))} (lu dans le nom)")
+    elif hints.get("month") and a["type"] in ("bulletin_paie",):
+        y, m = hints["month"]
+        a["date"] = _end_of_month(y, m).isoformat()
+        a["date_note"] = None
+        R.append(f"Mois de paie : {_fmt_ym((y, m))} (lu dans le nom du fichier)")
+    if hints.get("folder_period") and a.get("date"):
+        (y1, m1), (y2, m2) = hints["folder_period"]
+        d = a["date"][:7]
+        if not (f"{y1}-{m1:02d}" <= d <= f"{y2}-{m2:02d}"):
+            R.append(f"Date hors de la période de ton dossier ({_fmt_ym((y1, m1))} – {_fmt_ym((y2, m2))}) : à vérifier")
+            a["conflict"] = a.get("conflict") or {"field": "date", "folder": f"{_fmt_ym((y1, m1))} – {_fmt_ym((y2, m2))}", "content": a["date"]}
+    if a.get("conflict"):
+        a["confidence"] = "moyenne" if a["confidence"] == "haute" else a["confidence"]
+    elif hints.get("emitter") and a["type"] in EMPLOYMENT and a["confidence"] != "basse":
+        a["confidence"] = "haute"
+    return a
 
 
 # ---------- IA locale (moteur interchangeable : voir ia.py) ----------

@@ -24,22 +24,22 @@ b.validate([p["id"] for p in b.inbox() if p["orig"] != "truc_bizarre.pdf"])
 R = b.regles
 
 # 1. Règle d'émetteur née d'une correction : aperçu, création, application en un lot annulable
-rule = {"indice": "Nuances Gourmandes", "champ": "emitter", "valeur": "Nuances Gourmandes Lyon"}
+rule = {"indice": "Saveurs Royales", "champ": "emitter", "valeur": "Saveurs Royales Lyon"}
 pv = R.preview(rule)
 check(pv["ok"] and len(pv["docs"]) == 3, f"aperçu : la règle changerait 3 documents rangés ({len(pv['docs'])})")
-check(pv["phrase"].startswith("Quand un document contient « Nuances Gourmandes » → Émetteur"), "la règle s'écrit en clair")
+check(pv["phrase"].startswith("Quand un document contient « Saveurs Royales » → Émetteur"), "la règle s'écrit en clair")
 r = R.save(rule); rid = r["rule"]["id"]
 check(r["ok"] and os.path.exists(os.path.join(root, ".bontoutou", "mes-regles.json")), "règle enregistrée dans mes-regles.json")
 ap = R.apply(rid, [d["id"] for d in pv["docs"]])
 paie = [d for d in b.documents() if d["type"] == "bulletin_paie"][0]
-check(ap["ok"] and ap["n"] == 3 and paie["emitter"] == "Nuances-Gourmandes-Lyon" and "Nuances-Gourmandes-Lyon" in paie["path"], "appliquée : fichiers renommés")
+check(ap["ok"] and ap["n"] == 3 and paie["emitter"] == "Saveurs-Royales-Lyon" and "Saveurs-Royales-Lyon" in paie["path"], "appliquée : fichiers renommés")
 check(paie["versions"] == 2, "le suivi des fiches de paie reste entier (2 versions)")
 b.undo(ap["batch"])
-check([d for d in b.documents() if d["type"] == "bulletin_paie"][0]["emitter"] == "Nuances-Gourmandes", "une seule annulation défait tout le lot")
+check([d for d in b.documents() if d["type"] == "bulletin_paie"][0]["emitter"] == "Saveurs-Royales", "une seule annulation défait tout le lot")
 # 2. La règle sert aux nouveaux documents
 b.add_upload("paie_septembre.pdf", open(os.path.join(src, "paie_septembre.pdf"), "rb").read())
 p = [x for x in b.inbox() if x["orig"] == "paie_septembre.pdf"][0]
-check(p["emitter"] == "Nuances-Gourmandes-Lyon" and any("Règle perso" in x for x in p["reasons"]), "nouveau document : la règle s'applique, « Pourquoi ? » le dit")
+check(p["emitter"] == "Saveurs-Royales-Lyon" and any("Règle perso" in x for x in p["reasons"]), "nouveau document : la règle s'applique, « Pourquoi ? » le dit")
 # 3. Règle de type + intitulé limité à un type
 r2 = R.save({"indice": "Merci pour votre visite", "champ": "type", "valeur": "facture"})
 t = [x for x in b.inbox() if x["orig"] == "truc_bizarre.pdf"][0]

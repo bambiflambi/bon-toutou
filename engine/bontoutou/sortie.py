@@ -22,6 +22,7 @@ PURPOSES = {
     "ia_externe": "Demander l'avis d'une IA externe",
     "bug": "Envoyer un rapport de bug",
     "proposition": "Proposer une règle ou un type",
+    "mail": "Relever les pièces jointes de l'adresse admin",
 }
 LEVELS = {"local": "🔒 Local uniquement", "autorisation": "◐ Sur autorisation", "externe": "☁ Externe autorisé"}
 
@@ -62,6 +63,46 @@ def http(url, data=None, headers=None, timeout=60, method=None, purpose=None, co
     req = urllib.request.Request(url, data=data, headers=headers or {}, method=method)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
+
+
+_HOST = __import__("re").compile(r"^(?=.{4,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,63}$")
+
+
+def imap_open(host, port, user, password, consent=False, log=None, what="", timeout=30):
+    """Connexion IMAP chiffrée (SSL) à l'adresse admin. Lecture seule : c'est mail.py qui n'utilise que
+    SELECT readonly / SEARCH / FETCH BODY.PEEK. Le mot de passe va au serveur de messagerie, nulle part ailleurs."""
+    import imaplib
+    import ssl
+    host = (host or "").strip().lower()
+    port = int(port or 993)
+    if not _HOST.match(host) or host in LOCAL_HOSTS:
+        raise SortieRefusee("Adresse de serveur de messagerie invalide.")
+    if port not in (993,):
+        raise SortieRefusee("Bon toutou ne se connecte qu'en IMAP chiffré (port 993).")
+    if not consent:
+        raise SortieRefusee(f"{PURPOSES['mail']} : il faut ton accord pour cette action.")
+    if log is None:
+        raise SortieRefusee("Sortie impossible sans journal des sorties.")
+    log({"dest": host, "purpose": "mail", "label": PURPOSES["mail"], "what": what, "bytes": 0})
+    M = imaplib.IMAP4_SSL(host, port, ssl_context=ssl.create_default_context(), timeout=timeout) \
+        if _imap_has_timeout(imaplib) else imaplib.IMAP4_SSL(host, port, ssl_context=ssl.create_default_context())
+    try:
+        M.login(user, password)
+    except imaplib.IMAP4.error as e:
+        try:
+            M.logout()
+        except Exception:
+            pass
+        raise PermissionError(str(e))
+    return M
+
+
+def _imap_has_timeout(imaplib):
+    import inspect
+    try:
+        return "timeout" in inspect.signature(imaplib.IMAP4_SSL.__init__).parameters
+    except (TypeError, ValueError):
+        return False
 
 
 def http_lines(url, payload, timeout=3600, **kw):

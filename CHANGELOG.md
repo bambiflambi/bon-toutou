@@ -2,6 +2,18 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.5.0 — Trier vite, sans rien casser
+- **Trier en mode cartes** : un document à la fois, l'aperçu à gauche, la proposition à droite (type, émetteur, date, titulaire, dossier, nom, suivi, « Pourquoi ? »). **← Plus tard · ↓ Corriger · → Ranger · Z Annuler**, au clavier ou à la souris. **Ranger les sûrs d'un coup** pour les documents en confiance élevée. Le mode Liste reste disponible (bouton Cartes / Liste).
+- **Bon toutou respecte ton rangement** : en important un dossier, le chemin de chaque fichier est envoyé et les noms des dossiers font foi. `1.N Louis Fournil 2018-09:2020-07` donne l'employeur Louis Fournil et sa période ; le numéro et la lettre devant sont ignorés. Le mois est lu dans le nom du fichier (`2019 03`), un fichier de plusieurs mois (`2018-09:2019-02`) devient un lot. Ton nom, une ville ou une ligne du bulletin (« Autres… », « Salarié… ») ne sont plus pris pour un employeur. Les bulletins scolaires ne deviennent plus des fiches de paie.
+- **Ce que Bon toutou a compris** de ton rangement s'affiche après l'import, avec le choix **Respecter mon rangement / Tout réorganiser**. Quand le dossier et le document ne disent pas la même chose, la carte le montre et tu choisis (garder ton dossier ou prendre le document).
+- **Un employeur, un dossier** : Fournil, Boulangerie-Fournil et Louis Fournil sont reconnus comme le même employeur. **Regrouper par employeur** (Documents) range tout sous le nom que tu choisis, en une seule action annulable.
+- **Adresse admin reliée** (IMAP, depuis ton ordinateur) : Gmail, iCloud, Infomaniak, Orange, Free, SFR, La Poste, Yahoo et la plupart des autres ; Outlook plus tard ; Proton et Tuta non (ils ne le permettent pas). Mot de passe d'application rangé dans le **trousseau du système** (Trousseau d'accès sur Mac), jamais dans un fichier. Test de connexion, liste des pièces jointes (noms seulement), copie dans Trier sur ton accord, sans doublon. Relève à l'ouverture en option (désactivée par défaut). Bon toutou **lit seulement** : il n'envoie, ne supprime, ne déplace et ne marque rien comme lu. Chaque connexion est notée dans le journal des sorties.
+- **Organismes** : bouton **Prévenir 30 organismes d'un coup** vers le service officiel « Je change de coordonnées » de service-public.gouv.fr (adresse, e-mail, téléphone : impôts, Assurance maladie, CAF, France Travail, France Titres, caisses de retraite, certains fournisseurs d'énergie). Une fois fait, les organismes couverts se cochent d'un clic ; la checklist garde les autres.
+- **Contacts** : « Bientôt disponible ».
+- « Mauvais papiers. » sous le nom, et sur Aujourd'hui : « L'administration est absurde. Bon toutou, lui, est dressé pour ça. »
+- Sécurité : un fichier reçu (HTML, SVG…) affiché dans l'app ne peut exécuter aucun script.
+- Fabrication : actions GitHub passées à Node 24 (checkout v5, setup-python v6, setup-node v5, upload-artifact v6).
+
 ## 0.4.0 — Freemarket devient Bon toutou
 - **Nouveau nom : Bon toutou**, avec une tête de chien provisoire comme icône. Au premier lancement, tout ce que Freemarket avait créé est repris en le **renommant seulement** (rien n'est supprimé) : données de l'appareil, fiches (`.freemarket` → `.bontoutou`), et le bureau `FREEMARKET_ADMIN` → `BON_TOUTOU_ADMIN` (un bureau nommé autrement garde son nom). Ce qui a été fait est noté dans `.bontoutou/migration-bon-toutou.json`.
 - **Le bouton « Ouvrir » marche dans l'app** : le document s'ouvre avec l'app habituelle de ton ordinateur (Aperçu…). Même chose pour l'aperçu dans Trier et PREUVE.txt.

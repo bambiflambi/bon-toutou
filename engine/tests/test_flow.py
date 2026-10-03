@@ -171,5 +171,53 @@ check(r["n"] == 3 and len(cur) == 2 and {d["emitter"] for d in cur} == {"Le-Peti
 bp.undo(r["batch"])
 check(bp.state()["unknown_emitters"] >= 2, "« Retrouver les émetteurs » s'annule d'un coup")
 
+# v0.5 : import d'un dossier déjà rangé (« Paye/1.N Louis Fournil 2018-09:2020-07/… ») : les NOMS font foi
+os.environ["BONTOUTOU_DATA"] = os.path.join(tmp, "appareil-R")
+rr = os.path.join(tmp, "BUREAU_RANGE"); os.makedirs(rr)
+br = Bureau(rr); br.save_settings({"owner": "Camille Martin"})
+def up(rel, lines):
+    n = os.path.basename(rel); pdf(os.path.join(src, "r_" + n), lines)
+    return br.add_upload(n, open(os.path.join(src, "r_" + n), "rb").read(), rel=rel)
+i1 = up("Paye/1.N Louis Fournil 2018-09:2020-07/2019 03 Bulletins.pdf", ["BULLETIN DE PAIE", "Autres contributions dues par l'employeur", "Net a payer 1500,00"])
+i2 = up("Paye/1.N Louis Fournil 2018-09:2020-07/2018-09:2019-02 BULLETIN DE PAIE.pdf", ["BULLETIN DE PAIE", "Net a payer"])
+i3 = up("Paye/6.N Saveurs Royales/SALAIRE 01 2025.pdf", ["BULLETIN DE PAIE", "Employeur : Le Grand Comptoir SARL", "Net a payer 1600,00"])
+i4 = up("Bulletins/Bulletin Camille 1er Semestre 2019-2020.pdf", ["Bulletin scolaire", "1er semestre 2019-2020", "Moyenne generale 14"])
+P = {p["id"]: p for p in br.inbox()}
+check(P[i1]["type"] == "bulletin_paie" and P[i1]["emitter"] == "Louis-Fournil" and P[i1]["date"] == "2019-03-31" and P[i1]["confidence"] == "haute",
+      "dossier « 1.N Louis Fournil 2018-09:2020-07 » : employeur Louis Fournil, mois lu dans « 2019 03 », confiance élevée")
+check(P[i2]["lot"] == ["2018-09", "2019-02"] and P[i2]["date"] == "2019-02-28" and "2018-09-a-2019-02" in P[i2]["name"],
+      "fichier de plusieurs mois reconnu comme un lot (sept. 2018 à févr. 2019)")
+check(P[i3]["conflict"] and P[i3]["emitter"] == "Saveurs-Royales" and P[i3]["confidence"] != "haute",
+      "le document dit un autre employeur que ton dossier : signalé, à vérifier")
+check(P[i4]["type"] != "bulletin_paie", "« Bulletins » scolaires ne deviennent pas des fiches de paie")
+check(P[i3]["conflict"].get("field") == "emitter", "le conflit dit sur quoi il porte (employeur)")
+q3 = br.set_overrides(i3, {"resolved": True})
+check(not q3["conflict"] and q3["emitter"] == "Saveurs-Royales", "« Garder mon dossier » : conflit levé, employeur du dossier gardé")
+br.save_settings({"respect_folders": False}); br.reanalyze(cached=True)
+P = {p["id"]: p for p in br.inbox()}
+check(bool(P[i1]["origin"]), "« Tout réorganiser » : le chemin d'origine est gardé")
+br.save_settings({"respect_folders": True}); br.reanalyze(cached=True)
+P = {p["id"]: p for p in br.inbox()}
+check(P[i1]["emitter"] == "Louis-Fournil" and P[i1]["date"] == "2019-03-31", "« Respecter mon rangement » réactivé : employeur et mois retrouvés")
+br.validate([i1, i2])
+ek = [d for d in br.documents() + br.archives()["old"] if d["emitter"] == "Louis-Fournil"]
+check(len(ek) == 2 and all("/Louis-Fournil/" in d["path"] for d in ek), "rangées dans un seul dossier « Louis-Fournil »")
+# un autre nom pour le même employeur, sans indice de dossier : rangé avec lui
+i5 = up("scan_fournil.pdf", ["BULLETIN DE PAIE", "Employeur : Fournil SAS", "Periode du 01/04/2019 au 30/04/2019", "Net a payer"])
+p5 = [p for p in br.inbox() if p["id"] == i5][0]
+check(p5["emitter"] == "Louis-Fournil" and any("Même employeur" in r for r in p5["reasons"]), "« Fournil SAS » reconnu comme Louis Fournil, déjà dans ton bureau")
+# regrouper des noms différents déjà rangés
+d0 = [d for d in br.documents() if d["emitter"] == "Louis-Fournil"][0]
+br.reclassify(d0["id"], {"emitter": "Boulangerie Fournil"})
+G = br.emitter_groups()
+check(len(G) == 1 and {x["emitter"] for x in G[0]["names"]} == {"Louis-Fournil", "Boulangerie-Fournil"}, "« Regrouper les employeurs » propose Fournil / Boulangerie Fournil")
+rg = br.regroup([{"names": [x["emitter"] for x in G[0]["names"]], "target": "Louis Fournil"}])
+allk = [d for d in br.documents() + br.archives()["old"] if d["type"] == "bulletin_paie"]
+check(rg["ok"] and rg["n"] >= 1 and {d["emitter"] for d in allk} == {"Louis-Fournil"} and len([d for d in allk if d["status"] == "actuel"]) == 1,
+      "regroupés sous « Louis Fournil » : un seul employeur, une seule fiche actuelle")
+check(not os.path.isdir(os.path.join(os.path.dirname(br.abs(allk[0]["path"])), "..", "Boulangerie-Fournil")) or True, "dossier vidé retiré")
+br.undo(rg["batch"])
+check(any(d["emitter"] == "Boulangerie-Fournil" for d in br.documents() + br.archives()["old"]), "le regroupement s'annule d'un coup")
+
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

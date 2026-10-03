@@ -72,8 +72,9 @@ try:
         cap = json.load(open(capf))
         allowed = [a["url"] for p_ in cap["permissions"] if isinstance(p_, dict) and p_.get("identifier") == "opener:allow-open-url" for a in p_["allow"]]
         import fnmatch
-        links = [o["url"] for o in st["orgs"] if o["url"]]
-        check(links and all(any(fnmatch.fnmatch(u, a) for a in allowed) for u in links), "chaque lien d'organisme est autorisé par l'app (et seulement ceux-là)")
+        links = [o["url"] for o in st["orgs"] if o["url"]] + [c_["url"] for c_ in st["coord"].values()] + st["mail_help"]
+        check(links and all(any(fnmatch.fnmatch(u, a) for a in allowed) for u in links), "chaque lien d'organisme, du service « Je change de coordonnées » et des messageries est autorisé par l'app")
+    check("FR" in st["coord"] and any(o["jcc"] for o in st["orgs"]), "organismes couverts par « Je change de coordonnées » repérés")
     _s, _set = call(port, "/api/settings", {"theme": "sauge", "mail": "admin@exemple.fr", "orgs_done": ["Impôts"]})
     c, st2 = call(port, "/api/state")
     check(st2["settings"]["theme"] == "sauge" and st2["settings"]["mail"] == "admin@exemple.fr" and st2["settings"]["orgs_done"] == ["Impôts"], "réglages v0.3 enregistrés (thème, adresse admin, organismes prévenus)")

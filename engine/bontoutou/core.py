@@ -22,7 +22,7 @@ import threading
 import uuid
 import zipfile
 
-from . import catalog, classify, ia, reader, sortie
+from . import catalog, classify, ia, mail, reader, sortie, trousseau
 from .catalog import CAT_FOLDERS_FR, CATEGORIES, COUNTRIES, SUB_FOLDERS_FR, TEMPLATES, TYPES
 
 SCHEMA = """
@@ -37,15 +37,16 @@ CREATE TABLE IF NOT EXISTS journal(batch TEXT PRIMARY KEY, ts TEXT, label TEXT, 
 CREATE TABLE IF NOT EXISTS texts(sha TEXT PRIMARY KEY, text TEXT, method TEXT);
 CREATE TABLE IF NOT EXISTS meta_seen(id TEXT PRIMARY KEY, stamp TEXT);
 CREATE TABLE IF NOT EXISTS egress(id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT, doc_id TEXT, dest TEXT, reason TEXT);
+CREATE TABLE IF NOT EXISTS mail_seen(key TEXT PRIMARY KEY, ts TEXT, sha TEXT, inbox_id TEXT);
 """
 
 FORMAT = 1  # version du format des fiches, du profil et du journal écrits par cette version
 DOC_FIELDS = ("id", "suivi", "type", "label", "person", "country", "cat", "sub", "emitter", "doc_date", "expiry", "path",
-              "orig_name", "sha", "status", "added_at", "note", "detail")
+              "orig_name", "sha", "status", "added_at", "note", "detail", "extra")
 DOSSIER_FIELDS = ("id", "template", "recipient", "country", "created_at", "state", "assign", "folder", "zip", "manifest",
                   "finalized_at", "sent_at")
-PROFILE_KEYS = ("owner", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted")          # suivent l'utilisateur sur tous ses appareils
-DEVICE_KEYS = ("theme", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
+PROFILE_KEYS = ("owner", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders")          # suivent l'utilisateur sur tous ses appareils
+DEVICE_KEYS = ("theme", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
 # Niveaux de confidentialité par défaut (catégorie -> local | autorisation | externe). Un document non trié est « local ».
 DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "09": "local", "10": "local", "13": "local",
                    "02": "autorisation", "03": "autorisation", "07": "autorisation", "12": "autorisation", "14": "autorisation",
@@ -152,6 +153,9 @@ class Bureau:
         if "detail" not in [r[1] for r in self.db.execute("PRAGMA table_info(docs)")]:
             self.db.execute("ALTER TABLE docs ADD COLUMN detail TEXT")  # précision : ASSR2, « Attestation de présence Dr X »…
             self.db.commit()
+        if "extra" not in [r[1] for r in self.db.execute("PRAGMA table_info(docs)")]:
+            self.db.execute("ALTER TABLE docs ADD COLUMN extra TEXT")   # JSON : lot de plusieurs mois, nom affiché de l'émetteur, chemin d'origine
+            self.db.commit()
         # ---- réglages : profil (synchronisé) + appareil (local)
         self.profile_path = os.path.join(self.fm, "profil.json")
         self.device_settings_path = os.path.join(self.local, "reglages-appareil.json")
@@ -165,7 +169,8 @@ class Bureau:
         self.settings = {"countries": ["FR", "NZ"], "use_ollama": False, "ollama_model": "", "owner": "", "ai_mode": "texte", "ai_engine": "auto", "ai_bench": {}, "ai_never": False, "maj_auto": False, "maj_last": "",
                          "privacy": dict(DEFAULT_PRIVACY), "disabled_packs": [],
                          "holders": [], "guide": {"etape": 0, "fini": False, "masque": False},
-                         "mail": "", "orgs_done": [], "notify": [], "plus_done": [], "trusted": "", "theme": "champagne"}
+                         "mail": "", "mail_host": "", "mail_port": 993, "mail_auto": False, "mail_days": 90, "mail_saved": False,
+                         "respect_folders": True, "orgs_done": [], "notify": [], "plus_done": [], "trusted": "", "theme": "champagne"}
         for pth in (self.profile_path, self.device_settings_path):
             d = read_json(pth, {}) or {}
             if int(d.get("format", 1) or 1) > FORMAT:
@@ -230,11 +235,17 @@ class Bureau:
 
     def doc_dir(self, cc, type_id, emitter, archive=False):
         """Dossier d'un document : sous-dossier de sa catégorie, puis un dossier par émetteur pour les papiers
-        d'emploi (fiches de paie, contrats…) : 03-2_Bulletins-paie/Nuances-Gourmandes/."""
+        d'emploi (fiches de paie, contrats…) : 03-2_Bulletins-paie/Saveurs-Royales/."""
         T = TYPES.get(type_id) or TYPES["autre"]
         p = self.archive_sub(cc, T["cat"], T["sub"]) if archive else self.sub_dir(cc, T["cat"], T["sub"])
         if T.get("par_emetteur") and emitter and emitter != "Inconnu":
-            p = os.path.join(p, classify.slugify(emitter)[:40])
+            name = classify.slugify(emitter)[:40]
+            if not os.path.isdir(os.path.join(p, name)):
+                for d in sorted(os.listdir(p)):  # dossier déjà là sous un autre nom (le tien) : on le réutilise
+                    if os.path.isdir(os.path.join(p, d)) and not d.startswith(".") and classify.same_emitter(d, emitter):
+                        name = d
+                        break
+            p = os.path.join(p, name)
             os.makedirs(p, exist_ok=True)
         return p
 
@@ -249,6 +260,9 @@ class Bureau:
     # ------------------------------------------------------------ réglages
     def save_settings(self, patch):
         with self.lock:
+            patch = dict(patch)
+            if "mail" in patch and patch["mail"] != self.settings.get("mail") and "mail_saved" not in patch:
+                patch.update({"mail_saved": False, "mail_auto": False, "mail_host": ""})  # autre adresse : on la reteste
             for k in PROFILE_KEYS + DEVICE_KEYS:
                 if k in patch:
                     if k == "privacy":
@@ -513,7 +527,7 @@ class Bureau:
         return [dict(r) for r in rows]
 
     # ------------------------------------------------------------ entrée (Trier)
-    def register(self, path, source):
+    def register(self, path, source, rel=None):
         with self.lock:
             sha = sha256(path)
             if self.db.execute("SELECT 1 FROM inbox WHERE sha=? AND state='a_trier'", (sha,)).fetchone():
@@ -522,6 +536,10 @@ class Bureau:
             text, method = reader.extract(path)
             self._cache_text(sha, text, method)
             a = classify.analyze(text, os.path.basename(path), self.settings["countries"])
+            if rel and self.settings.get("respect_folders", True):
+                classify.apply_hints(a, classify.path_hints(rel))
+            elif rel:
+                a["origin"] = rel   # gardé : « Respecter mon rangement » pourra être réactivé plus tard
             if self._ai_wanted(a, text):
                 a["ai_pending"] = True
             a["method"] = method
@@ -606,6 +624,11 @@ class Bureau:
                     text, method = reader.extract(p)
                     self._cache_text(r["sha"], text, method)
                 a = classify.analyze(text, r["orig_name"], self.settings["countries"])
+                origin = (json.loads(r["analysis"] or "{}") or {}).get("origin")
+                if origin and self.settings.get("respect_folders", True):
+                    classify.apply_hints(a, classify.path_hints(origin))
+                elif origin:
+                    a["origin"] = origin
                 if self._ai_wanted(a, text):
                     a["ai_pending"] = True
                 a["method"] = method
@@ -617,12 +640,15 @@ class Bureau:
             self._ai_kick()
         return {"ok": True, "n": n}
 
-    def add_upload(self, name, data):
+    def add_upload(self, name, data, rel=None, source=None):
+        """Un fichier déposé ou importé. rel = son chemin dans le dossier importé (« Paye/1.N Louis Fournil…/2019 03.pdf ») :
+        seuls les NOMS servent d'indices (employeur, mois), le dossier d'origine n'est jamais modifié."""
         safe = re.sub(r"[/\\:]", "_", os.path.basename(name)) or "document"
         p = unique_path(self.inbox_dir, safe)
         with open(p, "wb") as f:
             f.write(data)
-        return self.register(p, "Dépôt")
+        rel = (rel or "").replace("\\", "/").strip("/")
+        return self.register(p, source or ("Dossier importé" if "/" in rel else "Dépôt"), rel if "/" in rel else None)
 
     def scan_inbox(self):
         known = {r["path"] for r in self.db.execute("SELECT path FROM inbox WHERE state='a_trier'")}
@@ -636,6 +662,123 @@ class Bureau:
                 if self.rel(p) not in known and self.register(p, "Dossier 00_A-TRIER"):
                     added += 1
         return added
+
+    # ------------------------------------------------------------ adresse admin (IMAP, depuis cet ordinateur)
+    def mail_status(self):
+        s = self.settings
+        name, host, port, help_url, no = mail.provider_for(s.get("mail"), s.get("mail_host"), s.get("mail_port"))
+        return {"address": s.get("mail") or "", "provider": name, "host": host, "port": port, "help": help_url, "unsupported": no,
+                "saved": bool(s.get("mail_saved")), "where": trousseau.where(), "auto": bool(s.get("mail_auto")),
+                "days": int(s.get("mail_days") or 90), "seen": self.db.execute("SELECT COUNT(*) FROM mail_seen").fetchone()[0],
+                "providers": sorted({v[0] for v in mail.PROVIDERS.values()})}
+
+    def _mail_open(self, consent, what, address=None, password=None, host=None, port=None):
+        address = (address or self.settings.get("mail") or "").strip()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", address):
+            raise ValueError("Indique d'abord ton adresse admin.")
+        name, host, port, _, no = mail.provider_for(address, host or self.settings.get("mail_host"), port or self.settings.get("mail_port"))
+        if no:
+            raise ValueError(no)
+        pw = password or trousseau.load(mail.SERVICE, address)
+        if not pw:
+            raise ValueError("Mot de passe d'application manquant : redonne-le pour relier l'adresse.")
+        try:
+            return sortie.imap_open(host, port, address, pw, consent=consent, log=self.log_sortie, what=what), (name, host, port, address, pw)
+        except PermissionError:
+            raise ValueError(f"{name} a refusé la connexion. Utilise un mot de passe d'application (pas ton mot de passe habituel), "
+                             "et vérifie que l'accès IMAP est activé.")
+        except sortie.SortieRefusee:
+            raise
+        except Exception as e:
+            raise ValueError(f"Impossible de joindre {host} ({type(e).__name__}). Vérifie ta connexion internet et le nom du serveur.")
+
+    @staticmethod
+    def _mail_close(M):
+        try:
+            M.logout()
+        except Exception:
+            pass
+
+    def mail_connect(self, address, password, host=None, port=None, consent=False):
+        """Teste la connexion ; si elle marche, le mot de passe va dans le trousseau du système (jamais dans un fichier)."""
+        try:
+            M, (name, host, port, address, pw) = self._mail_open(consent, "Test de connexion", address, password, host, port)
+        except (ValueError, sortie.SortieRefusee) as e:
+            return {"ok": False, "msg": str(e)}
+        try:
+            typ, data = M.select("INBOX", readonly=True)
+            n = int((data or [b"0"])[0] or 0) if typ == "OK" else 0
+        except Exception:
+            n = 0
+        finally:
+            self._mail_close(M)
+        safe = trousseau.save(mail.SERVICE, address, pw)
+        custom = host if host != mail.provider_for(address)[1] else ""
+        self.save_settings({"mail": address, "mail_host": custom, "mail_port": port, "mail_saved": True})
+        return {"ok": True, "provider": name, "messages": n, "keychain": safe, "where": trousseau.where(), "status": self.mail_status()}
+
+    def mail_scan(self, consent=False, days=None):
+        """Liste les pièces jointes récentes (noms seulement, rien n'est téléchargé)."""
+        try:
+            M, _ = self._mail_open(consent, "Liste des pièces jointes (en-têtes seulement)")
+        except (ValueError, sortie.SortieRefusee) as e:
+            return {"ok": False, "msg": str(e)}
+        try:
+            seen = {r[0] for r in self.db.execute("SELECT key FROM mail_seen")}
+            items = mail.scan(M, int(days or self.settings.get("mail_days") or 90), seen)
+        except Exception as e:
+            return {"ok": False, "msg": f"Lecture de la boîte impossible ({type(e).__name__})."}
+        finally:
+            self._mail_close(M)
+        self._mail_cache = {i["key"]: i for i in items}
+        return {"ok": True, "items": [{k: i[k] for k in ("key", "filename", "size", "from", "from_addr", "subject", "date")} for i in items]}
+
+    def mail_import(self, keys, consent=False):
+        """Copie les pièces jointes choisies dans Trier. Le mail reste intact (lu en lecture seule, jamais marqué lu)."""
+        cache = getattr(self, "_mail_cache", {}) or {}
+        want = [cache[k] for k in keys or [] if k in cache]
+        if not want:
+            return {"ok": False, "msg": "Rien à copier : relance la liste."}
+        try:
+            M, _ = self._mail_open(consent, f"Copie de {len(want)} pièce(s) jointe(s) dans Trier")
+        except (ValueError, sortie.SortieRefusee) as e:
+            return {"ok": False, "msg": str(e)}
+        added, dup, failed = 0, 0, 0
+        try:
+            for it in want:
+                try:
+                    data = mail.fetch(M, it["uid"], it["part"], it["encoding"])
+                except Exception:
+                    failed += 1
+                    continue
+                h = hashlib.sha256(data).hexdigest()
+                iid = None
+                if self.db.execute("SELECT 1 FROM docs WHERE sha=? UNION SELECT 1 FROM inbox WHERE sha=? AND state='a_trier'", (h, h)).fetchone():
+                    dup += 1
+                else:
+                    iid = self.add_upload(it["filename"], data, source="Adresse admin" + (f" · {it['from']}" if it.get("from") else ""))
+                    added += 1 if iid else 0
+                self.db.execute("INSERT OR REPLACE INTO mail_seen VALUES(?,?,?,?)", (it["key"], now(), h, iid))
+                self.db.commit()
+                cache.pop(it["key"], None)
+        finally:
+            self._mail_close(M)
+        return {"ok": True, "added": added, "dup": dup, "failed": failed}
+
+    def mail_auto_run(self):
+        """Relève à l'ouverture (si tu l'as activée) : liste puis copie tout ce qui est nouveau dans Trier."""
+        if not (self.settings.get("mail_auto") and self.settings.get("mail_saved") and self.settings.get("mail")):
+            return {"ok": False, "skipped": True}
+        r = self.mail_scan(consent=True)
+        if not r.get("ok") or not r["items"]:
+            return dict(r, added=0)
+        return self.mail_import([i["key"] for i in r["items"]], consent=True)
+
+    def mail_forget(self):
+        if self.settings.get("mail"):
+            trousseau.forget(mail.SERVICE, self.settings["mail"])
+        self.save_settings({"mail_saved": False, "mail_auto": False})
+        return {"ok": True, "status": self.mail_status()}
 
     PERSONAL_CATS = ("01", "06", "09", "12", "15")
 
@@ -662,22 +805,46 @@ class Bureau:
 
     def display_label(self, a):
         T = TYPES[a["type"]]
+        emname = (a.get("emitter_display") or (a.get("emitter") or "").replace("-", " ")).strip()
+        lot = ""
+        if a.get("lot"):
+            lot = " · " + self._ym_label(a["lot"][0]) + " à " + self._ym_label(a["lot"][1])
         if (a.get("detail") or "").strip():
             lab = a["detail"].strip()
             if T.get("suivi") == "emitter" and a.get("emitter") and a["emitter"] != "Inconnu":
-                lab += " — " + a["emitter"].replace("-", " ")
-            return lab
+                lab += " — " + emname
+            return lab + lot
         lab = T["label"]
         if a["type"] in ("avis_impot", "declaration_revenus", "ird_assessment") and a.get("date"):
             lab += f" {a['date'][:4]} (revenus {a.get('income_year') or int(a['date'][:4]) - 1})"
         if T.get("suivi") == "emitter" and a.get("emitter") and a["emitter"] != "Inconnu":
-            lab += " — " + a["emitter"].replace("-", " ")
-        return lab
+            lab += " — " + emname
+        return lab + lot
+
+    @staticmethod
+    def _ym_label(ym):
+        return classify.MOIS[int(ym[5:7]) - 1] + " " + ym[:4]
+
+    def canon_emitter(self, a):
+        """Un employeur déjà connu sous un autre nom (« Fournil » / « Boulangerie-Fournil ») : on garde le nom déjà utilisé.
+        Si le nom vient de TON dossier (import), c'est lui qui fait foi : rien n'est remplacé."""
+        if a.get("emitter_display") or a.get("emitter_rule") or a.get("type") not in classify.EMPLOYMENT or not a.get("emitter") or a["emitter"] == "Inconnu":
+            return a["emitter"]
+        names = [r[0] for r in self.db.execute("SELECT emitter, COUNT(*) n FROM docs WHERE type IN (%s) AND emitter IS NOT NULL AND emitter!='Inconnu' GROUP BY emitter ORDER BY n DESC"
+                                               % ",".join("'%s'" % t for t in classify.EMPLOYMENT)).fetchall()]
+        if a["emitter"] in names:
+            return a["emitter"]
+        for n in names:
+            if classify.same_emitter(n, a["emitter"]):
+                return n
+        return a["emitter"]
 
     def make_name(self, a, ext):
         T = TYPES[a["type"]]
         obj = classify.slugify(a["detail"].strip())[:50] if (a.get("detail") or "").strip() else T["slug"]
-        if T.get("period") == "month":
+        if a.get("lot"):
+            obj += "-" + a["lot"][0] + "-a-" + a["lot"][1]
+        elif T.get("period") == "month":
             obj += "-" + a["date"][:7]
         elif T.get("period") == "year":
             obj += "-" + a["date"][:4]
@@ -697,6 +864,12 @@ class Bureau:
         for k in ("type", "country", "emitter", "date", "expiry", "person", "detail"):
             if ov.get(k):
                 a[k] = ov[k] if k != "emitter" else classify.slugify(ov[k])
+                if k == "emitter":
+                    a["emitter_display"] = ov[k].strip()
+        canon = self.canon_emitter(a)
+        if canon != a["emitter"]:
+            a["reasons"] = a["reasons"] + [f"Même employeur que « {canon.replace('-', ' ')} », déjà dans ton bureau : rangé avec lui"]
+            a["emitter"] = canon
         T = TYPES[a["type"]]
         ext = os.path.splitext(row["orig_name"])[1] or ".pdf"
         name = self.make_name(a, ext)
@@ -707,7 +880,8 @@ class Bureau:
              "ai_pending": bool(a.get("ai_pending")), "date_note": None if ov.get("date") else a.get("date_note"),
              "emitter": a["emitter"], "date": a["date"], "expiry": a.get("expiry"), "confidence": a["confidence"],
              "reasons": a["reasons"], "excerpt": a.get("excerpt", ""), "name": name, "cat": T["cat"], "sub": T["sub"],
-             "suivi": key, "overridden": bool(ov), "overrides": {k: v for k, v in ov.items() if k in ("type", "emitter", "detail", "country") and v}}
+             "suivi": key, "overridden": bool(ov), "origin": a.get("origin"), "lot": a.get("lot"), "conflict": None if ov.get("resolved") or (a.get("conflict") or {}).get("field") in ov else a.get("conflict"),
+             "emitter_display": a.get("emitter_display") or a["emitter"].replace("-", " "), "overrides": {k: v for k, v in ov.items() if k in ("type", "emitter", "detail", "country") and v}}
         dup = self.db.execute("SELECT id,label,path FROM docs WHERE sha=?", (row["sha"],)).fetchone()
         p["duplicate"] = dict(dup) if dup else None
         cur = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status='actuel'", (key,)).fetchone() if key else None
@@ -741,7 +915,7 @@ class Bureau:
         with self.lock:
             row = self.db.execute("SELECT * FROM inbox WHERE id=?", (iid,)).fetchone()
             ov = json.loads(row["overrides"] or "{}")
-            ov.update({k: v for k, v in overrides.items() if k in ("type", "country", "emitter", "date", "expiry", "person", "detail")})
+            ov.update({k: v for k, v in overrides.items() if k in ("type", "country", "emitter", "date", "expiry", "person", "detail", "resolved")})
             self.db.execute("UPDATE inbox SET overrides=? WHERE id=?", (json.dumps(ov), iid))
             self.db.commit()
             return self._pub(self.proposal(self.db.execute("SELECT * FROM inbox WHERE id=?", (iid,)).fetchone()))
@@ -815,6 +989,9 @@ class Bureau:
                                  a["date"], a.get("expiry"), self.rel(dst), row["orig_name"], row["sha"], status, now(), None))
                 if a.get("detail"):
                     self.db.execute("UPDATE docs SET detail=? WHERE id=?", (a["detail"].strip(), did))
+                ex = {k: a[k] for k in ("lot", "emitter_display", "origin") if a.get(k)}
+                if ex:
+                    self.db.execute("UPDATE docs SET extra=? WHERE id=?", (json.dumps(ex, ensure_ascii=False), did))
                 ops.append({"t": "insert_doc", "id": did})
                 ops.append({"t": "inbox", "id": iid, "state": "a_trier", "path": row["path"]})
                 self.db.execute("UPDATE inbox SET state='range', path=? WHERE id=?", (self.rel(dst), iid))
@@ -896,6 +1073,12 @@ class Bureau:
             if not d:
                 return {"ok": False, "msg": "Document introuvable"}
             a = {"type": d["type"], "country": d["country"], "emitter": d["emitter"], "date": d["doc_date"], "expiry": d["expiry"], "person": d["person"], "detail": d["detail"]}
+            ex = json.loads(d["extra"] or "{}") if "extra" in d.keys() else {}
+            a.update({k: v for k, v in ex.items() if k in ("lot", "emitter_display", "origin")})
+            if fields.get("emitter") and classify.slugify(fields["emitter"]) != d["emitter"]:
+                ex["emitter_display"] = a["emitter_display"] = fields["emitter"].replace("-", " ").strip()
+            if fields.get("date") and fields["date"] != d["doc_date"]:
+                ex.pop("lot", None); a.pop("lot", None)
             for k in ("type", "country", "emitter", "date", "expiry", "person", "detail"):
                 if k in fields and fields[k] is not None:
                     a[k] = classify.slugify(fields[k]) if k == "emitter" and fields[k] else (fields[k] or None)
@@ -927,7 +1110,7 @@ class Bureau:
             self._doc_update(did, {"type": a["type"], "label": self.display_label(a), "country": a["country"], "cat": T["cat"],
                                    "sub": T["sub"], "emitter": a["emitter"], "doc_date": a["date"], "expiry": a.get("expiry"),
                                    "suivi": key, "path": self.rel(dst), "status": status, "person": self.holder(a),
-                                   "detail": (a.get("detail") or "").strip() or None}, ops)
+                                   "detail": (a.get("detail") or "").strip() or None, "extra": json.dumps(ex, ensure_ascii=False) if ex else None}, ops)
             if not own:
                 return {"ok": True, "id": did}
             b = self._journal(f"Corrigé : {self.display_label(a)}", ops)
@@ -952,25 +1135,76 @@ class Bureau:
                     k = self.db.execute("SELECT suivi FROM docs WHERE id=?", (d["id"],)).fetchone()["suivi"]
                     if k:
                         keys.add(k)
-            # chaque employeur retrouvé a son propre suivi : sa fiche la plus récente devient la version actuelle
-            for k in keys:
-                L = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status IN ('actuel','ancienne_version') ORDER BY doc_date DESC", (k,)).fetchall()
-                for i, d in enumerate(L):
-                    want = "actuel" if i == 0 else "ancienne_version"
-                    if d["status"] == want:
-                        continue
-                    src = self.abs(d["path"])
-                    folder = self.doc_dir(d["country"], d["type"], d["emitter"], archive=want != "actuel")
-                    fields = {"status": want}
-                    if os.path.exists(src):
-                        dst = unique_path(folder, os.path.basename(src))
-                        self._move(src, dst, ops)
-                        fields["path"] = self.rel(dst)
-                    self._doc_update(d["id"], fields, ops)
+            self._fix_suivi(keys, ops)
             if not changes:
                 return {"ok": True, "n": 0, "changes": []}
             b = self._journal(f"Émetteur retrouvé pour {len(changes)} document{'s' if len(changes) > 1 else ''}", ops)
             return {"ok": True, "n": len(changes), "changes": changes, "batch": b}
+
+    def _fix_suivi(self, keys, ops):
+        """Après un regroupement : dans chaque suivi, la version la plus récente est l'actuelle, les autres passent dans l'historique."""
+        for k in keys:
+            L = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status IN ('actuel','ancienne_version') ORDER BY doc_date DESC", (k,)).fetchall()
+            for i, d in enumerate(L):
+                want = "actuel" if i == 0 else "ancienne_version"
+                if d["status"] == want:
+                    continue
+                src = self.abs(d["path"])
+                folder = self.doc_dir(d["country"], d["type"], d["emitter"], archive=want != "actuel")
+                fields = {"status": want}
+                if os.path.exists(src):
+                    dst = unique_path(folder, os.path.basename(src))
+                    self._move(src, dst, ops)
+                    fields["path"] = self.rel(dst)
+                self._doc_update(d["id"], fields, ops)
+
+    def emitter_groups(self):
+        """Employeurs qui semblent être le même sous plusieurs noms (« Fournil », « Boulangerie-Fournil »…). Rien n'est modifié."""
+        rows = self.db.execute("SELECT emitter, COUNT(*) n FROM docs WHERE type IN (%s) AND emitter IS NOT NULL AND emitter!='Inconnu' GROUP BY emitter"
+                               % ",".join("'%s'" % t for t in classify.EMPLOYMENT)).fetchall()
+        names = {r["emitter"]: r["n"] for r in rows}
+        groups, done = [], set()
+        for a in sorted(names, key=lambda x: -names[x]):
+            if a in done:
+                continue
+            g = [a] + [b for b in names if b != a and b not in done and classify.same_emitter(a, b)]
+            done.update(g)
+            if len(g) > 1:
+                groups.append({"names": [{"emitter": n, "label": n.replace("-", " "), "n": names[n]} for n in g],
+                               "target": max(g, key=lambda x: (names[x], len(x))).replace("-", " ")})
+        return groups
+
+    def regroup(self, groups):
+        """Regroupe chaque groupe sous un seul nom d'employeur (celui que tu choisis) : fichiers renommés et rangés dans son dossier.
+        Une seule annulation pour tout. Les dossiers vidés par le regroupement sont retirés (ils sont vides)."""
+        with self.lock:
+            ops, n, keys, emptied = [], 0, set(), set()
+            for g in groups or []:
+                target = (g.get("target") or "").strip()
+                names = [x for x in g.get("names", []) if isinstance(x, str)]
+                if not target or not names:
+                    continue
+                for d in self.db.execute("SELECT * FROM docs WHERE emitter IN (%s) AND type IN (%s)" % (",".join("?" * len(names)), ",".join("'%s'" % t for t in classify.EMPLOYMENT)), names).fetchall():
+                    if d["emitter"] == classify.slugify(target) and (json.loads(d["extra"] or "{}").get("emitter_display") or "") == target:
+                        continue
+                    emptied.add(os.path.dirname(self.abs(d["path"])))
+                    r = self.reclassify(d["id"], {"emitter": target}, ops)
+                    if r.get("ok"):
+                        n += 1
+                        k = self.db.execute("SELECT suivi FROM docs WHERE id=?", (d["id"],)).fetchone()["suivi"]
+                        if k:
+                            keys.add(k)
+            self._fix_suivi(keys, ops)
+            for d in emptied:
+                try:
+                    if os.path.isdir(d) and not os.listdir(d) and d.startswith(self.root + os.sep):
+                        os.rmdir(d)
+                except OSError:
+                    pass
+            if not n:
+                return {"ok": True, "n": 0}
+            b = self._journal(f"Employeurs regroupés ({n} document{'s' if n > 1 else ''})", ops)
+            return {"ok": True, "n": n, "batch": b}
 
     def terminate(self, did):
         with self.lock:
@@ -1326,7 +1560,9 @@ class Bureau:
             "categories": CATEGORIES, "subs": SUB_FOLDERS_FR,
             "templates": {k: v["label"] for k, v in TEMPLATES.items()},
             "tpl": {k: {"label": v["label"], "n": len(v.get("pieces", [])), "ic": v.get("icone", "")} for k, v in TEMPLATES.items()},
-            "orgs": [{"cc": o[0], "nom": o[1], "url": o[2], "note": o[3]} for o in catalog.ORGS if o[0] in self.settings["countries"]],
+            "orgs": [{"cc": o[0], "nom": o[1], "url": o[2], "note": o[3], "jcc": o[4]} for o in catalog.ORGS if o[0] in self.settings["countries"]],
+            "coord": {k: v for k, v in catalog.COORD.items() if k in self.settings["countries"]},
+            "mail_help": sorted({v[3] for v in mail.PROVIDERS.values() if v[3]}),
             "sorties": self.sorties()[:30], "packs": catalog.PACKS, "events": self.events(),
             "local_only": c("SELECT COUNT(*) FROM docs WHERE status='actuel' AND cat IN (%s)" % ",".join(
                 "'%s'" % k for k, v in self.settings["privacy"].items() if v == "local") if any(v == "local" for v in self.settings["privacy"].values()) else "SELECT 0"),

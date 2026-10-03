@@ -1,4 +1,4 @@
-/* Bon toutou v0.3 — interface locale. Tout passe par le moteur sur ton ordinateur (127.0.0.1).
+/* Bon toutou v0.5 — interface locale. Tout passe par le moteur sur ton ordinateur (127.0.0.1).
    app.js : socle (état, appels, barre du haut, rendu), Trier, Documents, Dossiers, Archives.
    vues.js : Aujourd'hui, Calendrier, Contacts. reglages.js : Réglages compartimentés. */
 const S = { v: "home", sv: null, st: null, inbox: [], docs: [], dossiers: [], arch: null, doc: null, dos: null,
@@ -40,16 +40,17 @@ async function load() {
   if (S.st.setup) { S.v = "setup"; return render(); }
   if (S.v === "setup") S.v = "home";
   if (S.v === "trier") S.inbox = await api("/api/inbox");
-  if (S.v === "docs") S.docs = await api("/api/docs");
+  if (S.v === "docs") { S.docs = await api("/api/docs"); S.groups = await api("/api/emitters/groups", {}); }
   if (S.v === "doc") S.doc = await api("/api/doc?id=" + S.docId);
   if (S.v === "dossiers") S.dossiers = await api("/api/dossiers");
   if (S.v === "dossier") S.dos = await api("/api/dossier?id=" + S.dosId);
   if (S.v === "archives") S.arch = await api("/api/archives");
-  if (S.v === "contacts") S.contacts = await api("/api/contacts");
+  if (S.v === "reglages" && S.sv === "mail") S.mst = await api("/api/mail/status", {});
   if (S.v === "reglages") { S.hist = await api("/api/history"); S.rules = await api("/api/rules"); }
   if (S.v === "guide") S.inbox = await api("/api/inbox");
   if (S.v === "guide" || (S.v === "trier" && S.st && !S.st.settings.guide.fini && !S.st.settings.guide.masque)) S.guide = await api("/api/guide");
   render();
+  if (window.mailAutoOnce) mailAutoOnce();
   clearTimeout(S.poll);
   if (S.v === "trier" && (S.inbox || []).some((p) => p.ai_pending)) S.poll = setTimeout(async () => { if (S.v === "trier" && !document.querySelector("input:focus,select:focus")) { S.inbox = await api("/api/inbox"); render(); } else load(); }, 4000);
 }
@@ -61,7 +62,7 @@ function go(v, extra = {}) {
 }
 
 /* ------------------------------------------------ BARRE DU HAUT */
-const PLUS = [["cal", "Calendrier", "calendar"], ["archives", "Archives", "archive"], ["contacts", "Contacts", "name", "aperçu"], ["reglages", "Réglages", "gear"]];
+const PLUS = [["cal", "Calendrier", "calendar"], ["archives", "Archives", "archive"], ["contacts", "Contacts", "name", "bientôt"], ["reglages", "Réglages", "gear"]];
 function topbar() {
   const vv = $("#ver"); if (vv && S.st) vv.textContent = "Bon toutou " + (S.st.version ? "v" + S.st.version : "") + " · local · code public AGPL-3.0";
   const setup = S.v === "setup" || (S.st && S.st.setup);
@@ -69,7 +70,7 @@ function topbar() {
   const on = { doc: "docs", dossier: "dossiers", guide: "trier" }[S.v] || S.v;
   const plusOn = PLUS.find((x) => x[0] === on);
   const th = (S.st && S.st.settings && S.st.settings.theme) || "champagne";
-  $("#topbar").innerHTML = `<button class="brand" ${setup ? "" : 'data-go="home"'}><span class="mark">${IC.dog}</span><span><b>Bon toutou</b><small class="tagline"></small></span></button>
+  $("#topbar").innerHTML = `<button class="brand" ${setup ? "" : 'data-go="home"'}><span class="mark">${IC.dog}</span><span><b>Bon toutou</b><small class="tagline">Mauvais papiers.</small></span></button>
   ${setup ? "" : `<nav class="nav">${[["home", "Aujourd'hui"], ["trier", "Trier", c.inbox], ["docs", "Documents"], ["dossiers", "Dossiers"]].map((n) => `<button class="${on === n[0] ? "on" : ""}" data-go="${n[0]}">${n[1]}${n[2] ? ` <span class="badge">${n[2]}</span>` : ""}</button>`).join("")}
     <span class="plusw"><button class="${plusOn ? "on" : ""}" data-act="plusmenu" aria-expanded="${!!S.pm}">${plusOn ? plusOn[1] : "Plus"} <span class="caret">▾</span></button>
     ${S.pm ? `<div class="pmenu">${PLUS.map((x) => `<button data-go="${x[0]}"><span class="oi">${IC[x[2]]}</span>${x[1]}${x[3] ? ` <span class="soontag">${x[3]}</span>` : ""}</button>`).join("")}</div>` : ""}</span></nav>`}
@@ -101,21 +102,25 @@ function reasons(p) {
   const how = { pypdf: "texte du PDF", pdftotext: "texte du PDF", ocr: "lecture de l'image (OCR)", texte: "fichier texte" }[p.method] || "nom du fichier seulement";
   return `<details class="why"><summary>Pourquoi ?</summary><ul>${p.reasons.map((r) => `<li>${esc(r)}</li>`).join("")}<li>Lu par : ${how}</li></ul></details>`;
 }
+function trierAdd(P) {
+  return `<div class="addrow">
+    <span class="ghost">${IC.up} Déposer des fichiers<input type="file" id="files" multiple aria-label="Déposer des fichiers"></span>
+    <span class="ghost">${IC.folder} Importer un dossier<input type="file" id="dirIn" webkitdirectory multiple aria-label="Importer un dossier"></span>
+    <button class="ghost" data-act="scan">${IC.sync} Relire 00_A-TRIER</button>
+    ${P.length ? `<button class="ghost" data-act="reanalyze">${IC.sparkles} Relancer l'analyse</button>` : ""}
+    <button class="ghost" data-go="reglages" data-sv="mail">${IC.mail} ${S.st.settings.mail_saved ? "Relever l'adresse admin" : "Relier l'adresse admin"}</button></div>
+  <div class="dropzone" id="drop"><b>Glisse tes fichiers ou un dossier ici</b><span class="sub">PDF, photos, scans : ils sont copiés dans 00_A-TRIER, l'original reste où il est. Lu sur ton ordinateur, rien ne sort.</span></div>
+  ${window.guideCard ? guideCard() : ""}
+  ${S.busy ? `<div class="card busy"><span class="spin"></span>${esc(S.busy)}</div>` : ""}
+`;
+}
 const isHi = (p) => p.confidence === "haute" && !p.duplicate && !p.overridden && !(S.solo && S.solo.has(p.id));
 function trier() {
   S.solo = S.solo || new Set();
   const P = S.inbox, hi = P.filter(isHi), rest = P.filter((p) => !hi.includes(p));
   const sel = hi.filter((p) => !S.unchecked || !S.unchecked.has(p.id));
   return `<h1>Trier</h1><p class="lead">${P.length ? `${P.length} ${plural(P.length, "document")} en attente. ` : ""}Bon toutou lit tes papiers sur ton ordinateur, propose un nom et une place, et tu valides. <b>Tu peux te tromper : Bon toutou ne détruit rien.</b></p>
-  <div class="addrow">
-    <span class="ghost">${IC.up} Déposer des fichiers<input type="file" id="files" multiple aria-label="Déposer des fichiers"></span>
-    <span class="ghost">${IC.folder} Importer un dossier<input type="file" id="dirIn" webkitdirectory multiple aria-label="Importer un dossier"></span>
-    <button class="ghost" data-act="scan">${IC.sync} Relire 00_A-TRIER</button>
-    ${P.length ? `<button class="ghost" data-act="reanalyze">${IC.sparkles} Relancer l'analyse</button>` : ""}
-    <button class="ghost" data-go="reglages" data-sv="mail">${IC.mail} Adresse admin <span class="soontag">bientôt</span></button></div>
-  <div class="dropzone" id="drop"><b>Glisse tes fichiers ou un dossier ici</b><span class="sub">PDF, photos, scans : ils sont copiés dans 00_A-TRIER, l'original reste où il est. Lu sur ton ordinateur, rien ne sort.</span></div>
-  ${window.guideCard ? guideCard() : ""}
-  ${S.busy ? `<div class="card busy"><span class="spin"></span>${esc(S.busy)}</div>` : ""}
+  ${trierAdd(P)}
   ${hi.length ? `<div class="label" style="margin-bottom:8px">En lot — confiance élevée</div><div class="card batch" style="margin-bottom:26px">${hi.map((p) => `<div class="row drow k-${esc(p.country)}">
       <input type="checkbox" data-chk="${p.id}" ${sel.includes(p) ? "checked" : ""} aria-label="Inclure">
       <div class="grow"><b>${esc(p.label)}</b> ${cc(p.country)} <span class="sub">· ${frd(p.date)}</span>
@@ -127,21 +132,24 @@ function trier() {
   ${rest.length ? `<div class="label" style="margin-bottom:8px">Un par un</div>${rest.map(tcard).join("")}` : ""}
   ${!P.length && !S.busy ? `<div class="card" style="padding:28px;text-align:center"><span class="oi" style="margin:0 auto 10px;background:var(--success-light);color:var(--success)">${IC.check}</span><b>Tout est trié.</b><div class="sub">Dépose un fichier ou un dossier ci-dessus.</div></div>` : ""}`;
 }
-function tcard(p) {
+function editFields(p) {
   const exp = ["carte_identite", "passeport", "permis_conduire", "visa", "assurance_habitation", "assurance_vehicule", "assurance_voyage", "carte_grise", "controle_vehicule"].includes(p.type);
-  return `<div class="card tcard ${p.confidence}">
-    <div class="tt"><span class="oi">${catIc(p.cat)}</span><b>${esc(p.label)}</b>${cc(p.country)}${p.cat ? lvBadge(p.cat) : ""}<span class="conf ${p.confidence}">${CONF[p.confidence]}</span>${p.ai_pending ? `<span class="pill acc"><span class="spin" style="width:11px;height:11px"></span> IA locale en train de lire…</span>` : ""}${reasons(p)}<span class="pill n">${esc(p.source)}</span>
-      ${p.duplicate ? `<span class="pill bad">Doublon exact de « ${esc(p.duplicate.label)} »</span>` : ""}
-      <button class="linkbtn" data-open-inbox="${p.id}" style="margin-left:auto">Aperçu</button></div>
-    <div class="edit">
+  return `<div class="edit">
       <label>Type<select class="field" data-ov="${p.id}" data-f="type">${typeOptions(p.type)}</select></label>
       <label>Pays<select class="field" data-ov="${p.id}" data-f="country">${Object.entries(S.st.countries).map(([k, v]) => `<option value="${k}" ${k === p.country ? "selected" : ""}>${k} · ${v}</option>`).join("")}</select></label>
-      <label>Émetteur<input class="field" data-ov="${p.id}" data-f="emitter" value="${esc(p.emitter)}"></label>
+      <label>Émetteur<input class="field" data-ov="${p.id}" data-f="emitter" value="${esc(p.emitter_display || p.emitter)}"></label>
       <label>Intitulé exact<input class="field" data-ov="${p.id}" data-f="detail" value="${esc(p.detail)}" placeholder="ex. ASSR2, Attestation de présence"></label>
       <label>Titulaire<input class="field" list="holders" data-ov="${p.id}" data-f="person" value="${esc(p.person === "moi" ? "" : p.person)}" placeholder="${esc(S.st.settings.owner || "toi")}"></label>
       <label>Date du document<input class="field" type="date" data-ov="${p.id}" data-f="date" value="${esc(p.date)}">${p.date_note ? `<small style="display:block;color:var(--warning);font-weight:500;text-transform:none;letter-spacing:0;margin-top:4px">≈ Date approximative : ${esc(p.date_note)}</small>` : ""}</label>
       ${exp ? `<label>Expire le<input class="field" type="date" data-ov="${p.id}" data-f="expiry" value="${esc(p.expiry || "")}"></label>` : ""}
-    </div>
+    </div>`;
+}
+function tcard(p) {
+  return `<div class="card tcard ${p.confidence}">
+    <div class="tt"><span class="oi">${catIc(p.cat)}</span><b>${esc(p.label)}</b>${cc(p.country)}${p.cat ? lvBadge(p.cat) : ""}<span class="conf ${p.confidence}">${CONF[p.confidence]}</span>${p.ai_pending ? `<span class="pill acc"><span class="spin" style="width:11px;height:11px"></span> IA locale en train de lire…</span>` : ""}${reasons(p)}<span class="pill n">${esc(p.source)}</span>
+      ${p.duplicate ? `<span class="pill bad">Doublon exact de « ${esc(p.duplicate.label)} »</span>` : ""}
+      <button class="linkbtn" data-open-inbox="${p.id}" style="margin-left:auto">Aperçu</button></div>
+    ${editFields(p)}
     <dl class="grid"><dt>Reçu</dt><dd class="fname" style="text-decoration:line-through;color:var(--text-tertiary)">${esc(p.orig)}</dd><dt>Nom proposé</dt><dd class="fname"><b>${esc(p.name)}</b></dd>
       <dt>Destination</dt><dd class="fname">${esc(p.dest)}</dd><dt>Document suivi</dt><dd>${esc(p.relation)}</dd></dl>
     ${window.ruleOffer ? ruleOffer({ inbox: p.id, overrides: p.overrides, type: p.type }) : ""}
@@ -176,7 +184,7 @@ function docs() {
     ${ax !== "exp" && !q ? `<button class="linkbtn emptytog" data-act="showempty">${S.showEmpty ? "Masquer" : "Afficher"} les catégories vides</button>` : ""}</div>`;
   const unk = S.docs.filter((d) => !d.emitter || d.emitter === "Inconnu").length;
   const banner = unk ? `<div class="card box" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;border-color:var(--warning)"><span class="oi" style="background:var(--warning-light);color:var(--warning)">${IC.search}</span><div class="grow"><b>${unk} ${plural(unk, "document")} sans émetteur</b><div class="sub">Bon toutou peut relire leur texte pour retrouver l'émetteur (l'employeur des fiches de paie) et les ranger dans son dossier. Annulable.</div></div><button class="cta small" data-act="redetect">Retrouver les émetteurs</button></div>` : "";
-  const head = head0 + banner;
+  const head = head0 + banner + (window.regroupCard ? regroupCard() : "");
   if (S.busy) return head + `<div class="card busy"><span class="spin"></span>${esc(S.busy)}</div>`;
   if (!S.docs.length) return head + `<div class="card empty">Aucun document pour l'instant. Commence par <button class="linkbtn" data-go="trier">Trier</button>.</div>`;
   if (q) { const L = S.docs.filter((d) => (d.label + d.path + d.emitter).toLowerCase().includes(q)); return head + `<div class="card doclist">${L.map(docRow).join("") || `<div class="row sub">Aucun document.</div>`}</div>`; }
@@ -289,7 +297,9 @@ async function upload(files) {
   let ok = 0;
   for (let i = 0; i < F.length; i++) {
     S.busy = `Lecture ${i + 1}/${F.length} : ${F[i].name}`; render();
-    try { await fetch("/api/upload?name=" + encodeURIComponent(F[i].name), { method: "POST", body: F[i] }); ok++; }
+    const rel = F[i]._rel || F[i].webkitRelativePath || "";   // chemin dans le dossier importé : les noms des dossiers servent d'indices
+    if (rel.includes("/")) S.imported = true;
+    try { await fetch("/api/upload?name=" + encodeURIComponent(F[i].name) + (rel ? "&rel=" + encodeURIComponent(rel) : ""), { method: "POST", body: F[i] }); ok++; }
     catch (e) { console.warn("illisible", F[i].name, e); }
   }
   S.busy = ""; await load();
@@ -298,7 +308,7 @@ async function upload(files) {
 /* Dossiers glissés : on parcourt leur contenu (sous-dossiers compris). */
 function readEntry(entry) {
   return new Promise((res) => {
-    if (entry.isFile) return entry.file((f) => res([f]), () => res([]));
+    if (entry.isFile) return entry.file((f) => { try { f._rel = String(entry.fullPath || "").replace(/^\/+/, ""); } catch (e) {} res([f]); }, () => res([]));
     if (!entry.isDirectory) return res([]);
     const rd = entry.createReader(), all = [];
     const next = () => rd.readEntries(async (batch) => {

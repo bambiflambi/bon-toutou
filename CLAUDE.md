@@ -21,6 +21,8 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **Étape D (app)** : `desktop/` (Tauri 2) choisit un port libre sur 127.0.0.1, lance le moteur embarqué `bontoutou-engine` (PyInstaller, `engine/entry.py`) avec `--port N --app --watch-pid <app>` et l'affiche ; le moteur s'arrête quand l'app se ferme. Sans dossier configuré, le moteur démarre en mode installation (`maj.setup_state`, `static/setup.js`). Mises à jour : `maj.check` (une requête vers GitHub Releases, accord + journal) ; rapport de bug sans document (`maj.bug_report`). Moteur IA intégré : `llama_cpp` (compilé en CI), modèles GGUF dont l'empreinte est fixée par `tools/pin_models.py` à la fabrication, téléchargés par `sortie.download` qui refuse toute empreinte fausse.
 
+- **v0.5** : `classify.path_hints` / `apply_hints` (les noms des dossiers importés font foi : employeur, période, lot de plusieurs mois ; conflits signalés), `same_emitter` (alias d'employeurs) et `Bureau.regroup`. Adresse admin : `bontoutou/mail.py` (lecture de BODYSTRUCTURE, sans réseau), `sortie.imap_open` (IMAP SSL 993, accord + journal), `bontoutou/trousseau.py` (mot de passe dans le trousseau du système, jamais sur disque). Interface : `static/cartes.js` (Trier en cartes, rangement compris, regroupement) et `static/adresse.js`.
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.
@@ -36,7 +38,7 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 3. **Python 3.9 compatible, zéro dépendance obligatoire** (le Python par défaut de macOS). `pypdf` et tesseract sont des bonus détectés à l'exécution.
 4. Le dossier Finder reste lisible sans l'app. Le nommage suit `AAAA-MM-JJ_PAYS_CAT_Emetteur_Objet.ext`.
 5. Interface en français. Dire « document suivi » (pas « document maître »). Confiance en mots, jamais en pourcentage. Toujours un « Pourquoi ? ».
-6. Avant chaque livraison : `cd engine && for t in flow sortie regles ia app; do python3 -m tests.test_$t; done`.
+6. Avant chaque livraison : `cd engine && for t in flow sortie regles ia app mail; do python3 -m tests.test_$t; done`.
 7. Licence AGPL-3.0. Aucune télémétrie, jamais.
 
 ## Prochaines étapes

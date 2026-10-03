@@ -49,7 +49,7 @@ class H(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         return self.rfile.read(n) if n else b""
 
-    def _file(self, path, inline=True):
+    def _file(self, path, inline=True, untrusted=False):
         if not os.path.isfile(path):
             return self._json({"error": "introuvable"}, 404)
         ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
@@ -59,6 +59,9 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if untrusted and not (ctype == "application/pdf" or ctype.startswith("image/") and ctype != "image/svg+xml"):
+            self.send_header("Content-Security-Policy", "sandbox")  # un fichier reçu (HTML, SVG…) ne peut jamais exécuter de script dans l'app
         self.send_header("Content-Disposition", ("inline" if inline else "attachment") + "; filename*=UTF-8''" + urllib.parse.quote(os.path.basename(path)))
         self.end_headers()
         self.wfile.write(data)
@@ -145,10 +148,10 @@ class H(BaseHTTPRequestHandler):
             if p == "/api/history":
                 return self._json(B.history())
             if p == "/api/file":
-                return self._file(B.abs(q["p"]), inline=q.get("dl") != "1")
+                return self._file(B.abs(q["p"]), inline=q.get("dl") != "1", untrusted=True)
             if p == "/api/inboxfile":
                 r = B.db.execute("SELECT path FROM inbox WHERE id=?", (q["id"],)).fetchone()
-                return self._file(B.abs(r["path"]))
+                return self._file(B.abs(r["path"]), untrusted=True)
         except Exception as e:  # pragma: no cover
             ERRORS.append({"route": p, "error": f"{type(e).__name__}: {e}"[:300]})
             del ERRORS[:-20]
@@ -165,7 +168,7 @@ class H(BaseHTTPRequestHandler):
             if B is None and p != "/api/setup":
                 return self._json({"error": "installation à terminer", "setup": True}, 409)
             if p == "/api/upload":
-                iid = B.add_upload(q.get("name", "document"), self._body())
+                iid = B.add_upload(q.get("name", "document"), self._body(), rel=q.get("rel"))
                 return self._json({"ok": True, "id": iid, "duplicate": iid is None})
             if p == "/api/rules/import":
                 return self._json(B.regles.import_pack(self._body().decode("utf-8", "ignore"), confirm=q.get("confirm") == "1"))
@@ -214,7 +217,7 @@ class H(BaseHTTPRequestHandler):
                 t, f = mask(data.get("text", ""))
                 return self._json({"text": t, "found": f})
             if p == "/api/reanalyze":
-                return self._json(B.reanalyze())
+                return self._json(B.reanalyze(cached=data.get("cached") is True))
             if p == "/api/scan":
                 return self._json({"ok": True, "added": B.scan_inbox()})
             if p == "/api/propose":
@@ -227,8 +230,25 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.undo(data.get("batch")))
             if p == "/api/reclassify":
                 return self._json(B.reclassify(data["id"], data.get("fields", {})))
+            if p == "/api/emitters/groups":
+                return self._json(B.emitter_groups())
+            if p == "/api/emitters/regroup":
+                return self._json(B.regroup(data.get("groups")))
             if p == "/api/redetect":
                 return self._json(B.redetect())
+            if p == "/api/mail/status":
+                return self._json(B.mail_status())
+            if p == "/api/mail/connect":
+                return self._json(B.mail_connect(data.get("address", ""), data.get("password", ""), data.get("host"), data.get("port"),
+                                                 consent=data.get("consent") is True))
+            if p == "/api/mail/scan":
+                return self._json(B.mail_scan(consent=data.get("consent") is True, days=data.get("days")))
+            if p == "/api/mail/import":
+                return self._json(B.mail_import(data.get("keys") or [], consent=data.get("consent") is True))
+            if p == "/api/mail/auto":
+                return self._json(B.mail_auto_run())
+            if p == "/api/mail/forget":
+                return self._json(B.mail_forget())
             if p == "/api/terminate":
                 return self._json(B.terminate(data["id"]))
             if p == "/api/dossier/create":
