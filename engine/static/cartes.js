@@ -21,6 +21,7 @@ trier = function () {
   return `${modeSwitch()}
   <p class="lead">${P.length ? `${P.length} ${plural(P.length, "document")} à trier. <b>On ne va pas y passer la journée.</b>` : "Rien à trier."} Bon toutou propose, tu décides. Il ne détruit rien.</p>
   ${trierAdd(P)}
+  ${S.st.counts.a_identifier ? `<div class="card box suresbar"><span class="oi">${IC.search}</span><div class="grow"><b>${S.st.counts.a_identifier} ${plural(S.st.counts.a_identifier, "document")} à identifier</b><div class="sub">Mis de côté avec « Je ne sais pas ce que c'est », dans 00_A-TRIER/_A-IDENTIFIER.</div></div><button class="ghost small" data-act="c-unknown-back">Les revoir</button></div>` : ""}
   ${S.imported || P.some((x) => x.origin) ? understood(P) : ""}
   ${sure.length > 1 ? `<div class="card box suresbar"><span class="oi" style="background:var(--success-light);color:var(--success)">${IC.check}</span><div class="grow"><b>${sure.length} ${plural(sure.length, "document sûr", "documents sûrs")}</b><div class="sub">Confiance élevée, aucun conflit : rangés comme proposé, en une fois. Annulable.</div></div><button class="cta small" data-act="c-sure">Ranger les sûrs d'un coup</button></div>` : ""}
   ${p ? card(p, Q.length) : !S.busy ? `<div class="card" style="padding:28px;text-align:center"><span class="oi" style="margin:0 auto 10px;background:var(--success-light);color:var(--success)">${IC.check}</span><b>Tout est trié.</b><div class="sub">Dépose un fichier ou un dossier ci-dessus.</div></div>` : ""}`;
@@ -33,7 +34,14 @@ function modeSwitch() {
 
 function preview(p) {
   const src = "/api/inboxfile?id=" + encodeURIComponent(p.id);
-  if (isPdf(p.orig)) return `<iframe class="cframe" src="${src}#toolbar=0&navpanes=0&view=FitH" title="Aperçu de ${esc(p.orig)}"></iframe>`;
+  if (isPdf(p.orig)) {
+    if (!window.pdfjsLib) return `<iframe class="cifr" src="${src}#toolbar=0&navpanes=0&view=FitH" title="Aperçu de ${esc(p.orig)}"></iframe>`;
+    const P = S.pdf && S.pdf.id === p.id ? S.pdf : null;
+    return `<div class="cpdf" id="cpdf" data-src="${src}" data-id="${esc(p.id)}"><canvas id="cpdfc" aria-label="Aperçu de ${esc(p.orig)}, page ${P ? P.page : 1}"></canvas>
+      <div class="cpnav" ${P && P.n > 1 ? "" : "hidden"}><button class="cparr" data-act="c-page" data-d="-1" aria-label="Page précédente" ${P && P.page > 1 ? "" : "disabled"}>‹</button>
+        <span class="cpnum">${P ? P.page : 1} / ${P ? P.n : 1}</span>
+        <button class="cparr" data-act="c-page" data-d="1" aria-label="Page suivante" ${P && P.page < P.n ? "" : "disabled"}>›</button></div></div>`;
+  }
   if (isImg(p.orig) && !/\.(heic|tiff?)$/i.test(p.orig)) return `<img class="cimg" src="${src}" alt="Aperçu de ${esc(p.orig)}">`;
   return `<div class="cnone"><span class="oi">${catIc(p.cat)}</span><span class="sub">Pas d'aperçu pour ce fichier</span></div>`;
 }
@@ -57,25 +65,74 @@ function card(p, n) {
       <h2 class="ctitle">${esc(p.label)} ${cc(p.country)}</h2>
       ${p.duplicate ? `<span class="pill bad">Doublon exact de « ${esc(p.duplicate.label)} »</span>` : ""}
       ${conflictBox(p)}
-      <dl class="cdl">
-        <dt>Type</dt><dd>${esc(T.label || p.type_label)}</dd>
-        <dt>Émetteur</dt><dd>${esc(p.emitter_display || p.emitter)}</dd>
-        <dt>Date</dt><dd>${esc(date)}${p.date_note ? ` <span class="sub">≈ ${esc(p.date_note)}</span>` : ""}</dd>
-        <dt>Titulaire</dt><dd>${esc(p.person === "moi" ? S.st.settings.owner || "toi" : p.person)}</dd>
-        <dt>Dossier</dt><dd class="fname">${esc(p.dest)}</dd>
-        <dt>Nom</dt><dd class="fname"><b>${esc(p.name)}</b></dd>
-        <dt>Suivi</dt><dd>${esc(p.relation)}</dd>
-        <dt>Reçu</dt><dd class="sub">${esc(p.source)}${p.origin ? ` · depuis « ${esc(p.origin)} »` : ` · ${esc(p.orig)}`}</dd>
-      </dl>
+      ${phrase(p)}
+      <div class="cdest"><span class="sub">Rangé dans</span> <span class="fname">${esc(p.dest)}/</span><br><span class="fname"><b>${esc(p.name)}</b></span>
+        <div class="sub">${esc(p.relation)} · reçu : ${esc(p.source)}${p.origin ? ` · depuis « ${esc(p.origin)} »` : ` · ${esc(p.orig)}`}</div></div>
       ${reasons(p)}
-      ${S.fixc ? `<div class="cfix">${editFields(p)}${window.ruleOffer ? ruleOffer({ inbox: p.id, overrides: p.overrides, type: p.type }) : ""}</div>` : ""}
+      ${S.fixc ? `<div class="cfix"><div class="sub" style="margin-bottom:8px">Tous les champs</div>${editFields(p)}${window.ruleOffer ? ruleOffer({ inbox: p.id, overrides: p.overrides, type: p.type }) : ""}</div>` : ""}
       <div class="cacts">
         <button class="ghost" data-act="c-later" title="Flèche gauche">← Plus tard</button>
-        <button class="ghost${S.fixc ? " on" : ""}" data-act="c-fix" title="Flèche bas">↓ ${S.fixc ? "Fermer" : "Corriger"}</button>
-        <button class="cta" data-act="c-ok" data-id="${p.id}" title="Flèche droite">Ranger →</button>
+        <button class="ghost${S.blank ? " on" : ""}" data-act="c-fix" title="Flèche bas">↓ Corriger</button>
+        <button class="cta" data-act="c-ok" data-id="${p.id}" title="Flèche droite">${(p.doubts || []).length ? "Ranger quand même →" : "Ranger →"}</button>
       </div>
-      <div class="ckeys"><button class="linkbtn" data-act="c-undo" ${S.lastBatch ? "" : "disabled"}>Annuler (Z)</button><span>·</span><button class="linkbtn" data-act="ignore" data-id="${p.id}">Ignorer</button><span class="sub">← → ↓ Z au clavier</span></div>
+      <div class="ckeys"><button class="linkbtn" data-act="c-undo" ${S.lastBatch ? "" : "disabled"}>Annuler (Z)</button><span>·</span><button class="linkbtn" data-act="c-unknown" data-id="${p.id}">Je ne sais pas ce que c'est</button><span>·</span><button class="linkbtn" data-act="ignore" data-id="${p.id}">Ignorer</button><span class="sub">← → ↓ Z au clavier</span></div>
     </div></div>`;
+}
+
+/* ---- Corriger en complétant une phrase : seuls les doutes sont soulignés, on touche un mot et on choisit */
+const FEM = /^(carte|fiche|facture|quittance|attestation|d[ée]claration|demande|amende|assurance|immatriculation|lettre|aide|allocation|relev[ée]x?)\b/i;
+const unaccent = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function blankBtn(p, k, text) {
+  const d = (p.doubts || []).includes(k), o = S.blank === k;
+  return `<button type="button" class="blank${d ? " doubt" : ""}${o ? " open" : ""}" data-blank="${k}" aria-expanded="${o}">${esc(text)}</button>`;
+}
+function phrase(p) {
+  if (S.blankFor !== p.id) { S.blankFor = p.id; S.blank = (p.doubts || [])[0] || null; S.tq = ""; S.allTypes = false; }
+  if (S.blank === "__next") S.blank = (p.doubts || [])[0] || null;
+  const tl = (S.st.types[p.type] || {}).label || p.type_label || "document";
+  const tw = (FEM.test(tl) ? "une " : "un ") + tl.charAt(0).toLowerCase() + tl.slice(1);
+  const em = p.emitter && p.emitter !== "Inconnu" ? p.emitter_display || p.emitter : "";
+  const who = p.person === "moi" || !p.person || p.person === S.st.settings.owner ? "toi" : p.person;
+  const dt = p.lot ? `de ${ymLabel(p.lot[0])} à ${ymLabel(p.lot[1])}` : p.date_year ? `de ${p.date_year} (année seulement)` : `daté du ${frd(p.date)}`;
+  const de = em ? (/^[aeiouyhéè]/i.test(em) ? "d'" : "de ") : "de ";
+  const n = (p.doubts || []).length;
+  return `<div class="phrase"><p class="sentence">C'est ${blankBtn(p, "type", tw)} ${de}${blankBtn(p, "emitter", em || "qui")}, pour ${blankBtn(p, "person", who)}, ${blankBtn(p, "date", dt)}.</p>
+    <div class="sub">${n ? `${n} ${plural(n, "mot")} en pointillés : touche-${n > 1 ? "les" : "le"} pour choisir.` : "Tout est clair. Touche un mot pour le changer."}</div>
+    ${S.blank ? ask(p, S.blank) : ""}</div>`;
+}
+function chip(v, label, first, extra) { return `<button type="button" class="chip${first ? " first" : ""}" data-pick="${esc(v)}">${esc(label)}${extra ? `<small>${esc(extra)}</small>` : ""}</button>`; }
+function ask(p, k) {
+  const T = S.st.types;
+  if (k === "type") {
+    const q = unaccent(S.tq);
+    let ids = q ? Object.keys(T).filter((t) => q.split(/\s+/).every((w) => unaccent(T[t].label).includes(w) || unaccent(S.st.categories[T[t].cat] || "").includes(w))).slice(0, 6)
+                : [...(p.type === "autre" ? [] : [p.type]), ...(p.candidates || []), ...["certificat", "facture", "formulaire", "justificatif_domicile"].filter((t) => T[t]), "autre"].filter((t, i, a) => T[t] && a.indexOf(t) === i).slice(0, 6);
+    return `<div class="ask"><b>C'est quoi, ce document ?</b>${(p.candidates || []).length ? `<span class="from">D'après ce qui est écrit dedans</span>` : ""}
+      <div class="chips">${ids.map((t, i) => chip(t, T[t].label, i === 0 && !q && p.type !== "autre", t === p.type && !q && t !== "autre" ? "proposé" : "")).join("") || `<span class="sub">Aucun type ne correspond.</span>`}</div>
+      <label class="say"><span aria-hidden="true">✎</span><input id="say_type" value="${esc(S.tq || "")}" placeholder="Ou dis-le avec tes mots : facture, diplôme, assurance…" aria-label="Chercher un type"></label>
+      <div class="askfoot">${S.allTypes ? `<select class="field" id="all_type" aria-label="Tous les types">${typeOptions(p.type)}</select>` : `<button type="button" class="linkbtn" data-act="c-alltypes">Voir tous les types</button>`}<button type="button" class="linkbtn" data-act="c-more">Tous les champs</button></div></div>`;
+  }
+  if (k === "emitter") {
+    const C = (p.emitter_candidates || []).filter(Boolean);
+    return `<div class="ask"><b>Qui te l'a envoyé ?</b>${C.length ? `<span class="from">Lu en haut du document : « ${esc(C[0])} »</span>` : ""}
+      <div class="chips">${C.map((c, i) => chip(c, c, i === 0, i === 0 ? "lu dedans" : "")).join("")}${p.emitter && p.emitter !== "Inconnu" ? chip(p.emitter_display || p.emitter, "Garder « " + (p.emitter_display || p.emitter) + " »", !C.length) : ""}</div>
+      <label class="say"><span aria-hidden="true">✎</span><input id="say_emitter" placeholder="Nom de l'entreprise, de l'école, de l'organisme…" aria-label="Émetteur"></label></div>`;
+  }
+  if (k === "person") {
+    const H = [S.st.settings.owner || "toi", ...((S.st.settings.holders || []).map((h) => h.nom))].filter(Boolean);
+    return `<div class="ask"><b>C'est à qui ?</b><div class="chips">${H.map((h, i) => chip(i === 0 ? S.st.settings.owner || "moi" : h, i === 0 ? "Toi" : h, i === 0)).join("")}</div>
+      <label class="say"><span aria-hidden="true">✎</span><input id="say_person" list="holders" placeholder="Un autre prénom" aria-label="Titulaire"></label></div>`;
+  }
+  return `<div class="ask"><b>Quelle date garder ?</b>${p.date_note ? `<span class="from">${esc(p.date_note)}</span>` : ""}
+    <div class="chips">${chip(p.date, p.date_year ? `Garder l'année ${p.date_year}` : `Garder le ${frd(p.date)}`, true)}${chip(S.st.today, "Aujourd'hui")}</div>
+    <label class="say"><span aria-hidden="true">📅</span><input id="say_date" type="date" value="${esc(p.date)}" aria-label="Choisir une date"></label></div>`;
+}
+async function pickBlank(k, v) {
+  const p = queue()[0]; if (!p) return;
+  const f = k === "person" ? "person" : k;
+  S.blank = "__next"; S.tq = ""; S.allTypes = false;
+  await api("/api/propose", { id: p.id, overrides: { [f]: v } });
+  await load();
 }
 
 /* ---- Ce que Bon toutou a compris de ton rangement (import d'un dossier) */
@@ -107,6 +164,47 @@ function regroupCard() {
     <div class="acts" style="margin-top:10px"><button class="cta small" data-act="c-regroup">Regrouper par employeur</button></div></div></div>`;
 }
 
+/* ---- Aperçu des PDF page par page (pdf.js embarqué dans l'app : rien n'est chargé depuis internet) */
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/vendor/pdfjs/pdf.worker.min.js";
+async function pdfDraw() {
+  const box = document.getElementById("cpdf"); if (!box || !window.pdfjsLib) return;
+  const id = box.dataset.id;
+  try {
+    if (!S.pdf || S.pdf.id !== id) {
+      if (S.pdf && S.pdf.doc) S.pdf.doc.destroy();
+      S.pdf = { id, page: 1, n: 1, doc: null };
+      const doc = await pdfjsLib.getDocument({ url: box.dataset.src, isEvalSupported: false }).promise;
+      if (!S.pdf || S.pdf.id !== id) return doc.destroy();
+      S.pdf.doc = doc; S.pdf.n = doc.numPages;
+      const nav = box.querySelector(".cpnav"); if (nav && doc.numPages > 1) { nav.hidden = false; pdfNav(box); }
+    }
+    const P = S.pdf, page = await P.doc.getPage(P.page);
+    const cv = document.getElementById("cpdfc"); if (!cv || document.getElementById("cpdf").dataset.id !== id) return;
+    const v0 = page.getViewport({ scale: 1 }), r = window.devicePixelRatio || 1;
+    const fit = Math.min((box.clientWidth - 24) / v0.width, (Math.max(420, box.clientHeight) - (P.n > 1 ? 72 : 24)) / v0.height);   // la page entière, flèches comprises
+    const vp = page.getViewport({ scale: fit * r });
+    cv.width = vp.width; cv.height = vp.height; cv.style.width = Math.round(v0.width * fit) + "px";
+    if (P.task) P.task.cancel();
+    P.task = page.render({ canvasContext: cv.getContext("2d"), viewport: vp });
+    await P.task.promise.catch(() => {});
+    P.task = null;
+  } catch (e) {
+    box.outerHTML = `<iframe class="cifr" src="${box.dataset.src}#toolbar=0&view=FitH" title="Aperçu"></iframe>`;
+  }
+}
+function pdfNav(box) {
+  const P = S.pdf, b = box.querySelectorAll(".cparr");
+  box.querySelector(".cpnum").textContent = `${P.page} / ${P.n}`;
+  b[0].disabled = P.page <= 1; b[1].disabled = P.page >= P.n;
+  const cv = document.getElementById("cpdfc"); if (cv) cv.setAttribute("aria-label", `Aperçu, page ${P.page} sur ${P.n}`);
+}
+function pdfPage(d) {
+  const P = S.pdf, box = document.getElementById("cpdf");
+  if (!P || !P.doc || !box) return;
+  const n = Math.min(P.n, Math.max(1, P.page + d)); if (n === P.page) return;
+  P.page = n; pdfNav(box); pdfDraw();
+}
+
 async function cartesRange(ids, label) {
   const r = await api("/api/validate", { ids });
   if (r.ok) { S.lastBatch = r.batch; S.fixc = false; }
@@ -123,18 +221,32 @@ async function cartesUndo() {
   window.bindExtra = function () {
     if (prevBind) prevBind();
     document.querySelectorAll("[data-gt]").forEach((el) => (el.oninput = () => (S.gtarget[+el.dataset.gt] = el.value)));
+    pdfDraw();
+    const st = $("#say_type"); if (st) st.oninput = () => { S.tq = st.value; const pos = st.selectionStart; render(); const n = $("#say_type"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
+    if (st) st.onkeydown = (e) => { if (e.key === "Enter") { const c = document.querySelector(".ask .chip"); if (c) c.click(); } };
+    ["emitter", "person"].forEach((k) => { const el = $("#say_" + k); if (el) el.onkeydown = (e) => { if (e.key === "Enter" && el.value.trim()) pickBlank(k, el.value.trim()); }; });
+    const sd = $("#say_date"); if (sd) sd.onchange = () => { if (sd.value) pickBlank("date", sd.value); };
+    const at = $("#all_type"); if (at) at.onchange = () => pickBlank("type", at.value);
   };
 })();
 
 document.addEventListener("click", async (e) => {
+  const bl = e.target.closest("[data-blank]"); if (bl) { S.blank = S.blank === bl.dataset.blank ? null : bl.dataset.blank; S.tq = ""; S.allTypes = false; return render(); }
+  const pk = e.target.closest("[data-pick]"); if (pk && S.blank) return pickBlank(S.blank, pk.dataset.pick);
   const a = e.target.closest("[data-act]"); if (!a) return;
   const act = a.dataset.act, Q = () => queue();
   if (act === "tmode") { S.tmode = a.dataset.m; try { localStorage.setItem("bt.trier", S.tmode); } catch (x) {} return render(); }
   if (act === "c-ok") return cartesRange([a.dataset.id]);
   if (act === "c-sure") { const ids = (S.inbox || []).filter(isHi).map((p) => p.id); return cartesRange(ids, `${ids.length} documents rangés`); }
   if (act === "c-later") { const p = Q()[0]; if (p) { S.later = S.later.filter((x) => x !== p.id).concat(p.id); S.fixc = false; } return render(); }
-  if (act === "c-fix") { S.fixc = !S.fixc; render(); const f = document.querySelector(".cfix select,.cfix input"); if (f && S.fixc) f.focus(); return; }
+  if (act === "c-fix") { const p = queue()[0]; if (!p) return; const order = [...(p.doubts || []), "type", "emitter", "person", "date"].filter((x, i, a) => a.indexOf(x) === i);
+    S.blank = S.blank ? order[order.indexOf(S.blank) + 1] || null : order[0]; return render(); }
+  if (act === "c-more") { S.fixc = !S.fixc; return render(); }
+  if (act === "c-alltypes") { S.allTypes = true; return render(); }
+  if (act === "c-unknown") { const r = await api("/api/unknown", { id: a.dataset.id }); S.lastBatch = r.batch; await load(); return toast("Mis de côté : il t'attend dans « À identifier »", r.batch); }
+  if (act === "c-unknown-back") { const r = await api("/api/unknown/back", {}); await load(); return toast(`${r.n} ${plural(r.n, "document remis", "documents remis")} dans Trier`, r.batch); }
   if (act === "c-undo") return cartesUndo();
+  if (act === "c-page") return pdfPage(+a.dataset.d);
   if (act === "c-keep") { await api("/api/propose", { id: a.dataset.id, overrides: { resolved: true } }); return load(); }
   if (act === "c-take") { await api("/api/propose", { id: a.dataset.id, overrides: { emitter: a.dataset.v } }); return load(); }
   if (act === "c-respect") { const on = a.dataset.v === "1"; if (on === (S.st.settings.respect_folders !== false)) return;
@@ -156,4 +268,6 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft" && p) return click("[data-act=c-later]");
   if (e.key === "ArrowDown" && p) return click("[data-act=c-fix]");
   if (e.key === "z" || e.key === "Z") return click("[data-act=c-undo]");
+  if (e.key === "PageDown" && p) { e.preventDefault(); return pdfPage(1); }
+  if (e.key === "PageUp" && p) { e.preventDefault(); return pdfPage(-1); }
 });

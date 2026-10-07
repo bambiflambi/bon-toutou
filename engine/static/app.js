@@ -40,7 +40,7 @@ async function load() {
   if (S.st.setup) { S.v = "setup"; return render(); }
   if (S.v === "setup") S.v = "home";
   if (S.v === "trier") S.inbox = await api("/api/inbox");
-  if (S.v === "docs") { S.docs = await api("/api/docs"); S.groups = await api("/api/emitters/groups", {}); }
+  if (S.v === "docs") { S.docs = await api("/api/docs"); S.groups = await api("/api/emitters/groups", {}); if (!S.arch) S.arch = await api("/api/archives"); }
   if (S.v === "doc") S.doc = await api("/api/doc?id=" + S.docId);
   if (S.v === "dossiers") S.dossiers = await api("/api/dossiers");
   if (S.v === "dossier") S.dos = await api("/api/dossier?id=" + S.dosId);
@@ -184,7 +184,7 @@ function docs() {
     ${ax !== "exp" && !q ? `<button class="linkbtn emptytog" data-act="showempty">${S.showEmpty ? "Masquer" : "Afficher"} les catégories vides</button>` : ""}</div>`;
   const unk = S.docs.filter((d) => !d.emitter || d.emitter === "Inconnu").length;
   const banner = unk ? `<div class="card box" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;border-color:var(--warning)"><span class="oi" style="background:var(--warning-light);color:var(--warning)">${IC.search}</span><div class="grow"><b>${unk} ${plural(unk, "document")} sans émetteur</b><div class="sub">Bon toutou peut relire leur texte pour retrouver l'émetteur (l'employeur des fiches de paie) et les ranger dans son dossier. Annulable.</div></div><button class="cta small" data-act="redetect">Retrouver les émetteurs</button></div>` : "";
-  const head = head0 + banner + (window.regroupCard ? regroupCard() : "");
+  const head = head0 + banner + (window.repairCard ? repairCard() : "") + (window.regroupCard ? regroupCard() : "");
   if (S.busy) return head + `<div class="card busy"><span class="spin"></span>${esc(S.busy)}</div>`;
   if (!S.docs.length) return head + `<div class="card empty">Aucun document pour l'instant. Commence par <button class="linkbtn" data-go="trier">Trier</button>.</div>`;
   if (q) { const L = S.docs.filter((d) => (d.label + d.path + d.emitter).toLowerCase().includes(q)); return head + `<div class="card doclist">${L.map(docRow).join("") || `<div class="row sub">Aucun document.</div>`}</div>`; }

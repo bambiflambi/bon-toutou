@@ -2,6 +2,18 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.6.0 — Fiches de paie réparées, archives lisibles, corriger en une phrase
+- **Réparer depuis mon dossier d'origine** (Documents) : tu choisis le dossier où tu gardais tes fiches (ex. Administration › Paye). Bon toutou reconnaît chaque fiche déjà rangée par son empreinte, sans rien recopier, lit l'employeur, le mois et les lots dans les noms de tes dossiers, te montre les corrections, puis les applique en une fois. Un seul « Annuler ».
+- **Seul ton emploi actuel reste dans Documents** : quand les fiches d'un employeur s'arrêtent depuis plus de 2 mois alors qu'un autre continue, cet ancien employeur passe dans Archives › Terminés, dans son dossier. Deux emplois en même temps restent tous les deux. Bouton « Ranger dans Terminés » pour un bureau rangé avant.
+- **Archives présentées comme Documents** : pays › catégorie › sous-dossier › employeur, une ligne par document avec « 6 anciennes versions » à déplier (date, Ouvrir). Plus de longs chemins de fichier. Terminés est groupé de la même façon.
+- **Corriger en complétant une phrase** (Trier) : « C'est une fiche de paie de …, pour toi, daté du … ». Seuls les doutes sont soulignés en pointillés ; tu touches un mot et choisis parmi des propositions tirées du document (ex. le nom lu en haut de la page), ou tu l'écris avec tes mots. « Tous les champs » reste disponible.
+- **« Je ne sais pas ce que c'est »** : le document est mis de côté dans 00_A-TRIER/_A-IDENTIFIER ; « Les revoir » le remet dans Trier.
+- Corrigé : l'aperçu de Trier (v0.5) déformait le cadre du pays dans Documents.
+
+## 0.5.1 — Feuilleter les PDF dans Trier
+- Dans la carte de Trier, un PDF de plusieurs pages se feuillette depuis l'aperçu : flèches ‹ › sous la page (ou touches Page préc. / Page suiv.). La page entière est affichée, et elle reste la même quand tu ouvres « Corriger ».
+- L'affichage utilise pdf.js (Mozilla, Apache-2.0), embarqué dans l'app : rien n'est chargé depuis internet.
+
 ## 0.5.0 — Trier vite, sans rien casser
 - **Trier en mode cartes** : un document à la fois, l'aperçu à gauche, la proposition à droite (type, émetteur, date, titulaire, dossier, nom, suivi, « Pourquoi ? »). **← Plus tard · ↓ Corriger · → Ranger · Z Annuler**, au clavier ou à la souris. **Ranger les sûrs d'un coup** pour les documents en confiance élevée. Le mode Liste reste disponible (bouton Cartes / Liste).
 - **Bon toutou respecte ton rangement** : en important un dossier, le chemin de chaque fichier est envoyé et les noms des dossiers font foi. `1.N Louis Fournil 2018-09:2020-07` donne l'employeur Louis Fournil et sa période ; le numéro et la lettre devant sont ignorés. Le mois est lu dans le nom du fichier (`2019 03`), un fichier de plusieurs mois (`2018-09:2019-02`) devient un lot. Ton nom, une ville ou une ligne du bulletin (« Autres… », « Salarié… ») ne sont plus pris pour un employeur. Les bulletins scolaires ne deviennent plus des fiches de paie.

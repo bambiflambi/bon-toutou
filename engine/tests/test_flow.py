@@ -219,5 +219,43 @@ check(not os.path.isdir(os.path.join(os.path.dirname(br.abs(allk[0]["path"])), "
 br.undo(rg["batch"])
 check(any(d["emitter"] == "Boulangerie-Fournil" for d in br.documents() + br.archives()["old"]), "le regroupement s'annule d'un coup")
 
+# v0.6 : bureau rangé avant la v0.5 (employeurs mal lus) -> réparation depuis le dossier d'origine, anciens employeurs dans Terminés
+import hashlib
+os.environ["BONTOUTOU_DATA"] = os.path.join(tmp, "appareil-V6")
+r6 = os.path.join(tmp, "BUREAU_V6"); os.makedirs(r6)
+b6 = Bureau(r6); b6.save_settings({"owner": "Camille Martin"})
+orig = {}
+def old(rel, lines):
+    n = os.path.basename(rel); fp = os.path.join(src, "v6_" + n.replace("/", "_")); pdf(fp, lines)
+    data = open(fp, "rb").read(); orig[rel] = hashlib.sha256(data).hexdigest()
+    return b6.add_upload(n, data)                       # comme en v0.4 : sans le chemin
+old("Paye/1.N Louis Fournil 2018-09:2020-07/2019 03 Bulletins.pdf", ["BULLETIN DE PAIE", "Autres contributions dues par l'employeur", "Net a payer 1500,00"])
+old("Paye/1.N Louis Fournil 2018-09:2020-07/2019 04 Bulletins.pdf", ["BULLETIN DE PAIE", "Autres contributions dues par l'employeur", "Net a payer 1510,00"])
+old("Paye/6.N Saveurs Royales/SALAIRE 01 2025.pdf", ["BULLETIN DE PAIE", "17000 La Rochelle", "Net a payer 1600,00"])
+r = b6.validate([p["id"] for p in b6.inbox()])
+check(r["ok"], "bureau « v0.4 » rangé sans les chemins")
+snap = lambda: sorted((d["id"], d["emitter"], d["status"], d["path"]) for d in b6.documents() + b6.archives()["old"] + b6.archives()["done"])
+before6 = snap()
+pv = b6.repair_preview([{"sha": h, "rel": rel} for rel, h in orig.items()] + [{"sha": "0" * 64, "rel": "Paye/x/y.pdf"}])
+check(pv["matched"] == 3 and len(pv["items"]) == 3, f"réparation : les 3 fiches retrouvées par leur empreinte ({pv['matched']}, {len(pv['items'])} à corriger)")
+lf = [x for x in pv["items"] if "Louis" in " ".join(x["changes"])]
+check(len(lf) == 2 and any(x["fields"].get("date") == "2019-04-30" for x in lf), "aperçu : employeur Louis Fournil et mois lu dans le nom")
+ra = b6.repair_apply(pv["items"])
+D6 = b6.documents(); A6 = b6.archives()
+cur = [d for d in D6 if d["type"] == "bulletin_paie"]
+check(ra["ok"] and len(cur) == 1 and cur[0]["emitter"] == "Saveurs-Royales", "après réparation : seul l'emploi actuel reste dans Documents")
+done = [d for d in A6["done"] if d["emitter"] == "Louis-Fournil"]
+check(len(done) == 2 and all("/Louis-Fournil/" in d["path"] for d in done), "l'ancien employeur est dans Archives › Terminés, dans son dossier")
+b6.undo(ra["batch"])
+check(snap() == before6, "la réparation s'annule d'un coup")
+# à identifier
+up6 = b6.add_upload("bizarre.pdf", open(os.path.join(src, "truc_bizarre.pdf"), "rb").read())
+pz = [p for p in b6.inbox() if p["id"] == up6][0]
+check("type" in pz["doubts"], "document inconnu : le type est signalé comme douteux")
+u = b6.unknown(up6)
+check(u["ok"] and not [p for p in b6.inbox() if p["id"] == up6] and b6.state()["counts"]["a_identifier"] == 1, "« Je ne sais pas » : mis de côté dans _A-IDENTIFIER")
+ub = b6.unknown_back()
+check(ub["n"] == 1 and [p for p in b6.inbox() if p["id"] == up6], "remis dans Trier quand tu veux")
+
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

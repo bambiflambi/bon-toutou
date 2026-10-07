@@ -881,7 +881,13 @@ class Bureau:
              "emitter": a["emitter"], "date": a["date"], "expiry": a.get("expiry"), "confidence": a["confidence"],
              "reasons": a["reasons"], "excerpt": a.get("excerpt", ""), "name": name, "cat": T["cat"], "sub": T["sub"],
              "suivi": key, "overridden": bool(ov), "origin": a.get("origin"), "lot": a.get("lot"), "conflict": None if ov.get("resolved") or (a.get("conflict") or {}).get("field") in ov else a.get("conflict"),
-             "emitter_display": a.get("emitter_display") or a["emitter"].replace("-", " "), "overrides": {k: v for k, v in ov.items() if k in ("type", "emitter", "detail", "country") and v}}
+             "emitter_display": a.get("emitter_display") or a["emitter"].replace("-", " "), "overrides": {k: v for k, v in ov.items() if k in ("type", "emitter", "detail", "country") and v},
+             # correction en phrase : ce dont Bon toutou doute (hors ce que tu as déjà choisi) et ses propositions
+             "doubts": [k for k in (a.get("doubts") or []) if not ov.get(k) and not (k == "emitter" and (a.get("emitter_display") or a.get("emitter_rule")))
+                        and not (k == "type" and a.get("origin") and a["type"] in classify.EMPLOYMENT)],
+             "candidates": [t for t in (a.get("candidates") or []) if t in TYPES and t != a["type"]][:4],
+             "emitter_candidates": [e for e in (a.get("emitter_candidates") or []) if classify.slugify(e) != a["emitter"]][:3],
+             "date_year": a.get("date_year") if not ov.get("date") else None}
         dup = self.db.execute("SELECT id,label,path FROM docs WHERE sha=?", (row["sha"],)).fetchone()
         p["duplicate"] = dict(dup) if dup else None
         cur = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status='actuel'", (key,)).fetchone() if key else None
@@ -998,10 +1004,12 @@ class Bureau:
                 done += 1
             if not done:
                 return {"ok": False, "done": 0}
-            b = self._journal(f"{done} document{'s' if done > 1 else ''} rangé{'s' if done > 1 else ''}", ops)
-            return {"ok": True, "done": done, "batch": b}
+            closed = self.close_old_employers(ops)
+            b = self._journal(f"{done} document{'s' if done > 1 else ''} rangé{'s' if done > 1 else ''}"
+                              + (f" · ancien{'s' if len(closed) > 1 else ''} employeur{'s' if len(closed) > 1 else ''} dans Terminés" if closed else ""), ops)
+            return {"ok": True, "done": done, "batch": b, "closed": closed}
 
-    def ignore(self, iid):
+    def ignore(self, iid, folder="_IGNORES", state="ignore", label="Document ignoré (gardé dans 00_A-TRIER/_IGNORES)"):
         with self.lock:
             row = self.db.execute("SELECT * FROM inbox WHERE id=? AND state='a_trier'", (iid,)).fetchone()
             if not row:
@@ -1009,15 +1017,36 @@ class Bureau:
             ops = []
             src = self.abs(row["path"])
             if os.path.exists(src):
-                dst = unique_path(os.path.join(self.inbox_dir, "_IGNORES"), os.path.basename(src))
+                dst = unique_path(os.path.join(self.inbox_dir, folder), os.path.basename(src))
                 self._move(src, dst, ops)
                 newp = self.rel(dst)
             else:
                 newp = row["path"]
             ops.append({"t": "inbox", "id": iid, "state": "a_trier", "path": row["path"]})
-            self.db.execute("UPDATE inbox SET state='ignore', path=? WHERE id=?", (newp, iid))
-            b = self._journal("Document ignoré (gardé dans 00_A-TRIER/_IGNORES)", ops)
+            self.db.execute("UPDATE inbox SET state=?, path=? WHERE id=?", (state, newp, iid))
+            b = self._journal(label, ops)
             return {"ok": True, "batch": b}
+
+    def unknown(self, iid):
+        """« Je ne sais pas ce que c'est » : mis de côté dans 00_A-TRIER/_A-IDENTIFIER, il reviendra quand tu voudras."""
+        return self.ignore(iid, "_A-IDENTIFIER", "a_identifier", "Mis de côté : à identifier plus tard (00_A-TRIER/_A-IDENTIFIER)")
+
+    def unknown_back(self):
+        """Remet dans Trier tout ce qui était « à identifier »."""
+        with self.lock:
+            ops, n = [], 0
+            for row in self.db.execute("SELECT * FROM inbox WHERE state='a_identifier'").fetchall():
+                src, newp = self.abs(row["path"]), row["path"]
+                if os.path.exists(src):
+                    dst = unique_path(self.inbox_dir, os.path.basename(src))
+                    self._move(src, dst, ops)
+                    newp = self.rel(dst)
+                ops.append({"t": "inbox", "id": row["id"], "state": "a_identifier", "path": row["path"]})
+                self.db.execute("UPDATE inbox SET state='a_trier', path=? WHERE id=?", (newp, row["id"]))
+                n += 1
+            if not n:
+                return {"ok": True, "n": 0}
+            return {"ok": True, "n": n, "batch": self._journal(f"{n} document{'s' if n > 1 else ''} à identifier remis dans Trier", ops)}
 
     # ------------------------------------------------------------ documents
     def _doc_pub(self, d):
@@ -1079,6 +1108,8 @@ class Bureau:
                 ex["emitter_display"] = a["emitter_display"] = fields["emitter"].replace("-", " ").strip()
             if fields.get("date") and fields["date"] != d["doc_date"]:
                 ex.pop("lot", None); a.pop("lot", None)
+            if fields.get("lot") and isinstance(fields["lot"], list) and len(fields["lot"]) == 2:
+                ex["lot"] = a["lot"] = [str(x)[:7] for x in fields["lot"]]
             for k in ("type", "country", "emitter", "date", "expiry", "person", "detail"):
                 if k in fields and fields[k] is not None:
                     a[k] = classify.slugify(fields[k]) if k == "emitter" and fields[k] else (fields[k] or None)
@@ -1205,6 +1236,125 @@ class Bureau:
                 return {"ok": True, "n": 0}
             b = self._journal(f"Employeurs regroupés ({n} document{'s' if n > 1 else ''})", ops)
             return {"ok": True, "n": n, "batch": b}
+
+    def _terminate(self, d, ops):
+        rows = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status!='termine'", (d["suivi"],)).fetchall() if d["suivi"] else [d]
+        for r in rows:
+            fields = {"status": "termine"}
+            if r["status"] == "actuel" and os.path.exists(self.abs(r["path"])):
+                tgt = unique_path(self.doc_dir(r["country"], r["type"], r["emitter"], archive=True), os.path.basename(r["path"]))
+                self._move(self.abs(r["path"]), tgt, ops)
+                fields["path"] = self.rel(tgt)
+            self._doc_update(r["id"], fields, ops)
+        return len(rows)
+
+    OLD_JOB_DAYS = 62   # plus de 2 mois sans fiche alors qu'un autre employeur continue : emploi terminé
+
+    def close_old_employers(self, ops):
+        """Seul l'emploi actuel reste dans Documents. Les fiches d'un employeur qui s'arrêtent alors qu'un autre continue
+        passent dans Archives › Terminés (dans son sous-dossier). Deux emplois en même temps restent tous les deux."""
+        rows = self.db.execute("SELECT * FROM docs WHERE type='bulletin_paie' AND status='actuel' AND doc_date IS NOT NULL").fetchall()
+        if len(rows) < 2:
+            return []
+        latest = max(r["doc_date"] for r in rows)
+        limit = (dt.date.fromisoformat(latest[:10]) - dt.timedelta(days=self.OLD_JOB_DAYS)).isoformat()
+        done = []
+        for r in rows:
+            if r["doc_date"] < limit:
+                self._terminate(r, ops)
+                done.append((r["emitter"] or "Inconnu").replace("-", " "))
+        return done
+
+    def _repair_fields(self, d, rel):
+        """Ce que le chemin d'origine d'un document déjà rangé dit de lui (employeur, mois, lot). Les noms seulement."""
+        if d["type"] not in classify.EMPLOYMENT:
+            return None
+        h = classify.path_hints(rel)
+        if not h or not (h.get("emitter") or h.get("month") or h.get("lot")):
+            return None
+        ex = json.loads(d["extra"] or "{}") if "extra" in d.keys() and d["extra"] else {}
+        a = {"type": d["type"], "emitter": d["emitter"] or "Inconnu", "date": d["doc_date"], "reasons": [], "confidence": "moyenne", "emitter_how": ""}
+        classify.apply_hints(a, h)
+        f, said = {}, []
+        cur_name = ex.get("emitter_display") or (d["emitter"] or "Inconnu").replace("-", " ")
+        if a.get("emitter_display") and classify.slugify(a["emitter_display"]) != d["emitter"]:
+            f["emitter"] = a["emitter_display"]
+            said.append(f"Employeur : {cur_name} → {a['emitter_display']}")
+        if a.get("lot") and a["lot"] != ex.get("lot"):
+            f["date"], f["lot"] = a["date"], a["lot"]
+            said.append(f"Plusieurs mois : {self._ym_label(a['lot'][0])} à {self._ym_label(a['lot'][1])}")
+        elif a["date"] != d["doc_date"] and (h.get("month") or h.get("lot")):
+            f["date"] = a["date"]
+            said.append(f"Mois : {self._ym_label(d['doc_date'][:7])} → {self._ym_label(a['date'][:7])}")
+        return (f, said) if f else None
+
+    def repair_preview(self, items):
+        """items : [{sha, rel}] calculés sur ton ordinateur à partir de ton dossier d'origine (rien n'est recopié)."""
+        out, matched, seen = [], 0, set()
+        for it in items or []:
+            sha, rel = str(it.get("sha") or ""), str(it.get("rel") or "").replace("\\", "/").strip("/")
+            if len(sha) != 64 or "/" not in rel:
+                continue
+            for d in self.db.execute("SELECT * FROM docs WHERE sha=?", (sha,)).fetchall():
+                if d["id"] in seen:
+                    continue
+                seen.add(d["id"])
+                matched += 1
+                r = self._repair_fields(d, rel)
+                if r:
+                    out.append({"id": d["id"], "label": d["label"], "date": d["doc_date"], "status": d["status"], "origin": rel,
+                                "fields": r[0], "changes": r[1]})
+        out.sort(key=lambda x: (x["origin"].lower()))
+        return {"ok": True, "files": len(items or []), "matched": matched, "items": out}
+
+    def repair_apply(self, items):
+        """Applique les corrections choisies en une fois (un seul « Annuler »), puis range les anciens employeurs."""
+        with self.lock:
+            ops, n, keys, emptied = [], 0, set(), set()
+            for it in items or []:
+                d = self.db.execute("SELECT * FROM docs WHERE id=?", (it.get("id"),)).fetchone()
+                f = {k: v for k, v in (it.get("fields") or {}).items() if k in ("emitter", "date", "lot")}
+                if not d or not f:
+                    continue
+                emptied.add(os.path.dirname(self.abs(d["path"])))
+                if d["suivi"]:
+                    keys.add(d["suivi"])
+                if self.reclassify(d["id"], f, ops).get("ok"):
+                    n += 1
+                    k = self.db.execute("SELECT suivi FROM docs WHERE id=?", (d["id"],)).fetchone()["suivi"]
+                    if k:
+                        keys.add(k)
+            self._fix_suivi(keys, ops)
+            closed = self.close_old_employers(ops)
+            self._rmdir_empty(emptied)
+            if not ops:
+                return {"ok": True, "n": 0, "closed": []}
+            b = self._journal(f"Rangement réparé depuis ton dossier d'origine ({n} document{'s' if n > 1 else ''})", ops)
+            return {"ok": True, "n": n, "closed": closed, "batch": b}
+
+    def tidy_jobs(self):
+        """Range tout de suite les anciens employeurs (bureau rangé avant la v0.6)."""
+        with self.lock:
+            ops = []
+            closed = self.close_old_employers(ops)
+            if not ops:
+                return {"ok": True, "closed": []}
+            return {"ok": True, "closed": closed, "batch": self._journal(f"Anciens employeurs rangés dans Archives › Terminés ({len(closed)})", ops)}
+
+    def _old_jobs_count(self):
+        rows = self.db.execute("SELECT doc_date FROM docs WHERE type='bulletin_paie' AND status='actuel' AND doc_date IS NOT NULL").fetchall()
+        if len(rows) < 2:
+            return 0
+        latest = dt.date.fromisoformat(max(r["doc_date"] for r in rows)[:10])
+        return sum(1 for r in rows if r["doc_date"] < (latest - dt.timedelta(days=self.OLD_JOB_DAYS)).isoformat())
+
+    def _rmdir_empty(self, dirs):
+        for d in sorted(dirs, key=len, reverse=True):
+            try:
+                if os.path.isdir(d) and not os.listdir(d) and d.startswith(self.root + os.sep):
+                    os.rmdir(d)   # dossier vide laissé par un déplacement : rien d'autre n'est jamais supprimé
+            except OSError:
+                pass
 
     def terminate(self, did):
         with self.lock:
@@ -1549,6 +1699,8 @@ class Bureau:
             "tools": reader.tools(),
             "ia": {"machine": self._machine(), "engines": ia.engines(), "catalogue": ia.catalogue(), "pulls": ia.PULLS},
             "counts": {"inbox": c("SELECT COUNT(*) FROM inbox WHERE state='a_trier'"),
+                       "a_identifier": c("SELECT COUNT(*) FROM inbox WHERE state='a_identifier'"),
+                       "old_jobs": self._old_jobs_count(),
                        "docs": c("SELECT COUNT(*) FROM docs WHERE status='actuel'"),
                        "old": c("SELECT COUNT(*) FROM docs WHERE status='ancienne_version'"),
                        "done": c("SELECT COUNT(*) FROM docs WHERE status='termine'"),

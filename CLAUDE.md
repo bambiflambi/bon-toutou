@@ -23,6 +23,8 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **v0.5** : `classify.path_hints` / `apply_hints` (les noms des dossiers importés font foi : employeur, période, lot de plusieurs mois ; conflits signalés), `same_emitter` (alias d'employeurs) et `Bureau.regroup`. Adresse admin : `bontoutou/mail.py` (lecture de BODYSTRUCTURE, sans réseau), `sortie.imap_open` (IMAP SSL 993, accord + journal), `bontoutou/trousseau.py` (mot de passe dans le trousseau du système, jamais sur disque). Interface : `static/cartes.js` (Trier en cartes, rangement compris, regroupement) et `static/adresse.js`.
 
+- **v0.6** : `Bureau.repair_preview / repair_apply` (empreintes SHA-256 calculées dans l'interface à partir du dossier d'origine, jamais recopié), `close_old_employers` (seul l'emploi actuel reste « actuel »), `unknown / unknown_back` (_A-IDENTIFIER). Analyse : `doubts`, `candidates`, `emitter_candidates`. Interface : phrase à trous dans `static/cartes.js`, archives groupées et réparation dans `static/rangement.js`, PDF page par page (pdf.js embarqué dans `static/vendor/pdfjs`).
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.

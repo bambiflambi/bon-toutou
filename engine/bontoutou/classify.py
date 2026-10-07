@@ -192,6 +192,37 @@ def emitter_fallback(text):
     return None, None
 
 
+_GENERIC = re.compile(r"(?i)\b(calendrier|bulletin|facture|attestation|demande|formulaire|avis|contrat|releve|relevé|page|date|total|"
+                      r"montant|madame|monsieur|objet|reference|référence|janvier|fevrier|février|mars|avril|mai|juin|juillet|aout|août|"
+                      r"septembre|octobre|novembre|decembre|décembre|stage|stages|semaine|permis|examen|liberte|liberté|egalite|égalité|"
+                      r"fraternite|fraternité|republique|république)\b")
+
+
+def emitter_candidates(text, found=None):
+    """Noms d'émetteur plausibles lus en haut du document (« A-Z NAUTIC »), à proposer quand l'émetteur est douteux."""
+    out = []
+    if found:
+        out.append(found.replace("-", " "))
+    fb = emitter_fallback(text)[0] if text else None
+    if fb:
+        out.append(fb.replace("-", " "))
+    lines = [l.strip(" .:-|") for l in (text or "").splitlines() if l.strip()][:14]
+    for l in lines:
+        letters = [c for c in l if c.isalpha()]
+        if not (2 <= len(l) <= 32) or len(letters) < 2 or sum(c.isupper() for c in letters) / len(letters) < .7:
+            continue
+        if _GENERIC.search(l) or re.search(r"\d{3,}", l):
+            continue
+        out.append(" ".join(w if len(w) <= 3 or not re.search(r"[AEIOUY]", w) else w.capitalize() for w in l.split()) if l.isupper() else l)
+    seen, res = set(), []
+    for o in out:
+        k = norm(o)
+        if o and k not in seen and k not in ("inconnu",):
+            seen.add(k)
+            res.append(o)
+    return res[:3]
+
+
 def _pick_dates(text, filename, today):
     dates, t = find_dates(text)
     expiry = None
@@ -486,7 +517,16 @@ def analyze(text, filename, countries, today=None):
         detail, dsrc, dorg = rd[0][1], rd[0][0], rd[0][2]
     if detail:
         reasons.append(f"Intitulé déduit : {detail} (lu : « {dsrc[:40]} ») [{dorg}]")
+    doubts = []
+    if type_id in ("autre", "formulaire") or level == "basse" or (must and text.strip() and not any(m in hay for m in must)):
+        doubts.append("type")
+    if not emitter or emitter_approx:
+        doubts.append("emitter")
+    if date_note or not precision:
+        doubts.append("date")
     return {
+        "candidates": [t for t, _ in ranked[:5] if t != type_id][:4], "emitter_candidates": emitter_candidates(text, emitter),
+        "doubts": doubts, "date_year": doc_date.year if doc_date and precision == "annee" else None,
         "income_year": income_year, "detail": detail, "date_precision": precision, "date_note": date_note,
         "emitter_approx": emitter_approx, "emitter_how": eorg if isinstance(eorg, str) else None, "emitter_rule": bool(rh),
         "type": type_id, "country": country, "emitter": emitter or "Inconnu",

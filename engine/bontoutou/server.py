@@ -236,6 +236,16 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.regroup(data.get("groups")))
             if p == "/api/redetect":
                 return self._json(B.redetect())
+            if p == "/api/repair/preview":
+                return self._json(B.repair_preview(data.get("items")))
+            if p == "/api/repair/apply":
+                return self._json(B.repair_apply(data.get("items")))
+            if p == "/api/jobs/tidy":
+                return self._json(B.tidy_jobs())
+            if p == "/api/unknown":
+                return self._json(B.unknown(data["id"]))
+            if p == "/api/unknown/back":
+                return self._json(B.unknown_back())
             if p == "/api/mail/status":
                 return self._json(B.mail_status())
             if p == "/api/mail/connect":
