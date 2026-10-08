@@ -257,5 +257,16 @@ check(u["ok"] and not [p for p in b6.inbox() if p["id"] == up6] and b6.state()["
 ub = b6.unknown_back()
 check(ub["n"] == 1 and [p for p in b6.inbox() if p["id"] == up6], "remis dans Trier quand tu veux")
 
+# v0.6.1 : « Mettre à jour » (Documents) et mode test
+rf = b6.refresh()
+check(rf["ok"], "« Mettre à jour » s'exécute (émetteurs manquants + anciens employeurs)")
+b6.save_settings({"diagnostic": True})
+up7 = b6.add_upload("diag.pdf", open(os.path.join(src, "RIB LCL.pdf"), "rb").read())
+b6.set_overrides(up7, {"type": "rib"})
+dg = os.path.join(r6, ".bontoutou", "diagnostic")
+lines = [json.loads(l) for f in os.listdir(dg) for l in open(os.path.join(dg, f), encoding="utf-8")] if os.path.isdir(dg) else []
+check({"analyse", "choix"} <= {l["event"] for l in lines}, "mode test : analyse et choix notés dans .bontoutou/diagnostic")
+b6.save_settings({"diagnostic": False})
+
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

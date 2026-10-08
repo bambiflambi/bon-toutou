@@ -152,7 +152,9 @@ function reglagesView() {
       <div style="margin-top:12px">${S.confirm === "rebuild" ? `<button class="cta small" data-act="rebuild">Confirmer la reconstruction</button> <button class="linkbtn" data-act="noconfirm">annuler</button>` : `<button class="ghost small" data-act="askrebuild">Reconstruire l'index…</button>`}</div></div>`;
   if (sv === "hist") return `${setHead("history", "Historique des actions", "Chaque rangement, correction ou archivage. La dernière action peut être annulée.")}
     <div class="card">${(S.hist || []).map((h, i) => `<div class="row"><div class="grow"><b>${esc(h.label)}</b><div class="sub">${esc(h.ts.replace("T", " "))}${h.undone ? " · annulé" : ""}</div></div>${!h.undone && i === (S.hist || []).findIndex((x) => !x.undone) ? `<button class="ghost small" data-act="undo" data-b="${h.batch}">Annuler</button>` : ""}</div>`).join("") || `<div class="row sub">Aucune action pour l'instant.</div>`}</div>`;
-  if (sv === "maj") return `${setHead("up", "Version et mises à jour", "")}${window.majSection ? noLabel(majSection()).split('<div class="label">Signaler')[0] : ""}`;
+  if (sv === "maj") return `${setHead("up", "Version et mises à jour", "")}${window.majSection ? noLabel(majSection()).split('<div class="label">Signaler')[0] : ""}
+    <div class="label" style="margin:22px 0 8px">Mode test</div>
+    <div class="card box"><label class="consent" style="margin:0"><input type="checkbox" id="diag_on" ${s.diagnostic ? "checked" : ""}> <span><b style="color:var(--text)">Noter le détail de chaque analyse</b><br>Pour la phase de test : texte lu, proposition des règles, réponse de l'IA locale, tes corrections et le rangement final sont notés dans <span class="fname">.bontoutou/diagnostic</span>, dans ton bureau. Ces notes restent sur ton ordinateur et contiennent le début du texte de tes papiers : désactive-le après les tests.</span></label></div>`;
   if (sv === "bug") return `${setHead("bug", "Signaler un problème", "")}<div class="card box"><span class="sub">Prépare un rapport sans aucun document ni nom de fichier, que tu relis avant de décider de l'envoyer.</span>
     <div class="acts" style="margin-top:8px"><button class="ghost small" data-act="bug-open">Préparer un rapport</button></div></div>`;
   if (sv === "accueil") { const g = s.guide || {};
@@ -172,6 +174,7 @@ function reglagesView() {
   window.bindExtra = function () {
     if (prevBind) prevBind();
     if (S.v !== "reglages") { S.hEdit = null; return; }
+    const dg = $("#diag_on"); if (dg) dg.onchange = async () => { await api("/api/settings", { diagnostic: dg.checked }); toast(dg.checked ? "Mode test activé" : "Mode test désactivé"); load(); };
     const ow = $("#owner"); if (ow) ow.onchange = async () => { await api("/api/settings", { owner: ow.value.trim() }); toast("Nom enregistré"); load(); };
     document.querySelectorAll("[data-country]").forEach((el) => (el.onchange = async () => {
       const c = [...document.querySelectorAll("[data-country]:checked")].map((x) => x.dataset.country);

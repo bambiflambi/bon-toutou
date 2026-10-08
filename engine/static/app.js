@@ -178,13 +178,11 @@ function catSec(c, D) {
 }
 function docs() {
   const C = S.st.categories, q = S.q.toLowerCase(), ax = S.ax || "pays";
-  const head0 = `<h1>Documents</h1><p class="lead">${S.docs.length} ${plural(S.docs.length, "document suivi", "documents suivis")}. Bon toutou garde la version actuelle et l'historique de chacun, et les réutilise dans tes dossiers sans copie.</p>
+  const head0 = `<div class="thead"><h1>Documents</h1><button class="ghost" data-act="doc-refresh" title="Retrouve les émetteurs manquants et range les anciens employeurs">${IC.sync} Mettre à jour</button></div><p class="lead">${S.docs.length} ${plural(S.docs.length, "document suivi", "documents suivis")}. Bon toutou garde la version actuelle et l'historique de chacun, et les réutilise dans tes dossiers sans copie.</p>
   <div class="search">${IC.search}<input id="q" value="${esc(S.q)}" placeholder="Chercher : passeport, EDF, fiche de paie…" aria-label="Chercher"></div>
   <div class="axes">${[["pays", "Par pays"], ["cat", "Par catégorie"], ["exp", "Expirent bientôt"]].map((a) => `<button class="${ax === a[0] ? "on" : ""}" data-ax="${a[0]}">${a[1]}</button>`).join("")}
     ${ax !== "exp" && !q ? `<button class="linkbtn emptytog" data-act="showempty">${S.showEmpty ? "Masquer" : "Afficher"} les catégories vides</button>` : ""}</div>`;
-  const unk = S.docs.filter((d) => !d.emitter || d.emitter === "Inconnu").length;
-  const banner = unk ? `<div class="card box" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;border-color:var(--warning)"><span class="oi" style="background:var(--warning-light);color:var(--warning)">${IC.search}</span><div class="grow"><b>${unk} ${plural(unk, "document")} sans émetteur</b><div class="sub">Bon toutou peut relire leur texte pour retrouver l'émetteur (l'employeur des fiches de paie) et les ranger dans son dossier. Annulable.</div></div><button class="cta small" data-act="redetect">Retrouver les émetteurs</button></div>` : "";
-  const head = head0 + banner + (window.repairCard ? repairCard() : "") + (window.regroupCard ? regroupCard() : "");
+  const head = head0 + (window.regroupCard ? regroupCard() : "");
   if (S.busy) return head + `<div class="card busy"><span class="spin"></span>${esc(S.busy)}</div>`;
   if (!S.docs.length) return head + `<div class="card empty">Aucun document pour l'instant. Commence par <button class="linkbtn" data-go="trier">Trier</button>.</div>`;
   if (q) { const L = S.docs.filter((d) => (d.label + d.path + d.emitter).toLowerCase().includes(q)); return head + `<div class="card doclist">${L.map(docRow).join("") || `<div class="row sub">Aucun document.</div>`}</div>`; }
@@ -228,7 +226,7 @@ function docView() {
   <div class="card">${d.history.map((h) => `<div class="row"><span class="pill ${h.status === "actuel" ? "ok" : "neutral"}">${esc(h.status_label)}</span><div class="grow"><b>${frd(h.doc_date)}</b><div class="fname sub">${esc(h.path)}</div></div><button class="linkbtn" data-open="${esc(h.path)}">ouvrir</button></div>`).join("")}</div>
   <div class="label" style="margin:22px 0 8px">Utilisé dans</div>
   <div class="card">${d.used_in.map((u) => `<div class="row"><span class="oi">${IC.send}</span><div class="grow"><b>${esc(u.label)}</b><div class="sub">${esc(u.recipient)} · ${u.state === "envoye" ? "envoyé" : u.state === "finalise" ? "finalisé" : "en cours"}</div></div></div>`).join("") || `<div class="row sub">Pas encore utilisé.</div>`}</div>
-  ${d.status === "actuel" ? `<div class="hint" style="margin-top:16px">Situation terminée (contrat fini, bail rendu, véhicule vendu) ? Toutes les versions partent dans Archives › Terminés. Rien n'est supprimé.
+  ${d.status === "actuel" ? `<div class="hint" style="margin-top:16px">Situation terminée (contrat fini, bail rendu, véhicule vendu) ? Toutes les versions partent dans Archives › Anciennes versions. Rien n'est supprimé.
     ${S.confirm === "term" ? `<button class="cta small" data-act="terminate">Confirmer : terminer ce suivi</button> <button class="linkbtn" data-act="noconfirm">annuler</button>` : `<button class="ghost small" data-act="askterm">Terminer ce suivi…</button>`}</div>` : ""}`;
 }
 
@@ -288,7 +286,7 @@ function archives() {
       return `<div class="card" style="margin-bottom:10px;overflow:hidden"><div class="ccband k-${esc(c)}">${cc(c)}<b>${esc(f.replace(/_/g, " "))}</b><span class="sub">${L.length}</span></div>${L.map((d) => `<div class="row drow k-${esc(d.country)}" data-doc="${d.id}" style="cursor:pointer"><span class="oi">${catIc(d.cat)}</span><div class="grow"><b>${esc(d.label)}</b><div class="sub">${frd(d.doc_date)}</div></div><span>›</span></div>`).join("")}</div>`; }).join("") || `<div class="card empty">Rien pour l'instant. Une situation finie (contrat, bail…) arrive ici.</div>`); }
   return `<h1>Archives</h1><p class="lead">Bon toutou ne détruit rien. Ce qui n'est plus valable ou déjà envoyé vit ici, dans le dossier <span class="fname">99_ARCHIVES</span> de chaque pays.</p>
   <div class="search">${IC.search}<input id="q" value="${esc(S.q)}" placeholder="Chercher dans les archives : ancien RIB, bail, avis d'impôt 2024…" aria-label="Chercher dans les archives"></div>
-  <div class="axes">${[["sent", "Dossiers envoyés", sent.length], ["old", "Anciennes versions", old.length], ["done", "Terminés", done.length]].map((t) => `<button class="${S.at === t[0] ? "on" : ""}" data-at="${t[0]}">${t[1]} <span class="sub" style="color:inherit;opacity:.75">${t[2]}</span></button>`).join("")}</div>${body}`;
+  <div class="axes">${[["sent", "Dossiers envoyés", sent.length], ["old", "Anciennes versions", old.length + done.length]].map((t) => `<button class="${S.at === t[0] ? "on" : ""}" data-at="${t[0]}">${t[1]} <span class="sub" style="color:inherit;opacity:.75">${t[2]}</span></button>`).join("")}</div>${body}`;
 }
 
 /* ------------------------------------------------ ÉVÉNEMENTS */
@@ -378,6 +376,8 @@ document.addEventListener("click", async (e) => {
   if (act === "ignore") { const r = await api("/api/ignore", { id: a.dataset.id }); await load(); toast("Ignoré · gardé dans 00_A-TRIER/_IGNORES", r.batch); }
   if (act === "undo") { const r = await api("/api/undo", { batch: a.dataset.b }); $("#toast").hidden = true; await load(); toast(r.msg); }
   if (act === "reveal") { const r = await api("/api/reveal", { p: a.dataset.p }); if (!r.ok) toast(r.msg || "Impossible d'ouvrir le dossier"); }
+  if (act === "doc-refresh") { S.busy = "Mise à jour de ton bureau…"; render(); const r = await api("/api/refresh", {}); S.busy = ""; await load();
+    return toast(r.n || (r.closed || []).length ? r.msg : "Tout est déjà à jour", r.batch); }
   if (act === "redetect") { S.busy = "Relecture des documents sans émetteur…"; render(); const r = await api("/api/redetect", {}); S.busy = ""; await load();
     toast(r.n ? `Émetteur retrouvé pour ${r.n} ${plural(r.n, "document")} · rangés dans leur dossier` : "Aucun émetteur retrouvé : corrige-les un par un avec « Corriger le classement »", r.batch); }
   if (act === "askterm") { S.confirm = "term"; render(); }
@@ -389,7 +389,7 @@ document.addEventListener("click", async (e) => {
     const ch = {}; [["type", "type"], ["emitter", "emitter"], ["detail", "detail"], ["country", "country"]].forEach(([k, c]) => { const v = f(k).trim(); if (v && v !== String(before[c] || "")) ch[k] = v; });
     S.docOffer = Object.keys(ch).length ? { doc: before.id, overrides: ch, type: f("type") } : null;
     const r = await api("/api/reclassify", { id: S.doc.id, fields: { type: f("type"), country: f("country"), emitter: f("emitter"), date: f("date"), expiry: f("expiry"), person: f("person"), detail: f("detail") } }); S.fix = false; await load(); toast(r.ok ? "Corrigé · fichier renommé et déplacé" : (r.msg || "Erreur"), r.batch); }
-  if (act === "terminate") { const r = await api("/api/terminate", { id: S.doc.id }); S.confirm = null; await load(); toast("Suivi terminé · tout est dans Archives › Terminés", r.batch); }
+  if (act === "terminate") { const r = await api("/api/terminate", { id: S.doc.id }); S.confirm = null; await load(); toast("Suivi terminé · tout est dans Archives › Anciennes versions", r.batch); }
   if (act === "rebuild") { const r = await api("/api/rebuild", {}); S.confirm = null; await load(); toast(`Index reconstruit : ${r.docs} fichiers`); }
   if (act === "newdos") { const r = await api("/api/dossier/create", { template: S.newTpl, recipient: $("#rcp").value, country: $("#dcc").value }); S.newTpl = null; openDos(r.id); }
   if (act === "finalize") { const r = await api("/api/dossier/finalize", { id: S.dos.id }); if (!r.ok) return toast(r.msg); S.dos = r.dossier; await load(); toast("Paquet généré · envoie-le puis marque-le comme envoyé"); }

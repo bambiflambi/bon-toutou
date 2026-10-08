@@ -10,10 +10,11 @@ function suiviRows(X, kind) {
     L.sort((a, b) => (b.doc_date || "").localeCompare(a.doc_date || ""));
     const d = L[0], k = d.suivi || d.id, open = S.openS.has(k), n = L.length;
     const span = n > 1 ? `du ${frd(L[n - 1].doc_date)} au ${frd(d.doc_date)}` : frd(d.doc_date);
-    const what = kind === "old" ? (n > 1 ? `${n} anciennes versions · ${span}` : `ancienne version du ${frd(d.doc_date)}`) : (n > 1 ? `${n} documents · ${span}` : span);
+    const ended = L.some((x) => x.status === "termine");
+    const what = n > 1 ? `${n} ${ended ? "documents" : "anciennes versions"} · ${span}` : (ended ? frd(d.doc_date) : `ancienne version du ${frd(d.doc_date)}`);
     const head = `<div class="row drow k-${esc(d.country)} arow" ${n > 1 ? `data-opens="${esc(k)}" role="button" tabindex="0" aria-expanded="${open}"` : `data-doc="${d.id}" role="button" tabindex="0"`} style="cursor:pointer">
       <span class="oi">${kind === "old" ? IC.archive : catIc(d.cat)}</span><div class="grow"><b>${esc(d.label)}</b> ${cc(d.country)}<div class="sub">${what}</div></div>
-      ${kind === "done" ? `<span class="pill neutral">terminé</span>` : ""}<span class="chev">${n > 1 ? (open ? "▾" : "▸") : "›"}</span></div>`;
+      ${L.some((x) => x.status === "termine") ? `<span class="pill neutral">situation finie</span>` : ""}<span class="chev">${n > 1 ? (open ? "▾" : "▸") : "›"}</span></div>`;
     const body = open ? `<div class="vlist">${L.map((v) => `<div class="row vrow" data-doc="${v.id}" role="button" tabindex="0" style="cursor:pointer"><span class="vdate">${frd(v.doc_date)}</span><span class="sub grow">${esc(v.label)}</span><button class="linkbtn" data-open="${esc(v.path)}">Ouvrir</button></div>`).join("")}</div>` : "";
     return head + body;
   }).join("");
@@ -31,17 +32,15 @@ function archSection(L, kind) {
   }).join("");
 }
 archives = function () {
+  if (S.at === "done") S.at = "old";   // « Terminés » est fusionné dans Anciennes versions (v0.6.1)
   if (!S.arch || S.at === "sent" || !S.at) return archivesOrig();
   const A = S.arch, q = S.q.toLowerCase(), m = (s) => !q || s.toLowerCase().includes(q);
-  const old = A.old.filter((d) => m(d.label + d.path)), done = A.done.filter((d) => m(d.label + d.path)), sent = A.sent.filter((e) => m(e.label + e.recipient));
-  const L = S.at === "old" ? old : done;
-  const intro = S.at === "old" ? "Quand un document est remplacé, l'ancien vient ici. Tu n'as qu'une version valable dans Documents, mais tu ne perds rien. Touche un document pour voir toutes ses versions."
-    : "Les papiers d'une situation finie : ancien employeur, bail terminé, contrat fini, véhicule vendu. Une fiche de paie arrive ici quand un solde de tout compte arrive, ou quand un autre employeur prend la suite.";
+  const old = [...A.old, ...A.done].filter((d) => m(d.label + d.path)), sent = A.sent.filter((e) => m(e.label + e.recipient));
   return `<h1>Archives</h1><p class="lead">Bon toutou ne détruit rien. Ce qui n'est plus valable ou déjà envoyé vit ici, dans le dossier <span class="fname">99_ARCHIVES</span> de chaque pays.</p>
   <div class="search">${IC.search}<input id="q" value="${esc(S.q)}" placeholder="Chercher dans les archives : ancien RIB, bail, avis d'impôt 2024…" aria-label="Chercher dans les archives"></div>
-  <div class="axes">${[["sent", "Dossiers envoyés", sent.length], ["old", "Anciennes versions", old.length], ["done", "Terminés", done.length]].map((t) => `<button class="${S.at === t[0] ? "on" : ""}" data-at="${t[0]}">${t[1]} <span class="sub" style="color:inherit;opacity:.75">${t[2]}</span></button>`).join("")}</div>
-  <p class="sub" style="margin:0 0 12px;max-width:72ch">${intro}</p>
-  ${archSection(L, S.at) || `<div class="card empty">${q ? "Aucun résultat." : S.at === "old" ? "Aucune ancienne version." : "Rien pour l'instant."}</div>`}`;
+  <div class="axes">${[["sent", "Dossiers envoyés", sent.length], ["old", "Anciennes versions", old.length]].map((t) => `<button class="${S.at === t[0] ? "on" : ""}" data-at="${t[0]}">${t[1]} <span class="sub" style="color:inherit;opacity:.75">${t[2]}</span></button>`).join("")}</div>
+  <p class="sub" style="margin:0 0 12px;max-width:72ch">Les versions remplacées et les papiers d'une situation finie (ancien employeur, bail terminé, véhicule vendu), rangés comme dans Documents. Touche un document pour voir toutes ses versions.</p>
+  ${archSection(old, "old") || `<div class="card empty">${q ? "Aucun résultat." : "Aucune ancienne version."}</div>`}`;
 };
 
 /* ---- Documents : réparer depuis le dossier d'origine, ranger les anciens employeurs */
@@ -49,7 +48,7 @@ function repairCard() {
   const R = S.repair, oldJobs = (S.st.counts || {}).old_jobs || 0;
   const hasPay = (S.docs || []).some((d) => ["bulletin_paie", "solde_tout_compte", "contrat_travail", "attestation_employeur"].includes(d.type)) || (S.arch && S.arch.done && S.arch.done.length);
   let out = "";
-  if (oldJobs) out += `<div class="card box suresbar"><span class="oi">${IC.work}</span><div class="grow"><b>${oldJobs} ${plural(oldJobs, "ancien employeur", "anciens employeurs")} encore dans Documents</b><div class="sub">Seul ton emploi actuel reste dans Documents. Les fiches des employeurs précédents passent dans Archives › Terminés, chacune dans son dossier. Annulable.</div></div><button class="cta small" data-act="rep-tidy">Ranger dans Terminés</button></div>`;
+  if (oldJobs) out += `<div class="card box suresbar"><span class="oi">${IC.work}</span><div class="grow"><b>${oldJobs} ${plural(oldJobs, "ancien employeur", "anciens employeurs")} encore dans Documents</b><div class="sub">Seul ton emploi actuel reste dans Documents. Les fiches des employeurs précédents passent dans Archives › Anciennes versions, chacune dans son dossier. Annulable.</div></div><button class="cta small" data-act="rep-tidy">Ranger dans Anciennes versions</button></div>`;
   if (R && R.busy) return out + `<div class="card busy"><span class="spin"></span>${esc(R.busy)}</div>`;
   if (R && R.items) {
     const sel = R.sel;
@@ -97,9 +96,9 @@ document.addEventListener("click", async (e) => {
   if (act === "rep-apply") { const items = S.repair.items.filter((x) => S.repair.sel.has(x.id)).map((x) => ({ id: x.id, fields: x.fields }));
     S.repair = { busy: "Correction en cours…" }; render();
     const r = await api("/api/repair/apply", { items }); S.repair = null; await load();
-    return toast(`${r.n} ${plural(r.n, "document corrigé", "documents corrigés")}${(r.closed || []).length ? ` · ${r.closed.length} ${plural(r.closed.length, "ancien employeur", "anciens employeurs")} dans Terminés` : ""}`, r.batch); }
+    return toast(`${r.n} ${plural(r.n, "document corrigé", "documents corrigés")}${(r.closed || []).length ? ` · ${r.closed.length} ${plural(r.closed.length, "ancien employeur", "anciens employeurs")} dans Anciennes versions` : ""}`, r.batch); }
   if (act === "rep-tidy") { const r = await api("/api/jobs/tidy", {}); await load();
-    return toast((r.closed || []).length ? `${r.closed.length} ${plural(r.closed.length, "ancien employeur rangé", "anciens employeurs rangés")} dans Archives › Terminés` : "Rien à ranger", r.batch); }
+    return toast((r.closed || []).length ? `${r.closed.length} ${plural(r.closed.length, "ancien employeur rangé", "anciens employeurs rangés")} dans Archives › Anciennes versions` : "Rien à ranger", r.batch); }
 });
 document.addEventListener("keydown", (e) => {
   const os = e.target.closest && e.target.closest("[data-opens]");

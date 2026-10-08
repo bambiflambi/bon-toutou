@@ -83,8 +83,8 @@ function card(p, n) {
 const FEM = /^(carte|fiche|facture|quittance|attestation|d[ée]claration|demande|amende|assurance|immatriculation|lettre|aide|allocation|relev[ée]x?)\b/i;
 const unaccent = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 function blankBtn(p, k, text) {
-  const d = (p.doubts || []).includes(k), o = S.blank === k;
-  return `<button type="button" class="blank${d ? " doubt" : ""}${o ? " open" : ""}" data-blank="${k}" aria-expanded="${o}">${esc(text)}</button>`;
+  const d = (p.doubts || []).includes(k), o = S.blank === k, set = (p.set || []).includes(k), fresh = S.justSet === p.id + ":" + k;
+  return `<button type="button" class="blank${d ? " doubt" : ""}${set ? " set" : ""}${fresh ? " fresh" : ""}${o ? " open" : ""}" data-blank="${k}" aria-expanded="${o}" title="${set ? "Choisi par toi" : "Proposé par Bon toutou"}">${esc(text)}</button>`;
 }
 function phrase(p) {
   if (S.blankFor !== p.id) { S.blankFor = p.id; S.blank = (p.doubts || [])[0] || null; S.tq = ""; S.allTypes = false; }
@@ -131,8 +131,13 @@ async function pickBlank(k, v) {
   const p = queue()[0]; if (!p) return;
   const f = k === "person" ? "person" : k;
   S.blank = "__next"; S.tq = ""; S.allTypes = false;
-  await api("/api/propose", { id: p.id, overrides: { [f]: v } });
+  const r = await api("/api/propose", { id: p.id, overrides: { [f]: v } });
+  if (!r || r.error) { toast("Pas enregistré : " + ((r && r.error) || "erreur")); return load(); }
+  S.justSet = p.id + ":" + k;
   await load();
+  const L = { type: "Type", emitter: "Émetteur", person: "Titulaire", date: "Date" }[k];
+  toast(`${L} enregistré · le nom et le dossier sont mis à jour`);
+  setTimeout(() => { if (S.justSet === p.id + ":" + k) { S.justSet = null; if (S.v === "trier") render(); } }, 2500);
 }
 
 /* ---- Ce que Bon toutou a compris de ton rangement (import d'un dossier) */

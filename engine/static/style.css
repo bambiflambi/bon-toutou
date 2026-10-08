@@ -478,3 +478,6 @@ textarea.field{width:100%}
 .vlist{background:var(--bg);border-top:1px solid var(--border-light);border-bottom:1px solid var(--border-light)}
 .vrow{padding-left:58px}.vrow .vdate{font-variant-numeric:tabular-nums;font-weight:600;min-width:96px}
 .repair{margin-bottom:14px;overflow:hidden}.repair .row{align-items:flex-start}
+.blank.set{border-bottom:2px solid var(--success)}
+.blank.fresh{background:var(--success-light);transition:background .6s}
+@media (prefers-reduced-motion:reduce){.blank.fresh{transition:none}}

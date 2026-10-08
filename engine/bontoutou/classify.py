@@ -671,6 +671,14 @@ def apply_hints(a, hints, text_employer=None, today=None):
         if not (f"{y1}-{m1:02d}" <= d <= f"{y2}-{m2:02d}"):
             R.append(f"Date hors de la période de ton dossier ({_fmt_ym((y1, m1))} – {_fmt_ym((y2, m2))}) : à vérifier")
             a["conflict"] = a.get("conflict") or {"field": "date", "folder": f"{_fmt_ym((y1, m1))} – {_fmt_ym((y2, m2))}", "content": a["date"]}
+    D = set(a.get("doubts") or [])   # ce que ton rangement a dit n'est plus un doute
+    if hints.get("emitter") and a["type"] in EMPLOYMENT:
+        D.discard("emitter")
+    if hints.get("type") and a["type"] == hints["type"]:
+        D.discard("type")
+    if hints.get("lot") or (hints.get("month") and a["type"] == "bulletin_paie"):
+        D.discard("date")
+    a["doubts"] = [d for d in ("type", "emitter", "date") if d in D]
     if a.get("conflict"):
         a["confidence"] = "moyenne" if a["confidence"] == "haute" else a["confidence"]
     elif hints.get("emitter") and a["type"] in EMPLOYMENT and a["confidence"] != "basse":
@@ -702,6 +710,7 @@ def refine_with_ai(result, text, filename, engine, model, countries, image=None,
     """Demande l'avis de l'IA locale, puis VÉRIFIE chaque réponse : l'IA propose, le code décide."""
     from . import ia
     ask = lambda img: ia.ask(engine, model, build_prompt(text, filename, countries), img, timeout)
+    t0 = dt.datetime.now()
     try:
         o = ask(image)
     except Exception as e:
@@ -717,6 +726,8 @@ def refine_with_ai(result, text, filename, engine, model, countries, image=None,
             result["reasons"].append("IA locale : trop lente sur cet ordinateur, abandonnée" if timed_out
                                      else f"IA locale indisponible ({type(e).__name__})")
             return result
+    result["ai_seconds"] = round((dt.datetime.now() - t0).total_seconds(), 1)
+    result["ai_raw"] = o if isinstance(o, dict) else str(o)[:500]
     if not isinstance(o, dict):
         result["reasons"].append("IA locale : réponse illisible, ignorée")
         return result

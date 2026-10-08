@@ -234,6 +234,8 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.emitter_groups())
             if p == "/api/emitters/regroup":
                 return self._json(B.regroup(data.get("groups")))
+            if p == "/api/refresh":
+                return self._json(B.refresh())
             if p == "/api/redetect":
                 return self._json(B.redetect())
             if p == "/api/repair/preview":

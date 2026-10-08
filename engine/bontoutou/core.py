@@ -46,7 +46,7 @@ DOC_FIELDS = ("id", "suivi", "type", "label", "person", "country", "cat", "sub",
 DOSSIER_FIELDS = ("id", "template", "recipient", "country", "created_at", "state", "assign", "folder", "zip", "manifest",
                   "finalized_at", "sent_at")
 PROFILE_KEYS = ("owner", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders")          # suivent l'utilisateur sur tous ses appareils
-DEVICE_KEYS = ("theme", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
+DEVICE_KEYS = ("theme", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
 # Niveaux de confidentialité par défaut (catégorie -> local | autorisation | externe). Un document non trié est « local ».
 DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "09": "local", "10": "local", "13": "local",
                    "02": "autorisation", "03": "autorisation", "07": "autorisation", "12": "autorisation", "14": "autorisation",
@@ -170,7 +170,7 @@ class Bureau:
                          "privacy": dict(DEFAULT_PRIVACY), "disabled_packs": [],
                          "holders": [], "guide": {"etape": 0, "fini": False, "masque": False},
                          "mail": "", "mail_host": "", "mail_port": 993, "mail_auto": False, "mail_days": 90, "mail_saved": False,
-                         "respect_folders": True, "orgs_done": [], "notify": [], "plus_done": [], "trusted": "", "theme": "champagne"}
+                         "respect_folders": True, "diagnostic": False, "orgs_done": [], "notify": [], "plus_done": [], "trusted": "", "theme": "champagne"}
         for pth in (self.profile_path, self.device_settings_path):
             d = read_json(pth, {}) or {}
             if int(d.get("format", 1) or 1) > FORMAT:
@@ -443,6 +443,24 @@ class Bureau:
         self.db.execute("INSERT INTO egress(ts,doc_id,dest,reason) VALUES(?,?,?,?)", (e["ts"], e.get("doc_id"), e.get("dest"), e.get("label")))
         self.db.commit()
 
+    def diag(self, event, **data):
+        """Mode test (Réglages, désactivé par défaut) : le détail de chaque analyse est noté dans
+        .bontoutou/diagnostic/AAAA-MM-JJ.jsonl, dans ton bureau, sur ton ordinateur. Rien ne sort."""
+        if not self.settings.get("diagnostic"):
+            return
+        try:
+            d = os.path.join(self.fm, "diagnostic")
+            os.makedirs(d, exist_ok=True)
+            with open(os.path.join(d, dt.date.today().isoformat() + ".jsonl"), "a", encoding="utf-8") as f:
+                f.write(json.dumps({"ts": now(), "event": event, **data}, ensure_ascii=False, default=str) + "\n")
+        except OSError:
+            pass
+
+    @staticmethod
+    def _brief(a):
+        return {k: a.get(k) for k in ("type", "country", "emitter", "emitter_display", "date", "date_note", "expiry", "detail", "confidence",
+                                       "doubts", "candidates", "emitter_candidates", "conflict", "lot", "engine")}
+
     def sorties(self):
         out = []
         p = os.path.join(self.fm, "sorties.jsonl")
@@ -544,6 +562,9 @@ class Bureau:
                 a["ai_pending"] = True
             a["method"] = method
             a["excerpt"] = (text or "").strip()[:600]
+            self.diag("analyse", id=iid, fichier=os.path.basename(path), chemin_origine=rel, source=source, lecture=method,
+                      texte_lu=len(text or ""), debut_du_texte=(text or "").strip()[:400], regles=self._brief(a), raisons=a["reasons"],
+                      ia_demandee=bool(a.get("ai_pending")))
             self.db.execute("INSERT INTO inbox VALUES(?,?,?,?,?,?,?,?,?,?)",
                             (iid, self.rel(path), os.path.basename(path), sha, source, method, json.dumps(a), "{}", "a_trier", now()))
             self.db.commit()
@@ -586,7 +607,11 @@ class Bureau:
                                             img, timeout=self._ai_timeout(vision))
             except Exception as e:
                 a["reasons"].append(f"IA locale indisponible ({type(e).__name__})")
+                a["ai_error"] = f"{type(e).__name__}: {e}"[:300]
             a["ai_pending"] = False
+            self.diag("ia", id=r["id"], fichier=r["orig_name"], modele=self.settings.get("ollama_model"), mode=self.settings.get("ai_mode"),
+                      secondes=a.get("ai_seconds"), reponse_brute=a.get("ai_raw"), erreur=a.get("ai_error"),
+                      resultat=self._brief(a), raisons=a["reasons"][-3:])
             with self.lock:
                 cur = self.db.execute("SELECT state FROM inbox WHERE id=?", (r["id"],)).fetchone()
                 if cur and cur["state"] == "a_trier":
@@ -887,7 +912,8 @@ class Bureau:
                         and not (k == "type" and a.get("origin") and a["type"] in classify.EMPLOYMENT)],
              "candidates": [t for t in (a.get("candidates") or []) if t in TYPES and t != a["type"]][:4],
              "emitter_candidates": [e for e in (a.get("emitter_candidates") or []) if classify.slugify(e) != a["emitter"]][:3],
-             "date_year": a.get("date_year") if not ov.get("date") else None}
+             "date_year": a.get("date_year") if not ov.get("date") else None,
+             "set": [k for k in ("type", "emitter", "date", "person", "country", "detail") if ov.get(k)]}
         dup = self.db.execute("SELECT id,label,path FROM docs WHERE sha=?", (row["sha"],)).fetchone()
         p["duplicate"] = dict(dup) if dup else None
         cur = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status='actuel'", (key,)).fetchone() if key else None
@@ -900,7 +926,7 @@ class Bureau:
                 e = self.db.execute("SELECT label FROM docs WHERE suivi=? AND status='actuel'", (ek,)).fetchone()
                 p["ends"] = ek
                 if e:
-                    p["relation"] += f" · termine le suivi « {e['label']} » (toutes ses versions passent dans Archives › Terminés)"
+                    p["relation"] += f" · termine le suivi « {e['label']} » (toutes ses versions passent dans Archives › Anciennes versions)"
         elif cur and a["date"] >= cur["doc_date"]:
             p["mode"] = "new_version"
             dest = self.doc_dir(a["country"], a["type"], a["emitter"])
@@ -924,7 +950,10 @@ class Bureau:
             ov.update({k: v for k, v in overrides.items() if k in ("type", "country", "emitter", "date", "expiry", "person", "detail", "resolved")})
             self.db.execute("UPDATE inbox SET overrides=? WHERE id=?", (json.dumps(ov), iid))
             self.db.commit()
-            return self._pub(self.proposal(self.db.execute("SELECT * FROM inbox WHERE id=?", (iid,)).fetchone()))
+            pub = self._pub(self.proposal(self.db.execute("SELECT * FROM inbox WHERE id=?", (iid,)).fetchone()))
+            self.diag("choix", id=iid, fichier=row["orig_name"], demande=overrides, enregistre=ov,
+                      apres={k: pub.get(k) for k in ("type", "emitter", "date", "person", "label", "name", "dest")})
+            return pub
 
     @staticmethod
     def _pub(p):
@@ -989,6 +1018,8 @@ class Bureau:
                             self._doc_update(d["id"], fields, ops)
                 dst = unique_path(self.abs(p["dest"]), p["name"])
                 self._move(src, dst, ops)
+                self.diag("rangement", id=iid, fichier=row["orig_name"], vers=self.rel(dst), suivi=p["relation"], confiance=a["confidence"],
+                          corrige=json.loads(row["overrides"] or "{}"))
                 did = uuid.uuid4().hex[:12]
                 self.db.execute("INSERT INTO docs(id,suivi,type,label,person,country,cat,sub,emitter,doc_date,expiry,path,orig_name,sha,status,added_at,note) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                                 (did, p["suivi"], a["type"], p["label"], self.holder(a), a["country"], T["cat"], T["sub"], a["emitter"],
@@ -1006,7 +1037,7 @@ class Bureau:
                 return {"ok": False, "done": 0}
             closed = self.close_old_employers(ops)
             b = self._journal(f"{done} document{'s' if done > 1 else ''} rangé{'s' if done > 1 else ''}"
-                              + (f" · ancien{'s' if len(closed) > 1 else ''} employeur{'s' if len(closed) > 1 else ''} dans Terminés" if closed else ""), ops)
+                              + (f" · ancien{'s' if len(closed) > 1 else ''} employeur{'s' if len(closed) > 1 else ''} dans Anciennes versions" if closed else ""), ops)
             return {"ok": True, "done": done, "batch": b, "closed": closed}
 
     def ignore(self, iid, folder="_IGNORES", state="ignore", label="Document ignoré (gardé dans 00_A-TRIER/_IGNORES)"):
@@ -1147,12 +1178,34 @@ class Bureau:
             b = self._journal(f"Corrigé : {self.display_label(a)}", ops)
             return {"ok": True, "batch": b, "id": did}
 
+    def refresh(self):
+        """« Mettre à jour » (Documents) : retrouve les émetteurs manquants et range les anciens employeurs. Une seule annulation."""
+        with self.lock:
+            ops = []
+            changes = self._redetect(ops)
+            closed = self.close_old_employers(ops)
+            if not ops:
+                return {"ok": True, "n": 0, "closed": [], "changes": []}
+            parts = ([f"{len(changes)} émetteur{'s' if len(changes) > 1 else ''} retrouvé{'s' if len(changes) > 1 else ''}"] if changes else []) + \
+                    ([f"{len(closed)} ancien{'s' if len(closed) > 1 else ''} employeur{'s' if len(closed) > 1 else ''} dans Anciennes versions"] if closed else [])
+            b = self._journal("Mise à jour : " + ", ".join(parts), ops)
+            return {"ok": True, "n": len(changes), "changes": changes, "closed": closed, "batch": b, "msg": " · ".join(parts)}
+
     def redetect(self):
         """Relit le texte (déjà en mémoire) des documents rangés sans émetteur et retrouve l'émetteur
         (l'employeur pour les fiches de paie). Renomme et range dans le dossier de l'émetteur. Une seule annulation."""
         with self.lock:
+            ops = []
+            changes = self._redetect(ops)
+            if not changes:
+                return {"ok": True, "n": 0, "changes": []}
+            b = self._journal(f"Émetteur retrouvé pour {len(changes)} document{'s' if len(changes) > 1 else ''}", ops)
+            return {"ok": True, "n": len(changes), "changes": changes, "batch": b}
+
+    def _redetect(self, ops):
+        if True:
             rows = self.db.execute("SELECT * FROM docs WHERE (emitter IS NULL OR emitter='' OR emitter='Inconnu') ORDER BY doc_date").fetchall()
-            ops, changes, keys = [], [], set()
+            changes, keys = [], set()
             for d in rows:
                 text = self.text_of(d["sha"], d["path"])[0] or ""
                 if not text.strip():
@@ -1167,10 +1220,7 @@ class Bureau:
                     if k:
                         keys.add(k)
             self._fix_suivi(keys, ops)
-            if not changes:
-                return {"ok": True, "n": 0, "changes": []}
-            b = self._journal(f"Émetteur retrouvé pour {len(changes)} document{'s' if len(changes) > 1 else ''}", ops)
-            return {"ok": True, "n": len(changes), "changes": changes, "batch": b}
+            return changes
 
     def _fix_suivi(self, keys, ops):
         """Après un regroupement : dans chaque suivi, la version la plus récente est l'actuelle, les autres passent dans l'historique."""
@@ -1252,7 +1302,7 @@ class Bureau:
 
     def close_old_employers(self, ops):
         """Seul l'emploi actuel reste dans Documents. Les fiches d'un employeur qui s'arrêtent alors qu'un autre continue
-        passent dans Archives › Terminés (dans son sous-dossier). Deux emplois en même temps restent tous les deux."""
+        passent dans Archives › Anciennes versions (dans son sous-dossier). Deux emplois en même temps restent tous les deux."""
         rows = self.db.execute("SELECT * FROM docs WHERE type='bulletin_paie' AND status='actuel' AND doc_date IS NOT NULL").fetchall()
         if len(rows) < 2:
             return []
@@ -1339,7 +1389,7 @@ class Bureau:
             closed = self.close_old_employers(ops)
             if not ops:
                 return {"ok": True, "closed": []}
-            return {"ok": True, "closed": closed, "batch": self._journal(f"Anciens employeurs rangés dans Archives › Terminés ({len(closed)})", ops)}
+            return {"ok": True, "closed": closed, "batch": self._journal(f"Anciens employeurs rangés dans Archives › Anciennes versions ({len(closed)})", ops)}
 
     def _old_jobs_count(self):
         rows = self.db.execute("SELECT doc_date FROM docs WHERE type='bulletin_paie' AND status='actuel' AND doc_date IS NOT NULL").fetchall()

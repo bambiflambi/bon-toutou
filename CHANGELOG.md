@@ -2,6 +2,13 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.6.1 — Plus simple
+- **Documents** : les encarts « Retrouver les émetteurs » et « Réparer depuis mon dossier » disparaissent. Un seul bouton **Mettre à jour**, à droite du titre : il retrouve les émetteurs manquants et range les anciens employeurs, en une fois (un seul « Annuler »).
+- **Archives** : l'onglet « Terminés » est supprimé. Tout ce qui n'est plus actuel (versions remplacées, ancien employeur, bail fini…) est dans **Anciennes versions**, rangé par catégories comme Documents.
+- **Corriger** : quand tu choisis un mot dans la phrase, il passe au vert et un message confirme l'enregistrement ; le nom et le dossier proposés se mettent à jour. Un employeur ou un mois lus dans le nom de ton dossier ne sont plus signalés comme des doutes.
+- **Mode test** (Réglages › Version et mises à jour, désactivé par défaut) : le détail de chaque analyse (texte lu, proposition des règles, réponse et durée de l'IA locale, tes choix, rangement final) est noté dans `.bontoutou/diagnostic`, dans ton bureau, sur ton ordinateur.
+- `tools/banc_essai.py` : passe tout un dossier dans le moteur sur un bureau de test et écrit un rapport (rapport.md, arborescence), sans toucher au vrai bureau.
+
 ## 0.6.0 — Fiches de paie réparées, archives lisibles, corriger en une phrase
 - **Réparer depuis mon dossier d'origine** (Documents) : tu choisis le dossier où tu gardais tes fiches (ex. Administration › Paye). Bon toutou reconnaît chaque fiche déjà rangée par son empreinte, sans rien recopier, lit l'employeur, le mois et les lots dans les noms de tes dossiers, te montre les corrections, puis les applique en une fois. Un seul « Annuler ».
 - **Seul ton emploi actuel reste dans Documents** : quand les fiches d'un employeur s'arrêtent depuis plus de 2 mois alors qu'un autre continue, cet ancien employeur passe dans Archives › Terminés, dans son dossier. Deux emplois en même temps restent tous les deux. Bouton « Ranger dans Terminés » pour un bureau rangé avant.
