@@ -119,6 +119,9 @@ def extract(path):
     if ext in IMG_EXT:
         t = _ocr_image(path)
         return t, ("ocr" if t.strip() else "image-sans-ocr")
+    if ext in (".docx", ".odt", ".pages", ".doc", ".rtf"):
+        t = _office_text(path, ext)
+        return t, ("texte" if t.strip() else "format-non-lu")
     if ext in (".txt", ".md", ".csv"):
         try:
             with open(path, "r", encoding="utf-8", errors="ignore") as f:
@@ -126,6 +129,41 @@ def extract(path):
         except Exception:
             return "", "illisible"
     return "", "format-non-lu"
+
+
+def _office_text(path, ext):
+    """Word (.docx), OpenDocument (.odt), Pages (aperçu PDF intégré), .doc / .rtf (textutil de macOS, sinon texte brut)."""
+    import re
+    import zipfile
+    try:
+        if ext in (".docx", ".odt"):
+            with zipfile.ZipFile(path) as z:
+                xml = z.read("word/document.xml" if ext == ".docx" else "content.xml").decode("utf-8", "ignore")
+            xml = re.sub(r"</w:p>|</text:p>|<w:br/>|<text:line-break/>", "\n", xml)
+            xml = re.sub(r"<w:tab/>|<text:tab/>", " ", xml)
+            txt = re.sub(r"<[^>]+>", "", xml)
+            import html
+            return html.unescape(txt)[:20000]
+        if ext == ".pages":
+            with zipfile.ZipFile(path) as z:
+                names = [n for n in z.namelist() if n.lower().endswith("preview.pdf")]
+                if names:
+                    with tempfile.TemporaryDirectory() as d:
+                        pp = os.path.join(d, "p.pdf")
+                        with open(pp, "wb") as f:
+                            f.write(z.read(names[0]))
+                        return _pdf_text(pp)[0]
+            return ""
+        if shutil.which("textutil"):   # macOS : .doc, .rtf
+            r = subprocess.run(["textutil", "-convert", "txt", "-stdout", path], capture_output=True, timeout=60)
+            if r.returncode == 0:
+                return r.stdout.decode("utf-8", "ignore")[:20000]
+        with open(path, "rb") as f:
+            raw = f.read(400000)
+        runs = re.findall(rb"[\x20-\x7e\xa0-\xff]{4,}", raw)
+        return "\n".join(x.decode("latin-1") for x in runs)[:20000] if ext == ".doc" else ""
+    except Exception:
+        return ""
 
 
 def page_image(path, max_side=896):

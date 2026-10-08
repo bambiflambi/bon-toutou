@@ -198,6 +198,27 @@ _GENERIC = re.compile(r"(?i)\b(calendrier|bulletin|facture|attestation|demande|f
                       r"fraternite|fraternité|republique|république)\b")
 
 
+_MRZ = re.compile(r"(?m)^(?:P[A-Z<][A-Z<]{3})?([A-Z]{2,}(?:<[A-Z]{2,})*)<<([A-Z]{2,}(?:<[A-Z]{2,})*)<*\s*$")
+
+
+def holder_from_text(text):
+    """Nom du titulaire lu dans la bande MRZ d'un passeport ou d'une carte d'identité (« P<FRADUPONT<<MARIE<CLAIRE<<< »).
+    Retourne « Marie Claire Dupont » ou None. Rien n'est envoyé nulle part."""
+    for line in (text or "").replace(" ", "").splitlines():
+        line = line.strip().upper()
+        if line.count("<") < 3 or len(line) < 15:
+            continue
+        if line.startswith("P<") or line.startswith("PO") or line.startswith("PP"):
+            line = line[5:]
+        m = _MRZ.match(line)
+        if m:
+            sur = m.group(1).replace("<", " ").title()
+            giv = m.group(2).replace("<", " ").title()
+            if 2 <= len(sur) <= 40 and 2 <= len(giv) <= 40:
+                return f"{giv} {sur}"
+    return None
+
+
 def emitter_candidates(text, found=None):
     """Noms d'émetteur plausibles lus en haut du document (« A-Z NAUTIC »), à proposer quand l'émetteur est douteux."""
     out = []
@@ -251,6 +272,15 @@ def _pick_dates(text, filename, today):
         fd = [d for _, d in fd if d <= today]
         if fd:
             doc_date, why = fd[0], "date lue dans le nom du fichier"
+    if not doc_date:   # « Numérisation_20201111 », « IMG_20230514_… » : date collée dans le nom du fichier
+        m = re.search(r"(?<!\d)((?:19|20)\d\d)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?!\d)", filename)
+        if m:
+            try:
+                d = dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                if dt.date(1990, 1, 1) <= d <= today:
+                    doc_date, why = d, "date lue dans le nom du fichier (scan ou photo)"
+            except ValueError:
+                pass
     return doc_date, expiry, why
 
 
@@ -387,16 +417,22 @@ def analyze(text, filename, countries, today=None):
     """Retourne une proposition complète + raisons."""
     today = today or dt.date.today()
     hay = norm(text)
-    fhay = norm(filename.replace("_", " ").replace("-", " "))
+    fhay = norm(re.sub(r"([a-zà-ÿ])([A-Z])", r"\1 \2", filename).replace("_", " ").replace("-", " "))   # « MotivationOwwnerPMB » -> « Motivation Owwner PMB »
     reasons = []
     scores = {}
     hits = {}
+    titles = {}
     for tid, T in TYPES.items():
         if tid == "autre":
             continue
         h = [k for k in T.get("kw", []) if _has(hay, norm(k))]
         f = [k for k in T.get("fn", []) if _has(fhay, norm(k))]
         sc = 2 * len(h) + len(f)
+        # titre du document (nom du fichier ou haut de la page) : « Lettre de motivation », « Livret de famille »… l'emporte
+        tt = [k for k in T.get("titre", []) if _has(fhay, norm(k)) or _has(hay[:300], norm(k))]
+        if tt:
+            sc += 5
+            titles[tid] = tt[0]
         if sc:
             scores[tid] = sc
             hits[tid] = (h, f)
@@ -422,6 +458,8 @@ def analyze(text, filename, countries, today=None):
             break
     if forced:
         reasons.append(f"{forced[2]} : {rule_text(forced[0], 'type', forced[1])}")
+    if type_id in titles and not forced:
+        reasons.append(f"Titre du document : « {titles[type_id]} »")
     if type_id != "autre" and not forced:
         h, f = hits.get(type_id, ([], []))
         if h:
@@ -517,14 +555,18 @@ def analyze(text, filename, countries, today=None):
         detail, dsrc, dorg = rd[0][1], rd[0][0], rd[0][2]
     if detail:
         reasons.append(f"Intitulé déduit : {detail} (lu : « {dsrc[:40]} ») [{dorg}]")
+    seen_holder = holder_from_text(text) if type_id in ("passeport", "carte_identite", "visa") else None
+    if seen_holder:
+        reasons.append(f"Titulaire lu dans la bande en bas du document : {seen_holder}")
     doubts = []
     if type_id in ("autre", "formulaire") or level == "basse" or (must and text.strip() and not any(m in hay for m in must)):
         doubts.append("type")
-    if not emitter or emitter_approx:
+    if (not emitter or emitter_approx) and TYPES[type_id].get("emetteur", True):
         doubts.append("emitter")
     if date_note or not precision:
         doubts.append("date")
     return {
+        "holder_seen": seen_holder,
         "candidates": [t for t, _ in ranked[:5] if t != type_id][:4], "emitter_candidates": emitter_candidates(text, emitter),
         "doubts": doubts, "date_year": doc_date.year if doc_date and precision == "annee" else None,
         "income_year": income_year, "detail": detail, "date_precision": precision, "date_note": date_note,

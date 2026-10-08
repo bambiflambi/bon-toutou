@@ -2,6 +2,16 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.6.2 — Leçons du premier banc d'essai (38 vrais papiers)
+- **Titre du document** : « Lettre de motivation », « Livret de famille », « Permis de conduire »… lu dans le nom du fichier ou en haut de la page l'emporte sur les mots du contenu (une lettre de motivation qui parle de diplôme n'est plus un diplôme). Les noms collés (« MotivationOwwnerPMB ») sont compris.
+- **Nouveaux types** : livret de famille (01 Identité › État civil), lettre de démission (03 Travail › Contrats), courrier de réclamation / mise en demeure (13 Juridique › Litiges).
+- **Titulaire des passeports et cartes d'identité** lu dans la bande du bas (MRZ) : les papiers de tes proches ne deviennent plus des « anciennes versions » des tiens. Si le nom lu est le tien, choisis « Toi » une fois : Bon toutou s'en souvient.
+- **Word, OpenDocument et Pages** : le texte des .docx, .odt, .doc, .rtf et .pages (aperçu intégré) est lu.
+- Date collée dans le nom d'un scan (« Numérisation_20201111 ») reconnue.
+- Pas de « qui ? » demandé pour tes propres lettres et ton CV.
+- Un fichier déjà dans Trier, déposé une deuxième fois, ne laisse plus de copie dans 00_A-TRIER.
+- Banc d'essai : liste des copies exactes, note « à anonymiser » (natures des données sensibles, jamais les valeurs).
+
 ## 0.6.1 — Plus simple
 - **Documents** : les encarts « Retrouver les émetteurs » et « Réparer depuis mon dossier » disparaissent. Un seul bouton **Mettre à jour**, à droite du titre : il retrouve les émetteurs manquants et range les anciens employeurs, en une fois (un seul « Annuler »).
 - **Archives** : l'onglet « Terminés » est supprimé. Tout ce qui n'est plus actuel (versions remplacées, ancien employeur, bail fini…) est dans **Anciennes versions**, rangé par catégories comme Documents.

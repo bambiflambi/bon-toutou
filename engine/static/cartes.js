@@ -120,7 +120,9 @@ function ask(p, k) {
   }
   if (k === "person") {
     const H = [S.st.settings.owner || "toi", ...((S.st.settings.holders || []).map((h) => h.nom))].filter(Boolean);
-    return `<div class="ask"><b>C'est à qui ?</b><div class="chips">${H.map((h, i) => chip(i === 0 ? S.st.settings.owner || "moi" : h, i === 0 ? "Toi" : h, i === 0)).join("")}</div>
+    const seen = p.holder_seen && !H.includes(p.holder_seen) ? p.holder_seen : null;
+    return `<div class="ask"><b>C'est à qui ?</b>${seen ? `<span class="from">Nom lu sur le document : « ${esc(seen)} ». Si c'est toi, choisis « Toi » : Bon toutou s'en souviendra.</span>` : ""}
+      <div class="chips">${H.map((h, i) => chip(i === 0 ? S.st.settings.owner || "moi" : h, i === 0 ? "Toi" : h, i === 0)).join("")}${seen ? chip(seen, seen, false, "un proche") : ""}</div>
       <label class="say"><span aria-hidden="true">✎</span><input id="say_person" list="holders" placeholder="Un autre prénom" aria-label="Titulaire"></label></div>`;
   }
   return `<div class="ask"><b>Quelle date garder ?</b>${p.date_note ? `<span class="from">${esc(p.date_note)}</span>` : ""}

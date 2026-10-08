@@ -37,7 +37,7 @@ CONTRIBUTION = {}    # où envoyer une proposition (pack Socle) : {"email": ...,
 PACKS = []           # résumé des packs chargés (pour Réglages)
 WARNINGS = []        # règles refusées, packs illisibles…
 
-LIST_FIELDS = ("kw", "fn", "must")
+LIST_FIELDS = ("kw", "fn", "must", "titre")
 RULE_FIELDS = ("type", "emitter", "detail", "country")
 MAX_INDICE = 120
 MAX_PATTERN = 200

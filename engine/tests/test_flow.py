@@ -268,5 +268,22 @@ lines = [json.loads(l) for f in os.listdir(dg) for l in open(os.path.join(dg, f)
 check({"analyse", "choix"} <= {l["event"] for l in lines}, "mode test : analyse et choix notés dans .bontoutou/diagnostic")
 b6.save_settings({"diagnostic": False})
 
+# v0.6.2 : titulaire lu dans la bande MRZ, « c'est moi » retenu, pas de copie pour un doublon, nouveaux types
+mrz = lambda nom, prenom: ["PASSEPORT", "Republique Francaise", f"P<FRA{nom}<<{prenom}<<<<<<<<<<<<<<<<<<<<", "12AB345671FRA8001019F3001018<<<<<<<<<<<<<<04"]
+pdf(os.path.join(src, "pp_moi.pdf"), mrz("BERNARD", "CAMILLE")); pdf(os.path.join(src, "pp_soeur.pdf"), mrz("BERNARD", "ELISE"))
+b6.save_settings({"owner": "Camou"})
+i_moi = b6.add_upload("passeport moi.pdf", open(os.path.join(src, "pp_moi.pdf"), "rb").read())
+i_s = b6.add_upload("passeport E.pdf", open(os.path.join(src, "pp_soeur.pdf"), "rb").read())
+P6 = {p["id"]: p for p in b6.inbox()}
+check(P6[i_moi]["holder_seen"] == "Camille Bernard" and "person" in P6[i_moi]["doubts"], "passeport : titulaire lu dans la bande MRZ, à confirmer")
+check(P6[i_s]["person"] == "Elise Bernard" and P6[i_moi]["suivi"] != P6[i_s]["suivi"], "deux passeports de deux personnes : deux suivis séparés")
+b6.set_overrides(i_moi, {"person": "Camou"})
+check("Camille Bernard" in b6.settings["owner_aliases"], "« Toi » choisi : le nom lu est retenu comme le tien")
+i_moi2 = b6.add_upload("passeport moi bis.pdf", open(os.path.join(src, "pp_moi.pdf"), "rb").read())
+check(i_moi2 is None and len([f for f in os.listdir(b6.inbox_dir) if f.startswith("passeport moi")]) == 1, "doublon déposé : pas de deuxième copie dans 00_A-TRIER")
+from bontoutou import classify as C6
+check(C6.analyze("Madame, Monsieur, diplome BTS", "Lettre de motivation BTSA.docx", ["FR"])["type"] == "lettre_motivation", "titre « Lettre de motivation » : l'emporte sur les mots du contenu")
+check(C6.analyze("", "Numerisation_20201111.png", ["FR"])["date"] == "2020-11-11", "date collée dans le nom du fichier (scan)")
+
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

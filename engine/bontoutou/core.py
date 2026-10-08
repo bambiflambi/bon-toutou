@@ -45,7 +45,7 @@ DOC_FIELDS = ("id", "suivi", "type", "label", "person", "country", "cat", "sub",
               "orig_name", "sha", "status", "added_at", "note", "detail", "extra")
 DOSSIER_FIELDS = ("id", "template", "recipient", "country", "created_at", "state", "assign", "folder", "zip", "manifest",
                   "finalized_at", "sent_at")
-PROFILE_KEYS = ("owner", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders")          # suivent l'utilisateur sur tous ses appareils
+PROFILE_KEYS = ("owner", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders", "owner_aliases")          # suivent l'utilisateur sur tous ses appareils
 DEVICE_KEYS = ("theme", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
 # Niveaux de confidentialité par défaut (catégorie -> local | autorisation | externe). Un document non trié est « local ».
 DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "09": "local", "10": "local", "13": "local",
@@ -170,7 +170,7 @@ class Bureau:
                          "privacy": dict(DEFAULT_PRIVACY), "disabled_packs": [],
                          "holders": [], "guide": {"etape": 0, "fini": False, "masque": False},
                          "mail": "", "mail_host": "", "mail_port": 993, "mail_auto": False, "mail_days": 90, "mail_saved": False,
-                         "respect_folders": True, "diagnostic": False, "orgs_done": [], "notify": [], "plus_done": [], "trusted": "", "theme": "champagne"}
+                         "respect_folders": True, "diagnostic": False, "owner_aliases": [], "orgs_done": [], "notify": [], "plus_done": [], "trusted": "", "theme": "champagne"}
         for pth in (self.profile_path, self.device_settings_path):
             d = read_json(pth, {}) or {}
             if int(d.get("format", 1) or 1) > FORMAT:
@@ -669,6 +669,8 @@ class Bureau:
         """Un fichier déposé ou importé. rel = son chemin dans le dossier importé (« Paye/1.N Louis Fournil…/2019 03.pdf ») :
         seuls les NOMS servent d'indices (employeur, mois), le dossier d'origine n'est jamais modifié."""
         safe = re.sub(r"[/\\:]", "_", os.path.basename(name)) or "document"
+        if self.db.execute("SELECT 1 FROM inbox WHERE sha=? AND state='a_trier'", (hashlib.sha256(data).hexdigest(),)).fetchone():
+            return None   # déjà dans Trier : pas de deuxième copie dans 00_A-TRIER
         p = unique_path(self.inbox_dir, safe)
         with open(p, "wb") as f:
             f.write(data)
@@ -807,6 +809,20 @@ class Bureau:
 
     PERSONAL_CATS = ("01", "06", "09", "12", "15")
 
+    def _match_person(self, name):
+        """Nom lu dans un document -> « moi » (toi, ou un nom que tu as déjà confirmé comme le tien), un proche, ou None."""
+        toks = lambda x: {w for w in classify.slugify(x or "").lower().split("-") if len(w) >= 2}
+        n = toks(name)
+        if not n:
+            return None
+        same = lambda x: len(n & toks(x)) >= 2 or (toks(x) and toks(x) <= n)
+        if any(same(o) for o in [self.settings.get("owner") or ""] + list(self.settings.get("owner_aliases") or [])):
+            return "moi"
+        for h in self.settings.get("holders") or []:
+            if isinstance(h, dict) and h.get("nom") and same(h["nom"]):
+                return h["nom"]
+        return None
+
     def holder(self, a):
         """Titulaire du document : le nom saisi, sinon toi (nom des Réglages)."""
         h = (a.get("person") or "").strip()
@@ -891,6 +907,13 @@ class Bureau:
                 a[k] = ov[k] if k != "emitter" else classify.slugify(ov[k])
                 if k == "emitter":
                     a["emitter_display"] = ov[k].strip()
+        if a.get("holder_seen") and not ov.get("person"):   # passeport / carte d'identité : le nom lu dans la bande MRZ
+            who = self._match_person(a["holder_seen"])
+            if who and who != "moi":
+                a["person"] = who
+            elif not who:
+                a["person"] = a["holder_seen"]
+                a["doubts"] = list(dict.fromkeys(list(a.get("doubts") or []) + ["person"]))
         canon = self.canon_emitter(a)
         if canon != a["emitter"]:
             a["reasons"] = a["reasons"] + [f"Même employeur que « {canon.replace('-', ' ')} », déjà dans ton bureau : rangé avec lui"]
@@ -913,7 +936,8 @@ class Bureau:
              "candidates": [t for t in (a.get("candidates") or []) if t in TYPES and t != a["type"]][:4],
              "emitter_candidates": [e for e in (a.get("emitter_candidates") or []) if classify.slugify(e) != a["emitter"]][:3],
              "date_year": a.get("date_year") if not ov.get("date") else None,
-             "set": [k for k in ("type", "emitter", "date", "person", "country", "detail") if ov.get(k)]}
+             "set": [k for k in ("type", "emitter", "date", "person", "country", "detail") if ov.get(k)],
+             "holder_seen": a.get("holder_seen")}
         dup = self.db.execute("SELECT id,label,path FROM docs WHERE sha=?", (row["sha"],)).fetchone()
         p["duplicate"] = dict(dup) if dup else None
         cur = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status='actuel'", (key,)).fetchone() if key else None
@@ -948,6 +972,10 @@ class Bureau:
             row = self.db.execute("SELECT * FROM inbox WHERE id=?", (iid,)).fetchone()
             ov = json.loads(row["overrides"] or "{}")
             ov.update({k: v for k, v in overrides.items() if k in ("type", "country", "emitter", "date", "expiry", "person", "detail", "resolved")})
+            seen = json.loads(row["analysis"] or "{}").get("holder_seen")
+            own = (self.settings.get("owner") or "").strip()
+            if seen and overrides.get("person") and overrides["person"].strip() in (own, "moi") and self._match_person(seen) != "moi":
+                self.save_settings({"owner_aliases": list(self.settings.get("owner_aliases") or []) + [seen]})   # « c'est moi » : retenu pour la suite
             self.db.execute("UPDATE inbox SET overrides=? WHERE id=?", (json.dumps(ov), iid))
             self.db.commit()
             pub = self._pub(self.proposal(self.db.execute("SELECT * FROM inbox WHERE id=?", (iid,)).fetchone()))

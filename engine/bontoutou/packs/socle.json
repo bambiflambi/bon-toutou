@@ -139,6 +139,12 @@
     "cni",
     "identite",
     "id-card"
+   ],
+   "titre": [
+    "carte nationale d'identite",
+    "carte d'identite",
+    "identity card",
+    "carte identite"
    ]
   },
   "passeport": {
@@ -153,6 +159,10 @@
     "passport"
    ],
    "fn": [
+    "passeport",
+    "passport"
+   ],
+   "titre": [
     "passeport",
     "passport"
    ]
@@ -179,6 +189,11 @@
      "\\bpermis\\s+(am|a1|a2|a|b1|be|b|c1|ce|c|d1|de|d)\\b",
      "Permis {1}"
     ]
+   ],
+   "titre": [
+    "permis de conduire",
+    "driving licence",
+    "driver licence"
    ]
   },
   "visa": {
@@ -262,6 +277,10 @@
    "fn": [
     "naissance",
     "birth"
+   ],
+   "titre": [
+    "acte de naissance",
+    "birth certificate"
    ]
   },
   "bail": {
@@ -480,6 +499,9 @@
    "fn": [
     "rib",
     "iban"
+   ],
+   "titre": [
+    "releve d'identite bancaire"
    ]
   },
   "certificat_medical": {
@@ -708,6 +730,11 @@
      "\\bbachelor of ([a-z ]{3,30})",
      "Bachelor of {1}"
     ]
+   ],
+   "titre": [
+    "diplome national",
+    "diplome de",
+    "diploma"
    ]
   },
   "certificat": {
@@ -780,7 +807,11 @@
    "fn": [
     "cv",
     "resume"
-   ]
+   ],
+   "titre": [
+    "curriculum vitae"
+   ],
+   "emetteur": false
   },
   "lettre_motivation": {
    "label": "Lettre de motivation",
@@ -796,7 +827,12 @@
    "fn": [
     "motivation",
     "cover"
-   ]
+   ],
+   "titre": [
+    "lettre de motivation",
+    "cover letter"
+   ],
+   "emetteur": false
   },
   "autre": {
    "label": "Autre document",
@@ -837,6 +873,70 @@
     "notes",
     "appreciation",
     "conseil de classe"
+   ]
+  },
+  "livret_famille": {
+   "label": "Livret de famille",
+   "slug": "Livret-famille",
+   "cat": "01",
+   "sub": "01-2",
+   "suivi": "type",
+   "kw": [
+    "livret de famille",
+    "extrait des actes de l'etat civil"
+   ],
+   "fn": [
+    "livret de famille",
+    "livret"
+   ],
+   "titre": [
+    "livret de famille"
+   ]
+  },
+  "lettre_demission": {
+   "label": "Lettre de démission",
+   "slug": "Lettre-demission",
+   "cat": "03",
+   "sub": "03-1",
+   "suivi": "none",
+   "kw": [
+    "demission",
+    "je vous informe de ma decision de demissionner",
+    "preavis"
+   ],
+   "fn": [
+    "demission"
+   ],
+   "titre": [
+    "lettre de demission",
+    "demission"
+   ],
+   "emetteur": false
+  },
+  "courrier_litige": {
+   "label": "Courrier de réclamation / mise en demeure",
+   "slug": "Reclamation",
+   "cat": "13",
+   "sub": "13-1",
+   "suivi": "none",
+   "kw": [
+    "mise en demeure",
+    "mise en cause",
+    "reclamation",
+    "je vous mets en demeure",
+    "litige",
+    "lettre recommandee avec accuse de reception"
+   ],
+   "fn": [
+    "mise en demeure",
+    "mise en cause",
+    "reclamation",
+    "litige"
+   ],
+   "titre": [
+    "mise en demeure",
+    "mise en cause",
+    "reclamation"
    ]
   }
  },
