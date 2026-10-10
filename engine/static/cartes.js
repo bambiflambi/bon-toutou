@@ -77,7 +77,7 @@ function card(p, n) {
         <button class="ghost${S.blank ? " on" : ""}" data-act="c-fix" title="Flèche bas">↓ Corriger</button>
         <button class="cta" data-act="c-ok" data-id="${p.id}" title="Flèche droite">${(p.doubts || []).length ? "Ranger quand même →" : "Ranger →"}</button>
       </div>
-      <div class="ckeys"><button class="linkbtn" data-act="c-undo" ${S.lastBatch ? "" : "disabled"}>Annuler (Z)</button><span>·</span><button class="linkbtn" data-act="c-unknown" data-id="${p.id}" title="Il quitte la file et ne revient pas, même si tu réimportes le dossier. « Les revoir » le ramène.">Inconnu · plus tard (I)</button><span class="sub">← → ↓ I Z au clavier</span></div>
+      <div class="ckeys"><button class="linkbtn" data-act="c-undo" ${S.lastBatch ? "" : "disabled"}>Annuler (Z)</button><span>·</span><button class="linkbtn" data-act="c-unknown" data-id="${p.id}" title="Il quitte la file et ne revient pas, même si tu réimportes le dossier. « Les revoir » le ramène.">Inconnu · plus tard (I)</button><span>·</span><button class="linkbtn" data-act="reanalyze" title="Relit les documents à trier avec les règles actuelles. Tes corrections sont gardées.">Relancer l'analyse</button><span class="sub">← → ↓ I Z au clavier</span></div>
     </div></div>`;
 }
 

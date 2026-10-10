@@ -114,6 +114,8 @@ os.rename(moved, src0); b3.rebuild_index()
 # migration d'un ancien bureau (index et réglages dans .bontoutou, pas de fiches)
 old_root = os.path.join(tmp, "ANCIEN", "BON_TOUTOU_ADMIN"); shutil.copytree(root, old_root)
 shutil.rmtree(os.path.join(old_root, ".bontoutou", "meta"))
+if os.path.exists(os.path.join(old_root, ".bontoutou", "profil.json")):   # un ancien bureau n'avait pas encore de profil.json
+    os.remove(os.path.join(old_root, ".bontoutou", "profil.json"))
 shutil.copy2(os.path.join(b3.local, "index.db"), os.path.join(old_root, ".bontoutou", "index.db"))
 json.dump({"owner": "Camille", "countries": ["FR", "NZ"], "use_ollama": True, "ollama_model": "x", "ai_mode": "texte"},
           open(os.path.join(old_root, ".bontoutou", "settings.json"), "w"))
@@ -317,5 +319,11 @@ for _x in _d:
     br.db.execute("UPDATE docs SET status='actuel' WHERE id=?", (_x["id"],))
     break
 check(_found, "dossier : pièce prise dans Archives si aucune version actuelle")
+# v0.6.3 : une nouvelle version relit Trier toute seule (texte déjà lu, corrections gardées)
+br.save_settings({"analyse_version": "0.0.0"})
+_n_before = br.db.execute("SELECT COUNT(*) FROM inbox WHERE state='a_trier'").fetchone()[0]
+_br2 = Bureau(br.root); _br2.inbox()
+from bontoutou import __version__ as _v
+check(_br2.settings.get("analyse_version") == _v, "nouvelle version : Trier relu automatiquement")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

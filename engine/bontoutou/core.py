@@ -46,7 +46,7 @@ DOC_FIELDS = ("id", "suivi", "type", "label", "person", "country", "cat", "sub",
 DOSSIER_FIELDS = ("id", "template", "recipient", "country", "created_at", "state", "assign", "folder", "zip", "manifest",
                   "finalized_at", "sent_at")
 PROFILE_KEYS = ("owner", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders", "owner_aliases")          # suivent l'utilisateur sur tous ses appareils
-DEVICE_KEYS = ("theme", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
+DEVICE_KEYS = ("theme", "analyse_version", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
 # Niveaux de confidentialité par défaut (catégorie -> local | autorisation | externe). Un document non trié est « local ».
 DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "09": "local", "10": "local", "13": "local",
                    "02": "autorisation", "03": "autorisation", "07": "autorisation", "12": "autorisation", "14": "autorisation",
@@ -166,7 +166,7 @@ class Bureau:
             write_json(self.device_settings_path, {"format": FORMAT, **{k: o[k] for k in DEVICE_KEYS if k in o}})
             os.replace(old, old + ".migre")
         self.newer_data = False
-        self.settings = {"countries": ["FR", "NZ"], "use_ollama": False, "ollama_model": "", "owner": "", "ai_mode": "texte", "ai_engine": "auto", "ai_bench": {}, "ai_never": False, "maj_auto": False, "maj_last": "",
+        self.settings = {"countries": ["FR", "NZ"], "analyse_version": "", "use_ollama": False, "ollama_model": "", "owner": "", "ai_mode": "texte", "ai_engine": "auto", "ai_bench": {}, "ai_never": False, "maj_auto": False, "maj_last": "",
                          "privacy": dict(DEFAULT_PRIVACY), "disabled_packs": [],
                          "holders": [], "guide": {"etape": 0, "fini": False, "masque": False},
                          "mail": "", "mail_host": "", "mail_port": 993, "mail_auto": False, "mail_days": 90, "mail_saved": False,
@@ -633,6 +633,19 @@ class Bureau:
             return text or "", method
         return "", None
 
+    def _new_version_reread(self):
+        """Nouvelle version du moteur : les documents qui attendent dans Trier sont relus une fois avec les règles du jour
+        (texte déjà lu, pas de nouvel OCR ; tes corrections sont gardées)."""
+        from . import __version__
+        if self.settings.get("analyse_version") == __version__:
+            return
+        self.save_settings({"analyse_version": __version__})
+        try:
+            if self.db.execute("SELECT 1 FROM inbox WHERE state='a_trier' LIMIT 1").fetchone():
+                self.reanalyze(cached=True)
+        except Exception:
+            pass
+
     def reanalyze(self, cached=False):
         """Relit tous les documents à trier avec les règles actuelles (les corrections manuelles sont gardées).
         cached=True : réutilise le texte déjà lu (rapide, pas de nouvel OCR) — après l'ajout d'une règle."""
@@ -661,8 +674,7 @@ class Bureau:
                 self.db.execute("UPDATE inbox SET analysis=?, method=? WHERE id=?", (json.dumps(a), method, r["id"]))
                 n += 1
             self.db.commit()
-        if not cached:
-            self._ai_kick()
+        self._ai_kick()   # même en relecture rapide : sinon « IA locale en train de lire… » resterait affiché sans fin
         return {"ok": True, "n": n}
 
     def add_upload(self, name, data, rel=None, source=None):
@@ -991,6 +1003,7 @@ class Bureau:
         return {k: v for k, v in p.items() if not k.startswith("_")}
 
     def inbox(self):
+        self._new_version_reread()
         rows = self.db.execute("SELECT * FROM inbox WHERE state='a_trier' ORDER BY added_at").fetchall()
         P = [self.proposal(r) for r in rows]
         # plusieurs versions du même document reçues ensemble : la plus récente deviendra la version actuelle

@@ -2,6 +2,11 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.6.4 — Trier profite tout de suite des nouvelles règles
+- Après une mise à jour, les documents qui attendaient dans Trier sont **relus automatiquement** avec les nouvelles règles (texte déjà lu, pas de nouvel OCR, tes corrections gardées). Avant, ils gardaient l'analyse faite à leur arrivée.
+- Bouton **Relancer l'analyse** aussi en mode Cartes.
+- Correction : après une relecture rapide, « IA locale en train de lire… » pouvait rester affiché sans fin.
+
 ## 0.6.3 — Leçons du premier essai dans l'app
 - **Inconnu · plus tard** (touche I) remplace « Ignorer » et « Je ne sais pas ce que c'est » : le document quitte la file et attend dans 00_A-TRIER/_A-IDENTIFIER (« Les revoir » le ramène).
 - **Dossiers** : quand une pièce n'a aucune version actuelle (ancien bulletin, ancien avis d'impôt…), Bon toutou va la chercher dans Archives, la plus récente d'abord, avec la mention « pris dans Archives ».
