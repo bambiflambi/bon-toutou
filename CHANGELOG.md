@@ -2,6 +2,18 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.6.3 — Leçons du premier essai dans l'app
+- **Inconnu · plus tard** (touche I) remplace « Ignorer » et « Je ne sais pas ce que c'est » : le document quitte la file et attend dans 00_A-TRIER/_A-IDENTIFIER (« Les revoir » le ramène).
+- **Dossiers** : quand une pièce n'a aucune version actuelle (ancien bulletin, ancien avis d'impôt…), Bon toutou va la chercher dans Archives, la plus récente d'abord, avec la mention « pris dans Archives ».
+- **Grand import** : un document déjà rangé, ignoré ou mis de côté n'est plus réimporté (il revenait en boucle). Bouton temporaire « Mettre de côté les N inconnus » (type non reconnu ou confiance faible), un seul Annuler.
+- **Écrire pendant que l'IA locale lit** : le rafraîchissement automatique (toutes les 4 s) n'efface plus ce que tu tapes ni le choix en cours. C'était la cause de « je ne peux pas modifier le nom » et de « rien n'est enregistré ».
+- **« Dis-le avec tes mots »** cherche aussi dans les mots-clés des types et ignore les petits mots : « contrat d'apprentissage » trouve « Contrat de travail », « livret épargne » trouve « Livret / épargne ».
+- **Nouveaux types** : Livret / épargne (LEP, Livret A, LDDS, PEL, assurance vie → 10 Patrimoine › Placements) ; Inscription / convention de formation (contrat pédagogique, convention de stage, certificat de scolarité → 12 École › Inscriptions-conventions).
+- Un « livret » n'est plus pris pour un livret de famille sans le mot « famille ».
+- Un Cerfa rempli qui porte son titre (« Contrat d'apprentissage ») est rangé comme un contrat, plus comme un formulaire.
+- Rangement : « Autre document » → 11 Contrats › **Divers** ; Cerfa vierges → 13 Juridique › **Formulaires** (plus « Procurations »). Les fichiers déjà rangés ne bougent pas.
+- Les dates absurdes lues par l'OCR (« 1210 ») sont ignorées.
+
 ## 0.6.2 — Leçons du premier banc d'essai (38 vrais papiers)
 - **Titre du document** : « Lettre de motivation », « Livret de famille », « Permis de conduire »… lu dans le nom du fichier ou en haut de la page l'emporte sur les mots du contenu (une lettre de motivation qui parle de diplôme n'est plus un diplôme). Les noms collés (« MotivationOwwnerPMB ») sont compris.
 - **Nouveaux types** : livret de famille (01 Identité › État civil), lettre de démission (03 Travail › Contrats), courrier de réclamation / mise en demeure (13 Juridique › Litiges).

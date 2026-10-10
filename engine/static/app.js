@@ -52,7 +52,22 @@ async function load() {
   render();
   if (window.mailAutoOnce) mailAutoOnce();
   clearTimeout(S.poll);
-  if (S.v === "trier" && (S.inbox || []).some((p) => p.ai_pending)) S.poll = setTimeout(async () => { if (S.v === "trier" && !document.querySelector("input:focus,select:focus")) { S.inbox = await api("/api/inbox"); render(); } else load(); }, 4000);
+  if (S.v === "trier" && (S.inbox || []).some((p) => p.ai_pending)) aiPoll();
+}
+/* Tant que l'IA locale lit, on rafraîchit Trier toutes les 4 s — mais jamais pendant que tu écris ou choisis (v0.6.3 : le
+   rafraîchissement effaçait la saisie en cours). */
+function editing() { const a = document.activeElement; return !!(a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)); }
+function aiPoll() {
+  clearTimeout(S.poll);
+  S.poll = setTimeout(async () => {
+    if (S.v !== "trier") return;
+    if (editing()) return aiPoll();
+    const fresh = await api("/api/inbox");
+    if (S.v !== "trier") return;
+    if (editing()) return aiPoll();
+    S.inbox = fresh; render();
+    if (fresh.some((p) => p.ai_pending)) aiPoll();
+  }, 4000);
 }
 function go(v, extra = {}) {
   S.fix = false; S.pm = false; S.tm = false;
@@ -153,8 +168,8 @@ function tcard(p) {
     <dl class="grid"><dt>Reçu</dt><dd class="fname" style="text-decoration:line-through;color:var(--text-tertiary)">${esc(p.orig)}</dd><dt>Nom proposé</dt><dd class="fname"><b>${esc(p.name)}</b></dd>
       <dt>Destination</dt><dd class="fname">${esc(p.dest)}</dd><dt>Document suivi</dt><dd>${esc(p.relation)}</dd></dl>
     ${window.ruleOffer ? ruleOffer({ inbox: p.id, overrides: p.overrides, type: p.type }) : ""}
-    <div class="tacts"><button class="cta small" data-act="ok" data-id="${p.id}">✓ Valider</button><button class="ghost small" data-act="ignore" data-id="${p.id}">Ignorer</button>
-      <span class="sub">Ignorer garde le fichier dans 00_A-TRIER/_IGNORES.</span></div></div>`;
+    <div class="tacts"><button class="cta small" data-act="ok" data-id="${p.id}">✓ Valider</button><button class="ghost small" data-act="c-unknown" data-id="${p.id}">Inconnu · plus tard</button>
+      <span class="sub">Mis de côté dans 00_A-TRIER/_A-IDENTIFIER : il ne revient pas avec un nouvel import.</span></div></div>`;
 }
 
 /* ------------------------------------------------ DOCUMENTS */
@@ -258,7 +273,7 @@ function dossierView() {
   <h1>${esc(k.label)}</h1><p class="lead">Pour <b>${esc(k.recipient)}</b> ${cc(k.country)} · ${k.ok} ${plural(k.ok, "pièce")} sur ${k.total} ${plural(k.ok, "prête")}. Chaque pièce est prise dans sa version valable, jamais une copie.</p>
   <div class="card" style="margin-bottom:18px">${k.pieces.map((pc) => `<div class="piece ${pc.status === "ok" ? "ok" : pc.status === "part" ? "part" : "miss"}"><span class="st ${pc.status}">${pc.status === "ok" ? "✓" : pc.status === "part" ? "!" : "–"}</span>
     <div class="grow"><b>${esc(pc.label)}</b>${pc.count > 1 ? ` <span class="sub">(${pc.have}/${pc.count})</span>` : ""}
-      <small class="sub">${pc.docs.length ? pc.docs.map((d) => `${esc(d.label)} · version du ${frd(d.date)}`).join("<br>") : "introuvable dans tes documents — dépose-le dans Trier"}</small>
+      <small class="sub">${pc.docs.length ? pc.docs.map((d) => `${esc(d.label)} · version du ${frd(d.date)}`).join("<br>") + (pc.source === "archives" ? ` <span class="pill neutral">pris dans Archives</span>` : "") : "introuvable dans tes documents — dépose-le dans Trier"}</small>
       ${pc.problems.length ? `<small class="sub" style="color:var(--warning)">${esc(pc.problems.join(" · "))}</small>` : ""}</div>
     ${fin ? (pc.status === "ok" ? `<span class="pill ok">Prête</span>` : "") : pieceChoice(k, pc)}</div>`).join("")}</div>
   ${fin ? `<div class="card finalbox"><span class="label">Paquet finalisé</span><b style="display:block;font-size:16px;margin:4px 0">${k.manifest.pieces.reduce((a, p) => a + p.files.length, 0)} fichiers figés pour ${esc(k.recipient)}</b>
@@ -292,16 +307,17 @@ function archives() {
 /* ------------------------------------------------ ÉVÉNEMENTS */
 async function upload(files) {
   const F = [...files].filter((f) => f && !f.name.startsWith("."));
-  let ok = 0;
+  let ok = 0, known = 0;
   for (let i = 0; i < F.length; i++) {
     S.busy = `Lecture ${i + 1}/${F.length} : ${F[i].name}`; render();
     const rel = F[i]._rel || F[i].webkitRelativePath || "";   // chemin dans le dossier importé : les noms des dossiers servent d'indices
     if (rel.includes("/")) S.imported = true;
-    try { await fetch("/api/upload?name=" + encodeURIComponent(F[i].name) + (rel ? "&rel=" + encodeURIComponent(rel) : ""), { method: "POST", body: F[i] }); ok++; }
+    try { const r = await (await fetch("/api/upload?name=" + encodeURIComponent(F[i].name) + (rel ? "&rel=" + encodeURIComponent(rel) : ""), { method: "POST", body: F[i] })).json(); r.known ? known++ : ok++; }
     catch (e) { console.warn("illisible", F[i].name, e); }
   }
   S.busy = ""; await load();
-  toast(ok ? `${ok} ${plural(ok, "fichier")} ${plural(ok, "lu")} · à toi de valider` : "Aucun fichier lu");
+  toast((ok ? `${ok} ${plural(ok, "fichier")} ${plural(ok, "lu")} · à toi de valider` : "Aucun nouveau fichier")
+    + (known ? ` · ${known} déjà ${plural(known, "connu")} (rangé, ignoré ou mis de côté) : pas réimporté${known > 1 ? "s" : ""}` : ""));
 }
 /* Dossiers glissés : on parcourt leur contenu (sous-dossiers compris). */
 function readEntry(entry) {

@@ -13,6 +13,7 @@ function queue() {
   const rank = (p) => (p.conflict ? 0 : isHi(p) ? 2 : 1);   // les conflits d'abord, un par un ; les sûrs à la fin
   return [...P.filter((p) => !L.includes(p.id)).sort((a, b) => rank(a) - rank(b)), ...L.map((id) => P.find((p) => p.id === id))];
 }
+const isUnknown = (p) => !p.conflict && (p.type === "autre" || p.confidence === "basse");   // temporaire : grand import (v0.6.3)
 const folderOf = (p) => (p.origin || "").split("/").slice(0, -1).pop() || "";
 
 trier = function () {
@@ -21,8 +22,9 @@ trier = function () {
   return `${modeSwitch()}
   <p class="lead">${P.length ? `${P.length} ${plural(P.length, "document")} à trier. <b>On ne va pas y passer la journée.</b>` : "Rien à trier."} Bon toutou propose, tu décides. Il ne détruit rien.</p>
   ${trierAdd(P)}
-  ${S.st.counts.a_identifier ? `<div class="card box suresbar"><span class="oi">${IC.search}</span><div class="grow"><b>${S.st.counts.a_identifier} ${plural(S.st.counts.a_identifier, "document")} à identifier</b><div class="sub">Mis de côté avec « Je ne sais pas ce que c'est », dans 00_A-TRIER/_A-IDENTIFIER.</div></div><button class="ghost small" data-act="c-unknown-back">Les revoir</button></div>` : ""}
+  ${S.st.counts.a_identifier ? `<div class="card box suresbar"><span class="oi">${IC.search}</span><div class="grow"><b>${S.st.counts.a_identifier} ${plural(S.st.counts.a_identifier, "document")} à identifier</b><div class="sub">Mis de côté avec « Inconnu », dans 00_A-TRIER/_A-IDENTIFIER.</div></div><button class="ghost small" data-act="c-unknown-back">Les revoir</button></div>` : ""}
   ${S.imported || P.some((x) => x.origin) ? understood(P) : ""}
+  ${(() => { const U = P.filter(isUnknown); return U.length > 1 ? `<div class="card box suresbar"><span class="oi">${IC.search}</span><div class="grow"><b>${U.length} ${plural(U.length, "document inconnu", "documents inconnus")}</b><div class="sub">Type non reconnu ou confiance faible. Mets-les de côté pour avancer : ils attendent dans « À identifier » et ne reviennent pas avec un nouvel import. Annulable.</div></div><button class="ghost small" data-act="c-unknown-all">Mettre de côté les ${U.length}</button></div>` : ""; })()}
   ${sure.length > 1 ? `<div class="card box suresbar"><span class="oi" style="background:var(--success-light);color:var(--success)">${IC.check}</span><div class="grow"><b>${sure.length} ${plural(sure.length, "document sûr", "documents sûrs")}</b><div class="sub">Confiance élevée, aucun conflit : rangés comme proposé, en une fois. Annulable.</div></div><button class="cta small" data-act="c-sure">Ranger les sûrs d'un coup</button></div>` : ""}
   ${p ? card(p, Q.length) : !S.busy ? `<div class="card" style="padding:28px;text-align:center"><span class="oi" style="margin:0 auto 10px;background:var(--success-light);color:var(--success)">${IC.check}</span><b>Tout est trié.</b><div class="sub">Dépose un fichier ou un dossier ci-dessus.</div></div>` : ""}`;
 };
@@ -75,7 +77,7 @@ function card(p, n) {
         <button class="ghost${S.blank ? " on" : ""}" data-act="c-fix" title="Flèche bas">↓ Corriger</button>
         <button class="cta" data-act="c-ok" data-id="${p.id}" title="Flèche droite">${(p.doubts || []).length ? "Ranger quand même →" : "Ranger →"}</button>
       </div>
-      <div class="ckeys"><button class="linkbtn" data-act="c-undo" ${S.lastBatch ? "" : "disabled"}>Annuler (Z)</button><span>·</span><button class="linkbtn" data-act="c-unknown" data-id="${p.id}">Je ne sais pas ce que c'est</button><span>·</span><button class="linkbtn" data-act="ignore" data-id="${p.id}">Ignorer</button><span class="sub">← → ↓ Z au clavier</span></div>
+      <div class="ckeys"><button class="linkbtn" data-act="c-undo" ${S.lastBatch ? "" : "disabled"}>Annuler (Z)</button><span>·</span><button class="linkbtn" data-act="c-unknown" data-id="${p.id}" title="Il quitte la file et ne revient pas, même si tu réimportes le dossier. « Les revoir » le ramène.">Inconnu · plus tard (I)</button><span class="sub">← → ↓ I Z au clavier</span></div>
     </div></div>`;
 }
 
@@ -101,11 +103,22 @@ function phrase(p) {
     ${S.blank ? ask(p, S.blank) : ""}</div>`;
 }
 function chip(v, label, first, extra) { return `<button type="button" class="chip${first ? " first" : ""}" data-pick="${esc(v)}">${esc(label)}${extra ? `<small>${esc(extra)}</small>` : ""}</button>`; }
+/* « dis-le avec tes mots » : cherche dans le nom du type, sa catégorie et ses mots-clés ; les petits mots (de, d', la…) sont ignorés,
+   et si aucun type ne contient tous les mots, on garde ceux qui en contiennent le plus. */
+const STOP = new Set(["de", "d", "du", "des", "la", "le", "les", "l", "un", "une", "mon", "ma", "mes", "et", "a", "au", "en", "pour"]);
+function typeSearch(q) {
+  const T = S.st.types, W = q.split(/[^a-z0-9]+/).filter((w) => w && !STOP.has(w));
+  if (!W.length) return [];
+  const score = Object.keys(T).map((t) => { const hay = unaccent(T[t].label + " " + (S.st.categories[T[t].cat] || "") + " " + (T[t].mots || ""));
+    const lab = unaccent(T[t].label); return [t, W.filter((w) => hay.includes(w)).length + W.filter((w) => lab.includes(w)).length * 0.5]; });
+  const all = score.filter((x) => x[1] >= W.length).sort((a, b) => b[1] - a[1]);
+  return (all.length ? all : score.filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1])).map((x) => x[0]);
+}
 function ask(p, k) {
   const T = S.st.types;
   if (k === "type") {
     const q = unaccent(S.tq);
-    let ids = q ? Object.keys(T).filter((t) => q.split(/\s+/).every((w) => unaccent(T[t].label).includes(w) || unaccent(S.st.categories[T[t].cat] || "").includes(w))).slice(0, 6)
+    let ids = q ? typeSearch(q).slice(0, 6)
                 : [...(p.type === "autre" ? [] : [p.type]), ...(p.candidates || []), ...["certificat", "facture", "formulaire", "justificatif_domicile"].filter((t) => T[t]), "autre"].filter((t, i, a) => T[t] && a.indexOf(t) === i).slice(0, 6);
     return `<div class="ask"><b>C'est quoi, ce document ?</b>${(p.candidates || []).length ? `<span class="from">D'après ce qui est écrit dedans</span>` : ""}
       <div class="chips">${ids.map((t, i) => chip(t, T[t].label, i === 0 && !q && p.type !== "autre", t === p.type && !q && t !== "autre" ? "proposé" : "")).join("") || `<span class="sub">Aucun type ne correspond.</span>`}</div>
@@ -139,7 +152,7 @@ async function pickBlank(k, v) {
   await load();
   const L = { type: "Type", emitter: "Émetteur", person: "Titulaire", date: "Date" }[k];
   toast(`${L} enregistré · le nom et le dossier sont mis à jour`);
-  setTimeout(() => { if (S.justSet === p.id + ":" + k) { S.justSet = null; if (S.v === "trier") render(); } }, 2500);
+  setTimeout(function clear() { if (S.justSet !== p.id + ":" + k) return; if (editing()) return setTimeout(clear, 1500); S.justSet = null; if (S.v === "trier") render(); }, 2500);
 }
 
 /* ---- Ce que Bon toutou a compris de ton rangement (import d'un dossier) */
@@ -251,6 +264,8 @@ document.addEventListener("click", async (e) => {
   if (act === "c-more") { S.fixc = !S.fixc; return render(); }
   if (act === "c-alltypes") { S.allTypes = true; return render(); }
   if (act === "c-unknown") { const r = await api("/api/unknown", { id: a.dataset.id }); S.lastBatch = r.batch; await load(); return toast("Mis de côté : il t'attend dans « À identifier »", r.batch); }
+  if (act === "c-unknown-all") { const ids = (S.inbox || []).filter(isUnknown).map((p) => p.id); const r = await api("/api/unknown/many", { ids }); S.lastBatch = r.batch; await load();
+    return toast(`${r.n} ${plural(r.n, "document mis", "documents mis")} de côté dans « À identifier »`, r.batch); }
   if (act === "c-unknown-back") { const r = await api("/api/unknown/back", {}); await load(); return toast(`${r.n} ${plural(r.n, "document remis", "documents remis")} dans Trier`, r.batch); }
   if (act === "c-undo") return cartesUndo();
   if (act === "c-page") return pdfPage(+a.dataset.d);
@@ -275,6 +290,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft" && p) return click("[data-act=c-later]");
   if (e.key === "ArrowDown" && p) return click("[data-act=c-fix]");
   if (e.key === "z" || e.key === "Z") return click("[data-act=c-undo]");
+  if ((e.key === "i" || e.key === "I") && p) return click("[data-act=c-unknown]");
   if (e.key === "PageDown" && p) { e.preventDefault(); return pdfPage(1); }
   if (e.key === "PageUp" && p) { e.preventDefault(); return pdfPage(-1); }
 });

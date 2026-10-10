@@ -1,6 +1,6 @@
 [package]
 name = "bon-toutou"
-version = "0.6.2"
+version = "0.6.3"
 description = "Bon toutou — ton dossier administratif vivant"
 license = "AGPL-3.0-only"
 edition = "2021"

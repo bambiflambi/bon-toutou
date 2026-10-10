@@ -169,7 +169,7 @@ class H(BaseHTTPRequestHandler):
                 return self._json({"error": "installation à terminer", "setup": True}, 409)
             if p == "/api/upload":
                 iid = B.add_upload(q.get("name", "document"), self._body(), rel=q.get("rel"))
-                return self._json({"ok": True, "id": iid, "duplicate": iid is None})
+                return self._json({"ok": True, "id": iid or None, "duplicate": iid is None, "known": iid is False})
             if p == "/api/rules/import":
                 return self._json(B.regles.import_pack(self._body().decode("utf-8", "ignore"), confirm=q.get("confirm") == "1"))
             data = json.loads(self._body() or b"{}")
@@ -246,6 +246,8 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.tidy_jobs())
             if p == "/api/unknown":
                 return self._json(B.unknown(data["id"]))
+            if p == "/api/unknown/many":
+                return self._json(B.unknown_many(data.get("ids")))
             if p == "/api/unknown/back":
                 return self._json(B.unknown_back())
             if p == "/api/mail/status":

@@ -285,5 +285,37 @@ from bontoutou import classify as C6
 check(C6.analyze("Madame, Monsieur, diplome BTS", "Lettre de motivation BTSA.docx", ["FR"])["type"] == "lettre_motivation", "titre « Lettre de motivation » : l'emporte sur les mots du contenu")
 check(C6.analyze("", "Numerisation_20201111.png", ["FR"])["date"] == "2020-11-11", "date collée dans le nom du fichier (scan)")
 
+# v0.6.3 : leçons du premier essai dans l'app (livret d'épargne, contrats d'apprentissage, dates OCR absurdes)
+check(C6.analyze("BANQUE EXEMPLE\nLIVRET EPARGNE POPULAIRE (LEP)\nCONVENTION DE PLACEMENT", "LIVRET EPARGNE POPULAIRE (LEP).pdf", ["FR"])["type"] == "epargne", "« livret » d'épargne : pas un livret de famille")
+check(C6.analyze("Contrat d'apprentissage\n(art. L6211-1 du code du travail)\nCerfa formulaire diplome baccalaureat", "CONTRAT_CERFA_1234.pdf", ["FR"])["type"] == "contrat_travail", "Cerfa rempli titré « Contrat d'apprentissage » : contrat")
+check(C6.analyze("FORMULAIRE\nCONTRAT PEDAGOGIQUE DE L'APPRENTI\nCFA EXEMPLE\nBTS diplome", "Contrat pedagogique.pdf", ["FR"])["type"] == "inscription_formation", "contrat pédagogique : formation")
+check(C6.analyze("LE CONTRAT\nType de contrat ou d'avenant\nle 10/02/1210", "suite.pdf", ["FR"])["date"] != "1210-02-10", "année OCR absurde (1210) ignorée")
+check(catalog.TYPES["autre"]["sub"] == "11-4" and catalog.TYPES["formulaire"]["sub"] == "13-4", "Autre → Divers, Cerfa → Formulaires")
+# v0.6.3 : grand import — ce qui est déjà rangé ou mis de côté ne revient pas ; mise de côté groupée
+_ib = br.inbox()
+if len(_ib) >= 2:
+    _ids = [x["id"] for x in _ib[:2]]
+    _shas = [br.db.execute("SELECT sha, path FROM inbox WHERE id=?", (i,)).fetchone() for i in _ids]
+    _r = br.unknown_many(_ids)
+    check(_r["n"] == 2 and all(br.db.execute("SELECT state FROM inbox WHERE id=?", (i,)).fetchone()[0] == "a_identifier" for i in _ids), "mise de côté groupée")
+    _data = open(br.abs(br.db.execute("SELECT path FROM inbox WHERE id=?", (_ids[0],)).fetchone()[0]), "rb").read()
+    check(br.add_upload("re-import.pdf", _data, rel="Import/re-import.pdf") is False, "réimport d'un document mis de côté : ne revient pas")
+    br.undo(_r["batch"])
+    check(all(br.db.execute("SELECT state FROM inbox WHERE id=?", (i,)).fetchone()[0] == "a_trier" for i in _ids), "mise de côté groupée annulable")
+else:
+    check(False, "pas assez de documents dans Trier pour tester la mise de côté")
+# v0.6.3 : un dossier va chercher dans Archives quand aucune version actuelle n'existe
+_d = br.db.execute("SELECT id, type, country FROM docs d WHERE status='actuel' AND (SELECT COUNT(*) FROM docs e WHERE e.type=d.type AND e.country=d.country AND e.status='actuel')=1 LIMIT 40").fetchall()
+_found = None
+for _x in _d:
+    _tid = next((t for t, T in catalog.TEMPLATES.items() if any(_x["type"] in pc["types"] for pc in T["pieces"])), None)
+    if not _tid:
+        continue
+    br.db.execute("UPDATE docs SET status='termine' WHERE id=?", (_x["id"],))
+    _k = br.dossier(br.create_dossier(_tid, "Test archives", _x["country"]))
+    _found = any(pc["source"] == "archives" and any(y["id"] == _x["id"] for y in pc["docs"]) for pc in _k["pieces"])
+    br.db.execute("UPDATE docs SET status='actuel' WHERE id=?", (_x["id"],))
+    break
+check(_found, "dossier : pièce prise dans Archives si aucune version actuelle")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

@@ -669,8 +669,11 @@ class Bureau:
         """Un fichier déposé ou importé. rel = son chemin dans le dossier importé (« Paye/1.N Louis Fournil…/2019 03.pdf ») :
         seuls les NOMS servent d'indices (employeur, mois), le dossier d'origine n'est jamais modifié."""
         safe = re.sub(r"[/\\:]", "_", os.path.basename(name)) or "document"
-        if self.db.execute("SELECT 1 FROM inbox WHERE sha=? AND state='a_trier'", (hashlib.sha256(data).hexdigest(),)).fetchone():
+        h = hashlib.sha256(data).hexdigest()
+        if self.db.execute("SELECT 1 FROM inbox WHERE sha=? AND state='a_trier'", (h,)).fetchone():
             return None   # déjà dans Trier : pas de deuxième copie dans 00_A-TRIER
+        if self.known_sha(h):
+            return False  # déjà rangé, ignoré ou mis de côté : un nouvel import ne le refait pas revenir (v0.6.3)
         p = unique_path(self.inbox_dir, safe)
         with open(p, "wb") as f:
             f.write(data)
@@ -1086,6 +1089,31 @@ class Bureau:
             b = self._journal(label, ops)
             return {"ok": True, "batch": b}
 
+    def known_sha(self, h):
+        """Ce contenu exact a déjà été traité : rangé (docs), ignoré ou mis de côté « à identifier »."""
+        return bool(self.db.execute("SELECT 1 FROM docs WHERE sha=? UNION SELECT 1 FROM inbox WHERE sha=? AND state IN ('ignore','a_identifier')",
+                                    (h, h)).fetchone())
+
+    def unknown_many(self, ids):
+        """« Mettre de côté » plusieurs documents d'un coup (grand import) : tous dans 00_A-TRIER/_A-IDENTIFIER, un seul Annuler."""
+        with self.lock:
+            ops, n = [], 0
+            for iid in ids or []:
+                row = self.db.execute("SELECT * FROM inbox WHERE id=? AND state='a_trier'", (iid,)).fetchone()
+                if not row:
+                    continue
+                src, newp = self.abs(row["path"]), row["path"]
+                if os.path.exists(src):
+                    dst = unique_path(os.path.join(self.inbox_dir, "_A-IDENTIFIER"), os.path.basename(src))
+                    self._move(src, dst, ops)
+                    newp = self.rel(dst)
+                ops.append({"t": "inbox", "id": iid, "state": "a_trier", "path": row["path"]})
+                self.db.execute("UPDATE inbox SET state='a_identifier', path=? WHERE id=?", (newp, iid))
+                n += 1
+            if not n:
+                return {"ok": True, "n": 0}
+            return {"ok": True, "n": n, "batch": self._journal(f"{n} document{'s' if n > 1 else ''} mis de côté (à identifier)", ops)}
+
     def unknown(self, iid):
         """« Je ne sais pas ce que c'est » : mis de côté dans 00_A-TRIER/_A-IDENTIFIER, il reviendra quand tu voudras."""
         return self.ignore(iid, "_A-IDENTIFIER", "a_identifier", "Mis de côté : à identifier plus tard (00_A-TRIER/_A-IDENTIFIER)")
@@ -1478,12 +1506,16 @@ class Bureau:
                 for t in pc["types"]:
                     cur = self.db.execute("SELECT * FROM docs WHERE type=? AND country=? AND status='actuel' ORDER BY doc_date DESC",
                                           (t, k["country"])).fetchall()
-                    if not cur:
-                        continue
+                    if not cur:   # aucune version actuelle : la plus récente des Archives fait l'affaire (v0.6.3)
+                        cur = self.db.execute("SELECT * FROM docs WHERE type=? AND country=? ORDER BY doc_date DESC", (t, k["country"])).fetchall()
+                        if not cur:
+                            continue
+                        source = "archives"
                     a = cur[0]
                     if count > 1 and a["suivi"]:
-                        docs = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status IN ('actuel','ancienne_version') "
-                                               "ORDER BY doc_date DESC LIMIT ?", (a["suivi"], count)).fetchall()
+                        docs = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status IN ('actuel','ancienne_version'"
+                                               + (",'termine'" if source == "archives" else "") + ") ORDER BY doc_date DESC LIMIT ?",
+                                               (a["suivi"], count)).fetchall()
                     else:
                         docs = [a]
                     break
@@ -1785,7 +1817,7 @@ class Bureau:
                        "dossiers": c("SELECT COUNT(*) FROM dossiers WHERE state IN ('en_cours','finalise')"),
                        "sent": c("SELECT COUNT(*) FROM dossiers WHERE state='envoye'"),
                        "egress": len(self.sorties())},
-            "types": {k: {"label": v["label"], "cat": v["cat"]} for k, v in TYPES.items()},
+            "types": {k: {"label": v["label"], "cat": v["cat"], "mots": " ".join(v.get("titre", []) + v.get("kw", [])[:12])} for k, v in TYPES.items()},
             "countries": {k: v["name"] for k, v in COUNTRIES.items()},
             "categories": CATEGORIES, "subs": SUB_FOLDERS_FR,
             "templates": {k: v["label"] for k, v in TEMPLATES.items()},

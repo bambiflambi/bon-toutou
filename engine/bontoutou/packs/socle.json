@@ -95,7 +95,10 @@
   "15-1": "CV",
   "15-2": "Lettres-motivation",
   "15-3": "Candidatures",
-  "15-4": "Recommandations"
+  "15-4": "Recommandations",
+  "11-4": "Divers",
+  "12-4": "Inscriptions-conventions",
+  "13-4": "Formulaires"
  },
  "expiry_hints": [
   "date d'expiration",
@@ -402,7 +405,12 @@
     "contrat de travail",
     "contrat a duree",
     "employment agreement",
-    "periode d'essai"
+    "periode d'essai",
+    "contrat d'apprentissage",
+    "contrat de professionnalisation",
+    "maitre d'apprentissage",
+    "type de contrat ou d'avenant",
+    "l6211-1"
    ],
    "fn": [
     "contrat",
@@ -431,7 +439,12 @@
      "Stage"
     ]
    ],
-   "par_emetteur": true
+   "par_emetteur": true,
+   "titre": [
+    "contrat de travail",
+    "contrat d'apprentissage",
+    "contrat de professionnalisation"
+   ]
   },
   "bulletin_paie": {
    "label": "Fiche de paie",
@@ -502,6 +515,67 @@
    ],
    "titre": [
     "releve d'identite bancaire"
+   ]
+  },
+  "epargne": {
+   "label": "Livret / épargne",
+   "slug": "Epargne",
+   "cat": "10",
+   "sub": "10-2",
+   "suivi": "emitter",
+   "kw": [
+    "livret epargne",
+    "livret d'epargne",
+    "epargne populaire",
+    "livret a ",
+    "livret de developpement durable",
+    "ldds",
+    "plan d'epargne",
+    "compte epargne",
+    "compte sur livret",
+    "convention de placement",
+    "assurance vie",
+    "assurance-vie",
+    "per individuel"
+   ],
+   "fn": [
+    "epargne",
+    "lep",
+    "ldds",
+    "livret a",
+    "pel",
+    "cel"
+   ],
+   "titre": [
+    "livret epargne populaire",
+    "livret d'epargne populaire",
+    "livret a",
+    "livret de developpement durable",
+    "plan d'epargne logement",
+    "compte sur livret",
+    "convention de placement"
+   ],
+   "details": [
+    [
+     "epargne populaire|\\blep\\b",
+     "LEP"
+    ],
+    [
+     "developpement durable|\\bldds\\b",
+     "LDDS"
+    ],
+    [
+     "\\blivret a\\b",
+     "Livret A"
+    ],
+    [
+     "plan d'epargne logement|\\bpel\\b",
+     "PEL"
+    ],
+    [
+     "assurance.vie",
+     "Assurance vie"
+    ]
    ]
   },
   "certificat_medical": {
@@ -792,6 +866,49 @@
     ]
    ]
   },
+  "inscription_formation": {
+   "label": "Inscription / convention de formation",
+   "slug": "Inscription-formation",
+   "cat": "12",
+   "sub": "12-4",
+   "suivi": "none",
+   "kw": [
+    "contrat pedagogique",
+    "convention de formation",
+    "convention de stage",
+    "certificat de scolarite",
+    "attestation d'inscription",
+    "centre de formation d'apprentis",
+    "dossier d'inscription"
+   ],
+   "fn": [
+    "pedagogique",
+    "scolarite",
+    "inscription",
+    "convention de stage"
+   ],
+   "titre": [
+    "contrat pedagogique",
+    "convention de formation",
+    "convention de stage",
+    "certificat de scolarite",
+    "attestation d'inscription"
+   ],
+   "details": [
+    [
+     "contrat pedagogique",
+     "Contrat pedagogique"
+    ],
+    [
+     "convention de stage",
+     "Convention de stage"
+    ],
+    [
+     "certificat de scolarite",
+     "Certificat de scolarite"
+    ]
+   ]
+  },
   "cv": {
    "label": "CV",
    "slug": "CV",
@@ -838,7 +955,7 @@
    "label": "Autre document",
    "slug": "Document",
    "cat": "11",
-   "sub": "11-1",
+   "sub": "11-4",
    "suivi": "none",
    "kw": [],
    "fn": []
@@ -887,7 +1004,7 @@
    ],
    "fn": [
     "livret de famille",
-    "livret"
+    "livret famille"
    ],
    "titre": [
     "livret de famille"

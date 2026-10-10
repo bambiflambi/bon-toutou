@@ -45,6 +45,8 @@ def _mkdate(y, m, d):
         y = int(y)
         if y < 100:
             y += 2000
+        if y < 1900:   # « 10/02/1210 » : chiffres mal lus par l'OCR, pas une date
+            return None
         return dt.date(y, int(m), int(d))
     except Exception:
         return None
@@ -444,7 +446,8 @@ def analyze(text, filename, countries, today=None):
     if type_id == "facture" and scores.get("facture_energie", 0) >= 2:
         type_id = "facture_energie"
     # formulaire vierge (Cerfa) : il cite souvent l'avis d'impôt, la fiche de paie… sans en être un
-    if (_has(hay, "cerfa") or _has(fhay, "cerfa")) and "formulaire" in TYPES and type_id not in ("aide_juridictionnelle", "formulaire"):
+    if (_has(hay, "cerfa") or _has(fhay, "cerfa")) and "formulaire" in TYPES and type_id not in ("aide_juridictionnelle", "formulaire") \
+            and type_id not in titles:   # un Cerfa REMPLI qui porte son titre (« Contrat d'apprentissage ») reste ce qu'il est
         type_id = "aide_juridictionnelle" if "aide_juridictionnelle" in scores else "formulaire"
         top = scores.get(type_id, 2)
     # « solde de tout compte » contient souvent aussi les mots d'une fiche de paie : il gagne s'il est présent
