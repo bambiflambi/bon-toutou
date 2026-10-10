@@ -487,7 +487,7 @@ class Bureau:
         self.db.execute("INSERT INTO journal(batch,ts,label,ops) VALUES(?,?,?,?)", (b, ts, label, json.dumps(ops)))
         self.db.commit()
         for op in ops:
-            if op["t"] in ("insert_doc", "update_doc"):
+            if op["t"] in ("insert_doc", "update_doc", "delete_doc"):
                 self._dirty.add(op["id"])
         self._flush_meta()
         self._append_journal({"batch": b, "label": label, "ops": ops})
@@ -520,7 +520,7 @@ class Bureau:
                 return {"ok": False, "msg": "Rien à annuler"}
             for op in reversed(json.loads(r["ops"])):
                 t = op["t"]
-                if t in ("insert_doc", "update_doc"):
+                if t in ("insert_doc", "update_doc", "delete_doc"):
                     self._dirty.add(op["id"])
                 if t == "move":
                     d, s = self.abs(op["dst"]), self.abs(op["src"])
@@ -534,6 +534,11 @@ class Bureau:
                     self.db.execute(f"UPDATE docs SET {', '.join(k + '=?' for k in b)} WHERE id=?", (*b.values(), op["id"]))
                 elif t == "inbox":
                     self.db.execute("UPDATE inbox SET state=?, path=? WHERE id=?", (op["state"], op["path"], op["id"]))
+                elif t == "delete_doc":   # document retiré (Recommencer de zéro) : sa ligne revient telle quelle
+                    r0 = op["row"]
+                    self.db.execute(f"INSERT OR REPLACE INTO docs({', '.join(r0)}) VALUES({', '.join('?' * len(r0))})", tuple(r0.values()))
+                elif t == "inbox_new":
+                    self.db.execute("DELETE FROM inbox WHERE id=?", (op["id"],))
             self.db.execute("UPDATE journal SET undone=1 WHERE batch=?", (r["batch"],))
             self.db.commit()
             self._flush_meta()
@@ -545,13 +550,13 @@ class Bureau:
         return [dict(r) for r in rows]
 
     # ------------------------------------------------------------ entrée (Trier)
-    def register(self, path, source, rel=None):
+    def register(self, path, source, rel=None, cached=False):
         with self.lock:
             sha = sha256(path)
             if self.db.execute("SELECT 1 FROM inbox WHERE sha=? AND state='a_trier'", (sha,)).fetchone():
                 return None
             iid = uuid.uuid4().hex[:12]
-            text, method = reader.extract(path)
+            text, method = self.text_of(sha, self.rel(path)) if cached else reader.extract(path)
             self._cache_text(sha, text, method)
             a = classify.analyze(text, os.path.basename(path), self.settings["countries"])
             if rel and self.settings.get("respect_folders", True):
@@ -978,6 +983,20 @@ class Bureau:
             p["mode"] = "new"
             dest = self.doc_dir(a["country"], a["type"], a["emitter"])
             p["relation"] = "Nouveau document suivi" if key else "Nouveau document"
+        # « Je m'en sers encore ? » (tri en étapes) : toujours la décision de l'utilisateur, jamais celle de l'IA
+        p["usage_hint"] = "archive" if p["mode"] in ("old_version", "archive_direct") else "utile"
+        p["usage"] = ov.get("usage") if ov.get("usage") in ("utile", "archive") else None
+        if p["usage"] == "archive" and p["mode"] in ("new", "new_version"):
+            p["mode"] = "archive_user"
+            p["status"] = "ancienne_version" if cur else "termine"
+            dest = self.doc_dir(a["country"], a["type"], a["emitter"], archive=True)
+            p["relation"] = "Rangé dans Archives : tu ne t'en sers plus" + (f" (la version actuelle reste « {cur['label']} »)" if cur else "")
+        elif p["usage"] == "utile" and p["mode"] in ("old_version", "archive_direct"):
+            p["mode"] = "new"
+            p["suivi"] = None   # gardé à part dans Documents, à côté de la version actuelle : il ne la remplace pas
+            p.pop("ends", None)
+            dest = self.doc_dir(a["country"], a["type"], a["emitter"])
+            p["relation"] = "Gardé dans Documents : tu t'en sers encore" + (f" (à côté de « {cur['label']} »)" if cur else "")
         p["dest"] = self.rel(dest)
         p["_a"] = a
         return p
@@ -986,7 +1005,7 @@ class Bureau:
         with self.lock:
             row = self.db.execute("SELECT * FROM inbox WHERE id=?", (iid,)).fetchone()
             ov = json.loads(row["overrides"] or "{}")
-            ov.update({k: v for k, v in overrides.items() if k in ("type", "country", "emitter", "date", "expiry", "person", "detail", "resolved")})
+            ov.update({k: v for k, v in overrides.items() if k in ("type", "country", "emitter", "date", "expiry", "person", "detail", "resolved", "usage")})
             seen = json.loads(row["analysis"] or "{}").get("holder_seen")
             own = (self.settings.get("owner") or "").strip()
             if seen and overrides.get("person") and overrides["person"].strip() in (own, "moi") and self._match_person(seen) != "moi":
@@ -1050,6 +1069,8 @@ class Bureau:
                         self._doc_update(cur["id"], {"status": "ancienne_version"}, ops)
                 elif p["mode"] == "old_version":
                     status = "ancienne_version"
+                elif p["mode"] == "archive_user":
+                    status = p["status"]
                 elif p["mode"] == "archive_direct":
                     status = "termine"
                     if p.get("ends"):
@@ -1071,6 +1092,8 @@ class Bureau:
                 if a.get("detail"):
                     self.db.execute("UPDATE docs SET detail=? WHERE id=?", (a["detail"].strip(), did))
                 ex = {k: a[k] for k in ("lot", "emitter_display", "origin") if a.get(k)}
+                if p.get("usage") == "utile":
+                    ex["usage"] = "utile"   # tu as dit t'en servir encore : jamais rangé dans Archives automatiquement
                 if ex:
                     self.db.execute("UPDATE docs SET extra=? WHERE id=?", (json.dumps(ex, ensure_ascii=False), did))
                 ops.append({"t": "insert_doc", "id": did})
@@ -1379,6 +1402,8 @@ class Bureau:
         limit = (dt.date.fromisoformat(latest[:10]) - dt.timedelta(days=self.OLD_JOB_DAYS)).isoformat()
         done = []
         for r in rows:
+            if '"usage": "utile"' in (r["extra"] or ""):
+                continue
             if r["doc_date"] < limit:
                 self._terminate(r, ops)
                 done.append((r["emitter"] or "Inconnu").replace("-", " "))
@@ -1474,6 +1499,113 @@ class Bureau:
                     os.rmdir(d)   # dossier vide laissé par un déplacement : rien d'autre n'est jamais supprimé
             except OSError:
                 pass
+
+    # ------------------------------------------------------------ recommencer de zéro / revenir à un rangement précédent
+    def _rangements_dir(self):
+        return os.path.join(self.fm, "rangements")
+
+    def rangements(self):
+        """Les rangements gardés par « Recommencer de zéro » (plan compressé, sans copie des documents)."""
+        out = []
+        d = self._rangements_dir()
+        for f in sorted(os.listdir(d), reverse=True) if os.path.isdir(d) else []:
+            if not f.endswith(".zip"):
+                continue
+            try:
+                with zipfile.ZipFile(os.path.join(d, f)) as zf:
+                    plan = json.loads(zf.read("plan.json").decode("utf-8"))
+                out.append({"file": f, "created": plan.get("created"), "docs": len(plan.get("docs", [])), "version": plan.get("version"),
+                            "size": os.path.getsize(os.path.join(d, f)), "restored": plan.get("restored")})
+            except Exception:
+                out.append({"file": f, "created": None, "docs": 0, "error": True})
+        return out
+
+    def restart(self):
+        """Recommencer de zéro : le rangement actuel est gardé (plan compressé dans .bontoutou/rangements), puis TOUS les documents
+        rangés reviennent dans 00_A-TRIER sous leur nom d'origine, à trier de nouveau. Rien n'est supprimé ; un seul « Annuler »."""
+        from . import __version__
+        with self.lock:
+            rows = self.db.execute("SELECT * FROM docs").fetchall()
+            if not rows:
+                return {"ok": False, "msg": "Aucun document rangé : rien à recommencer"}
+            stamp = dt.datetime.now().strftime("%Y-%m-%d_%Hh%M")
+            os.makedirs(self._rangements_dir(), exist_ok=True)
+            zpath = unique_path(self._rangements_dir(), f"rangement-{stamp}.zip")
+            plan = {"format": FORMAT, "version": __version__, "created": now(), "device": self.device["id"],
+                    "docs": [dict(r) for r in rows]}
+            with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr("plan.json", json.dumps(plan, ensure_ascii=False, indent=1))
+                zf.writestr("LISEZ-MOI.txt", "Rangement de Bon toutou gardé le " + plan["created"] + ".\n"
+                            "plan.json : où était chaque document (empreinte SHA-256, chemin, type, émetteur, date).\n"
+                            "Les documents eux-mêmes ne sont pas copiés ici : ils sont dans ton bureau.\n"
+                            "Réglages › Recommencer de zéro › « Revenir à ce rangement » les remet à leur place.\n")
+                for sub in ("meta", "mes-regles.json", "profil.json"):
+                    src = os.path.join(self.fm, sub)
+                    if os.path.isfile(src):
+                        zf.write(src, sub)
+                    elif os.path.isdir(src):
+                        for dp, _, fs in os.walk(src):
+                            for f in fs:
+                                zf.write(os.path.join(dp, f), os.path.relpath(os.path.join(dp, f), self.fm))
+            ops, n, dirs = [], 0, set()
+            for r in rows:
+                src = self.abs(r["path"])
+                ops.append({"t": "delete_doc", "id": r["id"], "row": dict(r)})
+                self.db.execute("DELETE FROM docs WHERE id=?", (r["id"],))
+                if not os.path.exists(src):
+                    continue
+                dirs.add(os.path.dirname(src))
+                dst = unique_path(self.inbox_dir, r["orig_name"] or os.path.basename(src))
+                self._move(src, dst, ops)
+                self.db.execute("DELETE FROM inbox WHERE sha=? AND state='a_trier'", (r["sha"],))
+                iid = self.register(dst, "Recommencer de zéro", cached=True)
+                if iid:
+                    ops.append({"t": "inbox_new", "id": iid})
+                n += 1
+            for d in list(dirs):   # les dossiers vides laissés derrière (jamais un fichier)
+                while d.startswith(self.root + os.sep) and d != self.inbox_dir:
+                    dirs.add(d)
+                    d = os.path.dirname(d)
+            self._rmdir_empty(dirs)
+            b = self._journal(f"Recommencer de zéro : {n} document{'s' if n > 1 else ''} remis dans Trier "
+                              f"(rangement précédent gardé : {os.path.basename(zpath)})", ops)
+            return {"ok": True, "n": n, "batch": b, "file": os.path.basename(zpath)}
+
+    def restore(self, fname):
+        """Revenir à un rangement gardé : chaque document encore dans Trier (ou mis de côté) retrouve sa place, son nom et sa fiche.
+        Ce que tu as rangé autrement depuis ne bouge pas. Un seul « Annuler »."""
+        path = os.path.join(self._rangements_dir(), os.path.basename(fname or ""))
+        if not os.path.isfile(path):
+            return {"ok": False, "msg": "Rangement introuvable"}
+        with zipfile.ZipFile(path) as zf:
+            plan = json.loads(zf.read("plan.json").decode("utf-8"))
+        cols = [r[1] for r in self.db.execute("PRAGMA table_info(docs)")]
+        with self.lock:
+            ops, n, kept, missing = [], 0, 0, 0
+            for d in plan.get("docs", []):
+                if self.db.execute("SELECT 1 FROM docs WHERE sha=? OR id=?", (d.get("sha"), d.get("id"))).fetchone():
+                    kept += 1      # déjà rangé (autrement) depuis : on n'y touche pas
+                    continue
+                row = self.db.execute("SELECT * FROM inbox WHERE sha=? AND state IN ('a_trier','a_identifier','ignore') ORDER BY added_at DESC",
+                                      (d.get("sha"),)).fetchone()
+                if not row or not os.path.exists(self.abs(row["path"])):
+                    missing += 1
+                    continue
+                dst = os.path.join(self.root, d["path"])
+                if os.path.exists(dst):
+                    dst = unique_path(os.path.dirname(dst), os.path.basename(dst))
+                self._move(self.abs(row["path"]), dst, ops)
+                vals = {k: d.get(k) for k in cols if k in d}
+                vals["path"] = self.rel(dst)
+                self.db.execute(f"INSERT INTO docs({', '.join(vals)}) VALUES({', '.join('?' * len(vals))})", tuple(vals.values()))
+                ops.append({"t": "insert_doc", "id": d["id"]})
+                ops.append({"t": "inbox", "id": row["id"], "state": row["state"], "path": row["path"]})
+                self.db.execute("UPDATE inbox SET state='range', path=? WHERE id=?", (self.rel(dst), row["id"]))
+                n += 1
+            if not n:
+                return {"ok": False, "msg": "Aucun document à remettre en place", "kept": kept, "missing": missing}
+            b = self._journal(f"Retour au rangement du {(plan.get('created') or '')[:10]} : {n} document{'s' if n > 1 else ''} remis en place", ops)
+            return {"ok": True, "n": n, "kept": kept, "missing": missing, "batch": b}
 
     def terminate(self, did):
         with self.lock:
@@ -1830,7 +1962,9 @@ class Bureau:
                        "dossiers": c("SELECT COUNT(*) FROM dossiers WHERE state IN ('en_cours','finalise')"),
                        "sent": c("SELECT COUNT(*) FROM dossiers WHERE state='envoye'"),
                        "egress": len(self.sorties())},
-            "types": {k: {"label": v["label"], "cat": v["cat"], "mots": " ".join(v.get("titre", []) + v.get("kw", [])[:12])} for k, v in TYPES.items()},
+            "types": {k: {"label": v["label"], "cat": v["cat"], "sub": v["sub"], "countries": v.get("countries"), "expiry": bool(v.get("expiry")),
+                          "emetteur": v.get("emetteur", True) is not False,
+                          "mots": " ".join(v.get("titre", []) + v.get("kw", [])[:12])} for k, v in TYPES.items()},
             "countries": {k: v["name"] for k, v in COUNTRIES.items()},
             "categories": CATEGORIES, "subs": SUB_FOLDERS_FR,
             "templates": {k: v["label"] for k, v in TEMPLATES.items()},

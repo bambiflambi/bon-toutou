@@ -2,6 +2,20 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.7.1 — Mange papiers, et recommencer de zéro
+- Nouvelle signature sous le nom : **« Mange papiers. »**
+- **Réglages › Recommencer de zéro** : tous les documents rangés (Documents et Archives) reviennent dans Trier sous leur nom d'origine, pour un nouveau tri. Avant, le rangement actuel est **gardé, compressé** dans `.bontoutou/rangements` (le plan : où était chaque document, son type, son émetteur, sa date, ses fiches ; les documents ne sont pas copiés). Confirmation en écrivant RECOMMENCER ; un seul « Annuler » juste après.
+- **Revenir à ce rangement** : chaque document encore dans Trier retrouve sa place, son nom et sa fiche. Ce que tu as rangé autrement depuis ne bouge pas.
+- Rien n'est supprimé : réglages, règles, dossiers et preuves d'envoi ne changent pas.
+
+## 0.7.0 — Trier en étapes
+- **Tu t'en sers encore ?** Chaque document commence par ce choix, en haut à gauche : **Utile aujourd'hui** (dans Documents) ou **Archives** (rangé à part, toujours retrouvable). C'est toujours ta décision : Bon toutou donne seulement son avis. « Ranger » attend ta réponse (touches U / A).
+  - Utile aujourd'hui pour une ancienne version ou un papier d'une situation finie : il reste dans Documents, à côté de la version actuelle, et n'est jamais rangé dans Archives automatiquement (anciens employeurs compris).
+  - Archives pour un document récent : rangé dans 99_ARCHIVES, la version actuelle ne change pas.
+- **Famille › sous-famille › type en tuiles** (touches 1 à 9), à la place de la phrase à trous et de la longue liste déroulante. La proposition de Bon toutou est déjà choisie ; un fil en haut de la carte rouvre n'importe quelle étape. Recherche par mots (« contrat d'apprentissage », « livret »).
+- **La fiche** : émetteur, date, titulaire, intitulé, pays, expiration, avec le nom et le dossier mis à jour en direct.
+- Les mêmes tuiles en mode Liste et dans « Corriger le classement » d'un document déjà rangé.
+
 ## 0.6.4 — Trier profite tout de suite des nouvelles règles
 - Après une mise à jour, les documents qui attendaient dans Trier sont **relus automatiquement** avec les nouvelles règles (texte déjà lu, pas de nouvel OCR, tes corrections gardées). Avant, ils gardaient l'analyse faite à leur arrivée.
 - Bouton **Relancer l'analyse** aussi en mode Cartes.

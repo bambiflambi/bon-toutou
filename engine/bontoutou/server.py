@@ -246,6 +246,12 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.tidy_jobs())
             if p == "/api/unknown":
                 return self._json(B.unknown(data["id"]))
+            if p == "/api/rangements":
+                return self._json(B.rangements())
+            if p == "/api/restart":
+                return self._json(B.restart() if data.get("confirm") == "RECOMMENCER" else {"ok": False, "msg": "Confirmation manquante"})
+            if p == "/api/restore":
+                return self._json(B.restore(data.get("file")))
             if p == "/api/unknown/many":
                 return self._json(B.unknown_many(data.get("ids")))
             if p == "/api/unknown/back":

@@ -25,6 +25,10 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **v0.6** : `Bureau.repair_preview / repair_apply` (empreintes SHA-256 calculées dans l'interface à partir du dossier d'origine, jamais recopié), `close_old_employers` (seul l'emploi actuel reste « actuel »), `unknown / unknown_back` (_A-IDENTIFIER). Analyse : `doubts`, `candidates`, `emitter_candidates`. Interface : phrase à trous dans `static/cartes.js`, archives groupées et réparation dans `static/rangement.js`, PDF page par page (pdf.js embarqué dans `static/vendor/pdfjs`).
 
+- **v0.7** : tri en étapes dans `static/etapes.js` (remplace la phrase à trous et la liste des types) : `usage` (« utile » / « archive », toujours choisi par l'utilisateur ; `proposal` → modes `archive_user` et document gardé à part avec `suivi=None`, `extra.usage = "utile"` respecté par `close_old_employers`), sélecteur de type en tuiles réutilisable (`tpOpen` / `tpHTML`, cartes, liste, « Corriger le classement »). Les dossiers vont chercher une pièce dans Archives s'il n'y a pas de version actuelle (`resolve`, source « archives »). Après une mise à jour, Trier est relu (`_new_version_reread`).
+
+- **v0.7.1** : `Bureau.restart` (plan compressé `.bontoutou/rangements/rangement-*.zip` : plan.json + meta + règles + profil, puis documents remis dans 00_A-TRIER, ops `delete_doc` / `inbox_new` annulables) et `Bureau.restore` (remet en place par empreinte ce qui est encore dans Trier). Signature : « Mange papiers. »
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.

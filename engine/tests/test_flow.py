@@ -325,5 +325,43 @@ _n_before = br.db.execute("SELECT COUNT(*) FROM inbox WHERE state='a_trier'").fe
 _br2 = Bureau(br.root); _br2.inbox()
 from bontoutou import __version__ as _v
 check(_br2.settings.get("analyse_version") == _v, "nouvelle version : Trier relu automatiquement")
+# v0.7 : « tu t'en sers encore ? » — c'est l'utilisateur qui décide entre Documents et Archives
+_ib = [x for x in br.inbox() if x["mode"] in ("new", "new_version")]
+if _ib:
+    _x = _ib[0]
+    _p = br.set_overrides(_x["id"], {"usage": "archive"})
+    check(_p["mode"] == "archive_user" and "99_ARCHIVES" in _p["dest"], "Archives choisi : rangé dans 99_ARCHIVES")
+    _r = br.validate([_x["id"]])
+    _d = br.db.execute("SELECT status FROM docs WHERE path LIKE '%99_ARCHIVES%' ORDER BY added_at DESC LIMIT 1").fetchone()
+    check(_r["ok"] and _d and _d["status"] in ("termine", "ancienne_version"), "Archives choisi : document hors de Documents")
+    br.undo(_r["batch"])
+_sp = os.path.join(tmp, "solde_utile.pdf")
+pdf(_sp, ["SOLDE DE TOUT COMPTE", "Saveurs Royales SAS", "Recu pour solde de tout compte", "Fait le 15/03/2025"])
+br.add_upload("solde_utile.pdf", open(_sp, "rb").read())
+_ib = [x for x in br.inbox() if x["mode"] in ("old_version", "archive_direct")]
+check(bool(_ib), "un document qui irait d'office dans Archives")
+if _ib:
+    _p = br.set_overrides(_ib[0]["id"], {"usage": "utile"})
+    check(_p["mode"] == "new" and "99_ARCHIVES" not in _p["dest"] and _p["suivi"] is None, "Utile aujourd'hui : gardé dans Documents, à côté de la version actuelle")
+    _r = br.validate([_ib[0]["id"]])
+    _d = br.db.execute("SELECT status, extra FROM docs ORDER BY added_at DESC, rowid DESC LIMIT 1").fetchone()
+    check(_r["ok"] and _d["status"] == "actuel" and '"usage": "utile"' in (_d["extra"] or ""), "Utile aujourd'hui : actuel et retenu")
+    br.undo(_r["batch"])
+# v0.7.1 : Recommencer de zéro (le rangement est gardé, compressé) puis Revenir à ce rangement
+_before = sorted((d["sha"], d["path"]) for d in br.db.execute("SELECT sha, path FROM docs").fetchall())
+_nfiles = lambda: sum(len([x for x in f if not x.startswith(".")]) for dp, _, f in os.walk(br.root) if "/." not in dp)
+_files_before = _nfiles()
+_r = br.restart()
+check(_r["ok"] and br.db.execute("SELECT COUNT(*) FROM docs").fetchone()[0] == 0 and _r["n"] > 0, "recommencer : plus rien de rangé, tout est dans Trier")
+check(len([x for x in br.inbox() if x["source"] == "Recommencer de zéro"]) == _r["n"], "recommencer : chaque document revient dans Trier")
+check(len(br.rangements()) == 1 and br.rangements()[0]["docs"] == len(_before), "recommencer : rangement gardé (plan compressé)")
+check(_nfiles() == _files_before, "recommencer : aucun document supprimé")
+br.undo(_r["batch"])
+check(sorted((d["sha"], d["path"]) for d in br.db.execute("SELECT sha, path FROM docs").fetchall()) == _before and not [x for x in br.inbox() if x["source"] == "Recommencer de zéro"],
+      "recommencer : annulable d'un coup")
+_r = br.restart()
+_rr = br.restore(br.rangements()[0]["file"])
+check(_rr["ok"] and sorted((d["sha"], d["path"]) for d in br.db.execute("SELECT sha, path FROM docs").fetchall()) == _before, "revenir au rangement gardé : chaque document à sa place")
+check(not [x for x in br.inbox() if x["source"] == "Recommencer de zéro"], "revenir : Trier vidé de ces documents")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

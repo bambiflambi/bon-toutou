@@ -47,6 +47,7 @@ async function load() {
   if (S.v === "archives") S.arch = await api("/api/archives");
   if (S.v === "reglages" && S.sv === "mail") S.mst = await api("/api/mail/status", {});
   if (S.v === "reglages") { S.hist = await api("/api/history"); S.rules = await api("/api/rules"); }
+  if (S.v === "reglages" && S.sv === "zero") S.rgs = await api("/api/rangements", {});
   if (S.v === "guide") S.inbox = await api("/api/inbox");
   if (S.v === "guide" || (S.v === "trier" && S.st && !S.st.settings.guide.fini && !S.st.settings.guide.masque)) S.guide = await api("/api/guide");
   render();
@@ -85,7 +86,7 @@ function topbar() {
   const on = { doc: "docs", dossier: "dossiers", guide: "trier" }[S.v] || S.v;
   const plusOn = PLUS.find((x) => x[0] === on);
   const th = (S.st && S.st.settings && S.st.settings.theme) || "champagne";
-  $("#topbar").innerHTML = `<button class="brand" ${setup ? "" : 'data-go="home"'}><span class="mark">${IC.dog}</span><span><b>Bon toutou</b><small class="tagline">Mauvais papiers.</small></span></button>
+  $("#topbar").innerHTML = `<button class="brand" ${setup ? "" : 'data-go="home"'}><span class="mark">${IC.dog}</span><span><b>Bon toutou</b><small class="tagline">Mange papiers.</small></span></button>
   ${setup ? "" : `<nav class="nav">${[["home", "Aujourd'hui"], ["trier", "Trier", c.inbox], ["docs", "Documents"], ["dossiers", "Dossiers"]].map((n) => `<button class="${on === n[0] ? "on" : ""}" data-go="${n[0]}">${n[1]}${n[2] ? ` <span class="badge">${n[2]}</span>` : ""}</button>`).join("")}
     <span class="plusw"><button class="${plusOn ? "on" : ""}" data-act="plusmenu" aria-expanded="${!!S.pm}">${plusOn ? plusOn[1] : "Plus"} <span class="caret">▾</span></button>
     ${S.pm ? `<div class="pmenu">${PLUS.map((x) => `<button data-go="${x[0]}"><span class="oi">${IC[x[2]]}</span>${x[1]}${x[3] ? ` <span class="soontag">${x[3]}</span>` : ""}</button>`).join("")}</div>` : ""}</span></nav>`}

@@ -39,7 +39,8 @@ const REG = [
            ["hist", "history", "Historique des actions", () => "Tout ce que Bon toutou a fait, annulable"]]],
   ["Bon toutou", [["maj", "up", "Version et mises à jour", () => `v${S.st.version || ""} · jamais obligatoires`],
            ["bug", "bug", "Signaler un problème", () => "Sans aucun document, relu par toi avant l'envoi"],
-           ["accueil", "spark", "Premier tri guidé", () => (S.st.settings.guide || {}).fini ? "Terminé · le refaire" : "5 minutes avec tes propres papiers"]]]];
+           ["accueil", "spark", "Premier tri guidé", () => (S.st.settings.guide || {}).fini ? "Terminé · le refaire" : "5 minutes avec tes propres papiers"],
+           ["zero", "sync", "Recommencer de zéro", () => "Tout retrier · l'ancien rangement est gardé, compressé"]]]];
 
 function setHead(ic, title, lead) {
   return `<div class="navline"><button class="back" data-go="reglages">← Réglages</button></div>
@@ -155,6 +156,22 @@ function reglagesView() {
   if (sv === "maj") return `${setHead("up", "Version et mises à jour", "")}${window.majSection ? noLabel(majSection()).split('<div class="label">Signaler')[0] : ""}
     <div class="label" style="margin:22px 0 8px">Mode test</div>
     <div class="card box"><label class="consent" style="margin:0"><input type="checkbox" id="diag_on" ${s.diagnostic ? "checked" : ""}> <span><b style="color:var(--text)">Noter le détail de chaque analyse</b><br>Pour la phase de test : texte lu, proposition des règles, réponse de l'IA locale, tes corrections et le rangement final sont notés dans <span class="fname">.bontoutou/diagnostic</span>, dans ton bureau. Ces notes restent sur ton ordinateur et contiennent le début du texte de tes papiers : désactive-le après les tests.</span></label></div>`;
+  if (sv === "zero") {
+    const R = S.rgs || [], n = st.counts.docs + st.counts.old + st.counts.done;
+    return `${setHead("sync", "Recommencer de zéro", "Tous tes documents rangés reviennent dans Trier sous leur nom d'origine, pour un nouveau tri. Rien n'est supprimé.")}
+    <div class="card box"><b>Ce qui se passe</b>
+      <ul class="sub" style="margin:8px 0 0 18px;line-height:1.6">
+        <li>Ton rangement actuel est d'abord <b>gardé, compressé</b> (le plan : où était chaque document, son type, son émetteur, sa date). Les documents ne sont pas copiés : ils restent dans ton bureau.</li>
+        <li>${n ? `Les ${n} ${plural(n, "document rangé", "documents rangés")}` : "Les documents rangés"} (Documents et Archives) reviennent dans <span class="fname">00_A-TRIER</span>. Les dossiers vides sont retirés, jamais un fichier.</li>
+        <li>Tes réglages, tes règles, tes dossiers et leurs preuves d'envoi ne changent pas.</li>
+        <li>Juste après, un seul « Annuler » remet tout comme avant. Plus tard, « Revenir à ce rangement » remet en place chaque document encore dans Trier.</li></ul>
+      <div style="margin-top:14px">${S.confirm === "zero" ? `<div class="warnbox" style="margin-bottom:10px">Pour confirmer, écris <b>RECOMMENCER</b> :</div>
+        <div class="acts"><input class="field" id="zero_ok" placeholder="RECOMMENCER" autocomplete="off" style="width:min(220px,100%)"><button class="cta small" data-act="zero-go" disabled>Recommencer de zéro</button><button class="linkbtn" data-act="noconfirm">annuler</button></div>`
+        : `<button class="ghost" data-act="zero-ask" ${n ? "" : "disabled"}>Recommencer de zéro…</button>${n ? "" : ` <span class="sub">Aucun document rangé pour l'instant.</span>`}`}</div></div>
+    <div class="label" style="margin:22px 0 8px">Rangements gardés</div>
+    <div class="card">${R.map((r) => `<div class="row"><span class="oi">${IC.history}</span><div class="grow"><b>Rangement du ${esc((r.created || "").slice(0, 16).replace("T", " à "))}</b><div class="sub">${r.docs} ${plural(r.docs, "document")} · version ${esc(r.version || "?")} · ${Math.max(1, Math.round((r.size || 0) / 1024))} Ko</div></div>
+      <button class="ghost small" data-act="zero-restore" data-f="${esc(r.file)}">Revenir à ce rangement</button></div>`).join("") || `<div class="row sub">Aucun pour l'instant. Ils sont gardés dans <span class="fname">.bontoutou/rangements</span>, dans ton bureau.</div>`}</div>`;
+  }
   if (sv === "bug") return `${setHead("bug", "Signaler un problème", "")}<div class="card box"><span class="sub">Prépare un rapport sans aucun document ni nom de fichier, que tu relis avant de décider de l'envoyer.</span>
     <div class="acts" style="margin-top:8px"><button class="ghost small" data-act="bug-open">Préparer un rapport</button></div></div>`;
   if (sv === "accueil") { const g = s.guide || {};
@@ -217,4 +234,23 @@ document.addEventListener("click", async (e) => {
     if (r.ok && !has("cal")) await plusMark("cal", true); return; }
   if (act === "g-replay") { const g = Object.assign({}, S.st.settings.guide || {}, { fini: false, masque: false, etape: (S.st.settings.guide || {}).fini ? 0 : (S.st.settings.guide || {}).etape || 0 });
     await api("/api/settings", { guide: g }); S.st.settings.guide = g; S.gids = []; return go("guide"); }
+});
+
+/* ---- Recommencer de zéro (v0.7.1) */
+document.addEventListener("input", (e) => {
+  if (e.target.id !== "zero_ok") return;
+  const b = document.querySelector("[data-act=zero-go]"); if (b) b.disabled = e.target.value.trim().toUpperCase() !== "RECOMMENCER";
+});
+document.addEventListener("click", async (e) => {
+  const a = e.target.closest("[data-act]"); if (!a) return;
+  if (a.dataset.act === "zero-ask") { S.confirm = "zero"; render(); const i = $("#zero_ok"); if (i) i.focus(); return; }
+  if (a.dataset.act === "zero-go") {
+    S.confirm = null; S.busy = "Rangement gardé, puis retour des documents dans Trier…"; render();
+    const r = await api("/api/restart", { confirm: "RECOMMENCER" }); S.busy = ""; await load();
+    return toast(r.ok ? `${r.n} ${plural(r.n, "document")} dans Trier · ancien rangement gardé` : (r.msg || "Rien n'a changé"), r.batch);
+  }
+  if (a.dataset.act === "zero-restore") {
+    const r = await api("/api/restore", { file: a.dataset.f }); await load();
+    return toast(r.ok ? `${r.n} ${plural(r.n, "document remis", "documents remis")} en place${r.kept ? ` · ${r.kept} déjà rangés autrement, laissés` : ""}${r.missing ? ` · ${r.missing} introuvables` : ""}` : (r.msg || "Rien n'a changé"), r.batch);
+  }
 });
