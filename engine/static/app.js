@@ -67,7 +67,8 @@ function aiPoll() {
     const fresh = await api("/api/inbox");
     if (S.v !== "trier") return;
     if (editing()) return aiPoll();
-    S.inbox = fresh; render();
+    const same = JSON.stringify(fresh) === JSON.stringify(S.inbox);
+    S.inbox = fresh; if (!same) render();   // rien de neuf : l'écran ne bouge pas
     if (fresh.some((p) => p.ai_pending)) aiPoll();
   }, 4000);
 }

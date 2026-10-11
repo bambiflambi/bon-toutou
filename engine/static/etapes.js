@@ -19,7 +19,14 @@ function tpSubs(cat) {
   tpTypes().forEach(([k, t]) => { if (t.cat === cat) (subs[t.sub] = subs[t.sub] || []).push(k); });
   return Object.keys(subs).sort().map((s) => [s, subs[s]]);
 }
-const subName = (s) => String(S.st.subs[s] || s).replace(/-/g, " ");
+const SUBL = { "01-1": "Pièces d'identité", "01-2": "État civil", "01-4": "Titres de séjour et visas", "02-1": "Bail ou titre de propriété", "02-3": "Énergie, eau, internet",
+  "02-5": "Justificatifs d'adresse", "03-2": "Bulletins de paie", "03-3": "Activité indépendante", "03-4": "Chômage et retraite", "04-1": "Déclarations",
+  "05-1": "Comptes et relevés", "05-3": "Crédits", "06-1": "Sécu et mutuelle", "06-3": "Dossier médical", "07-2": "Véhicule", "07-3": "Responsabilité civile",
+  "07-4": "Prévoyance et vie", "08-1": "Achat et vente", "08-3": "Entretien et contrôles", "09-1": "Union, mariage, PACS", "09-3": "Parents à charge",
+  "10-2": "Placements et épargne", "10-3": "Parts de société", "10-4": "Transmission, testament", "11-2": "Télécoms", "11-3": "Achats et garanties",
+  "12-1": "Diplômes", "12-3": "Bulletins scolaires", "12-4": "Inscriptions et conventions", "13-2": "Recommandés", "14-1": "Allocations CAF",
+  "14-3": "Aides au logement", "14-4": "Autres aides", "15-2": "Lettres de motivation" };
+const subName = (s) => SUBL[s] || String(S.st.subs[s] || s).replace(/-/g, " ");
 const catName = (c) => S.st.categories[c] || c;
 function tpOpen(key, cur, onPick, step) {
   const t = S.st.types[cur] || {};
@@ -86,17 +93,19 @@ document.addEventListener("keydown", (e) => {
   if (/^[1-9]$/.test(e.key)) { const t = box.querySelectorAll(".tile")[+e.key - 1]; if (t) { e.preventDefault(); e.stopImmediatePropagation(); t.click(); } }
 }, true);
 
-/* ---------- Trier en cartes : de petites étapes rapides, à droite (v0.7.2, demande de PiM)
-   1. Tu t'en sers encore ?  2. Où le ranger (le chemin, en gros)  3. Qui l'a émis ?  4. Le nom du fichier → Ranger.
-   À chaque étape : la proposition de Bon toutou (ou de l'IA locale), « C'est ça » d'un geste (Entrée), ou « Changer ». */
+/* ---------- Trier en cartes : de petites étapes rapides, à droite (v0.7.2 → v0.7.3, demandes de PiM)
+   1. Tu t'en sers encore ?  2. Où le ranger (le chemin, comme dans le Finder)  3. Qui l'a émis ?  4. Le nom du fichier → Ranger.
+   v0.7.3 : vue épurée (le reste est dans « Options »), aperçu qui ne se recharge plus, et propositions de Bon toutou masquées par
+   défaut (Réglage « propositions ») : tu choisis, Bon toutou apprend de tes choix. */
 S.et = S.et || {};
+const PROPS = () => !!(S.st && S.st.settings && S.st.settings.propositions);
 const needType = (p) => p.type === "autre" || (p.doubts || []).includes("type");
+const chose = (p, f) => (p.set || []).includes(f);
 const etSteps = (p) => ["usage", "chemin", ...((S.st.types[p.type] || {}).emetteur !== false ? ["emetteur"] : []), "nom"];
 function etStep(p) {
-  if (S.et.id !== p.id) S.et = { id: p.id, step: p.usage ? "chemin" : "usage", pick: false };
+  if (S.et.id !== p.id) S.et = { id: p.id, step: p.usage ? "chemin" : "usage", pick: false, opts: false };
   if (!p.usage) S.et.step = "usage";
   if (!etSteps(p).includes(S.et.step)) S.et.step = "nom";
-  if (S.et.step === "chemin" && needType(p) && S.et.pick === false && !S.et.pickSeen) { S.et.pick = true; S.et.pickSeen = true; }
   return S.et.step;
 }
 function etNext(p) {
@@ -105,117 +114,142 @@ function etNext(p) {
   setTimeout(() => { const f = document.querySelector(".etbig [data-autofocus]"); if (f) f.focus(); }, 30);
 }
 function etOpenPicker(p) {
-  tpOpen("card", p.type, async (k) => {
+  tpOpen("card", PROPS() || chose(p, "type") ? p.type : null, async (k) => {
     S.et.pick = false;
     const r = await api("/api/propose", { id: p.id, overrides: { type: k } });
     if (!r || r.error) { toast("Pas enregistré : " + ((r && r.error) || "erreur")); return load(); }
-    await load(); toast(`${S.st.types[k].label} · le nom et le dossier sont mis à jour`);
-    const q = (S.inbox || []).find((x) => x.id === p.id); if (q) etNext(q);
+    await load();   // on reste sur « Où le ranger ? » : le chemin s'affiche, tu le valides
   });
+  TP.card.for = p.id;
 }
-const by = (p) => (p.engine && p.engine !== "règles" ? "l'IA locale" : "Bon toutou");
-function prettyPath(p) {
-  const parts = String(p.dest || "").split("/").map((x) => x.replace(/^\d{2}(-\d)?_/, "").replace(/^[A-Z]{2}_/, "").replace(/[_-]+/g, " "));
-  const arch = /99_ARCHIVES/.test(p.dest || "");
-  return parts.filter((x) => x && x !== "ARCHIVES").map((x, i) => `<span class="seg${i ? "" : " cty"}">${esc(x.charAt(0) + x.slice(1).toLowerCase())}</span>`).join(`<span class="sep">›</span>`)
-    + (arch ? ` <span class="pill neutral">Archives</span>` : "");
+/* Le chemin, comme dans le Finder : un dossier par ligne, le fichier au bout */
+function pathTree(p) {
+  const T = S.st.types[p.type] || {}, seg = String(p.dest || "").split("/");
+  const arch = seg.includes("99_ARCHIVES"), rest = seg.slice(seg.findIndex((x) => /^\d{2}-\d_/.test(x)) + 1).filter(Boolean);
+  const lv = [S.st.countries[p.country] || p.country, ...(arch ? ["Archives"] : []), catName(T.cat), subName(T.sub), ...rest.map((x) => x.replace(/[-_]+/g, " "))];
+  const fold = IC.folder.replace("<svg", '<svg class="ti"');
+  return `<div class="tree">${lv.map((x, i) => `<div class="tl" style="--d:${i}">${fold}<span>${esc(x)}</span></div>`).join("")}
+    <div class="tl file" style="--d:${lv.length}"><span class="fname">${esc(p.name)}</span></div></div>`;
 }
 function etDone(p, step) {
   const L = etSteps(p), cur = L.indexOf(step), T = S.st.types[p.type] || {};
-  const lab = { usage: p.usage === "archive" ? "Archives" : "Utile aujourd'hui", chemin: `${catName(T.cat)} › ${T.label || p.type_label}`,
-    emetteur: p.emitter && p.emitter !== "Inconnu" ? p.emitter_display || p.emitter : "Émetteur inconnu", nom: "" };
+  const lab = { usage: p.usage === "archive" ? "Archives" : "Utile aujourd'hui", chemin: `${catName(T.cat)} › ${subName(T.sub)} · ${T.label || p.type_label}`,
+    emetteur: p.emitter && p.emitter !== "Inconnu" ? p.emitter_display || p.emitter : "Inconnu" };
   const head = { usage: "Usage", chemin: "Rangé dans", emetteur: "Émetteur" };
-  const rows = L.slice(0, cur).map((s) => `<button type="button" class="etdone" data-act="et-go" data-s="${s}"><span class="ok">✓</span><span class="sub">${head[s]}</span><b>${esc(lab[s])}</b><span class="chg">changer</span></button>`).join("");
-  const dots = L.map((s, i) => `<i class="${i < cur ? "d" : i === cur ? "c" : ""}"></i>`).join("");
-  return `<div class="etprog"><span class="sub">Étape ${cur + 1} sur ${L.length}</span><span class="dots">${dots}</span></div>${rows}`;
+  return `<div class="etprog">${L.map((s, i) => `<i class="${i < cur ? "d" : i === cur ? "c" : ""}"></i>`).join("")}<span>${cur + 1} / ${L.length}</span></div>`
+    + L.slice(0, cur).map((s) => `<button type="button" class="etdone" data-act="et-go" data-s="${s}"><span class="ok">✓</span><span class="h">${head[s]}</span><b>${esc(lab[s])}</b></button>`).join("");
 }
 function stepUsage(p) {
-  const h = p.usage_hint === "archive" ? "archive" : "utile";
-  const btn = (u, t, d, key) => `<button type="button" class="ubig${p.usage === u ? " on" : ""}${h === u ? " prop" : ""}" data-act="et-usage" data-u="${u}" data-id="${p.id}" ${h === u ? "data-et-enter" : ""}>
-      <b>${t}</b><small>${d} · touche ${key}${h === u ? " · <em>proposé (Entrée)</em>" : ""}</small></button>`;
+  const h = PROPS() ? (p.usage_hint === "archive" ? "archive" : "utile") : null;
+  const btn = (u, t, d, key) => `<button type="button" class="ubig${p.usage === u ? " on" : ""}${h === u ? " prop" : ""}" data-act="et-usage" data-u="${u}" data-id="${p.id}" ${h === u ? "data-et-enter" : ""}><b>${t}</b><small>${d}</small><kbd>${key}</kbd></button>`;
   return `<div class="etbig"><h2 class="etq">Tu t'en sers encore ?</h2>
-    <p class="etprop">Proposition de ${by(p)} : <b>${h === "archive" ? "Archives" : "Utile aujourd'hui"}</b>${h === "archive" ? " — une version plus récente existe, ou la situation est finie" : ""}. C'est toi qui décides.</p>
-    <div class="ubigs">${btn("utile", "Utile aujourd'hui", "Dans Documents", "U")}${btn("archive", "Archives", "Gardé, rangé à part", "A")}</div></div>`;
+    <div class="ubigs">${btn("utile", "Utile aujourd'hui", "Il va dans Documents", "U")}${btn("archive", "Archives", "Gardé, rangé à part", "A")}</div></div>`;
 }
 function stepChemin(p) {
-  const T = S.st.types[p.type] || {}, C = S.st.settings.countries || [];
-  if (S.et.pick && (!TP.card || TP.card.for !== p.id)) { etOpenPicker(p); TP.card.for = p.id; }
-  const sure = !needType(p);
-  return `<div class="etbig"><h2 class="etq">Où le ranger ?</h2>
-    <p class="etprop">Proposition de ${by(p)}${sure ? "" : ` <span class="pill warn">pas sûr</span>`} : <b>${esc(T.label || p.type_label)}</b></p>
-    <div class="bigpath">${prettyPath(p)}</div>
-    ${S.et.pick ? `<div class="etacts"><button type="button" class="ghost" data-act="et-ok" data-et-enter>Garder la proposition <small>Entrée</small></button><span class="sub" style="align-self:center">ou choisis ci-dessous :</span></div>${tpHTML("card")}` : `<div class="etacts"><button type="button" class="cta" data-act="et-ok" data-et-enter>✓ C'est le bon endroit <small>Entrée</small></button><button type="button" class="ghost" data-act="et-pick">Changer l'endroit <small>↓</small></button></div>`}
-    ${C.length > 1 ? `<div class="chips" style="margin-top:10px"><span class="sub" style="align-self:center">Pays :</span>${C.map((c) => `<button type="button" class="chip${c === p.country ? " first" : ""}" data-act="et-set" data-f="country" data-v="${c}">${c} · ${esc(S.st.countries[c] || c)}</button>`).join("")}</div>` : ""}</div>`;
+  const C = S.st.settings.countries || [];
+  const pick = S.et.pick || (!chose(p, "type") && (!PROPS() || needType(p)));
+  if (pick && (!TP.card || TP.card.for !== p.id)) etOpenPicker(p);
+  return `<div class="etbig"><h2 class="etq">${pick ? "C'est quoi, ce document ?" : "Il sera rangé ici"}</h2>
+    ${pick ? tpHTML("card") : `${pathTree(p)}
+      <div class="etacts"><button type="button" class="cta" data-act="et-ok" data-et-enter>Valider <kbd>Entrée</kbd></button><button type="button" class="ghost" data-act="et-pick">Changer</button></div>
+      ${C.length > 1 ? `<div class="segc">${C.map((c) => `<button type="button" class="${c === p.country ? "on" : ""}" data-act="et-set" data-f="country" data-v="${c}">${esc(S.st.countries[c] || c)}</button>`).join("")}</div>` : ""}`}</div>`;
 }
 function stepEmetteur(p) {
-  const has = p.emitter && p.emitter !== "Inconnu", em = has ? p.emitter_display || p.emitter : "";
-  const cands = (p.emitter_candidates || []).filter((x) => x !== em);
+  const shown = PROPS() || chose(p, "emitter"), has = shown && p.emitter && p.emitter !== "Inconnu", em = has ? p.emitter_display || p.emitter : "";
+  const cands = PROPS() ? (p.emitter_candidates || []).filter((x) => x !== em) : [];
   return `<div class="etbig"><h2 class="etq">Qui l'a émis ?</h2>
-    ${has ? `<p class="etprop">Proposition de ${by(p)}${(p.doubts || []).includes("emitter") ? ` <span class="pill warn">pas sûr</span>` : ""} :</p><div class="bigval">${esc(em)}</div>
-      <div class="etacts"><button type="button" class="cta" data-act="et-ok" data-et-enter>✓ C'est ça <small>Entrée</small></button></div>` : `<p class="etprop">Bon toutou ne l'a pas trouvé : écris-le.</p>`}
-    <label class="say big"><span aria-hidden="true">✎</span><input class="field" data-et-f="emitter" data-ac="emitters" data-ac-extra="${esc(cands.join("|"))}" autocomplete="off" ${has ? "" : "data-autofocus"} placeholder="${has ? "Ou un autre : " : ""}les premières lettres suffisent s'il est déjà dans ton bureau"></label>
-    ${cands.length ? `<div class="chips">${cands.map((x) => `<button type="button" class="chip" data-act="et-set" data-f="emitter" data-v="${esc(x)}" data-next="1">Lu dedans : ${esc(x)}</button>`).join("")}</div>` : ""}</div>`;
+    ${has ? `<div class="bigval">${esc(em)}</div><div class="etacts"><button type="button" class="cta" data-act="et-ok" data-et-enter>Valider <kbd>Entrée</kbd></button></div>` : ""}
+    <input class="field big" data-et-f="emitter" data-ac="emitters" data-ac-extra="${esc(cands.join("|"))}" autocomplete="off" ${has ? "" : "data-autofocus"} placeholder="${has ? "Ou un autre nom…" : "Banque, employeur, école, organisme…"}">
+    ${cands.length ? `<div class="chips">${cands.map((x) => `<button type="button" class="chip" data-act="et-set" data-f="emitter" data-v="${esc(x)}" data-next="1">${esc(x)}</button>`).join("")}</div>` : ""}</div>`;
 }
 function stepNom(p) {
   const T = S.st.types[p.type] || {};
   const own = S.st.settings.owner || "toi", who = p.person === "moi" || !p.person || p.person === own ? "moi" : p.person;
   const holders = (S.st.settings.holders || []).map((h) => h.nom).filter(Boolean);
-  const chip = (v, label, on) => `<button type="button" class="chip${on ? " first" : ""}" data-act="et-set" data-f="person" data-v="${esc(v)}">${esc(label)}</button>`;
-  const dbt = (k) => ((p.doubts || []).includes(k) ? ` <span class="pill warn">à vérifier</span>` : "");
+  const chip = (v, label, on) => `<button type="button" class="${on ? "on" : ""}" data-act="et-set" data-f="person" data-v="${esc(v)}">${esc(label)}</button>`;
   return `<div class="etbig"><h2 class="etq">Le nom du fichier</h2>
-    <p class="etprop">Proposition de ${by(p)} — modifie un morceau si besoin, le nom suit :</p>
     <div class="bigname fname">${esc(p.name)}</div>
     <div class="fiche">
-      <label class="ff"><span>Date du document${dbt("date")}</span><input class="field" type="date" data-et-f="date" value="${esc(p.date || "")}">${p.date_note ? `<small class="sub" style="color:var(--warning)">≈ ${esc(p.date_note)}</small>` : ""}</label>
-      <div class="ff"><span>Titulaire${dbt("person")}</span><div class="chips">${chip("moi", "Toi", who === "moi")}${holders.map((h) => chip(h, h, who === h)).join("")}${who !== "moi" && !holders.includes(who) ? chip(who, who, true) : ""}</div>
-        <input class="field" data-et-f="person" data-ac="persons" autocomplete="off" value="" placeholder="Quelqu'un d'autre : les premières lettres suffisent" style="margin-top:6px"></div>
-      <label class="ff"><span>Intitulé exact <small class="sub">(facultatif)</small></span><input class="field" data-et-f="detail" data-ac="details" autocomplete="off" value="${esc(p.detail || "")}" placeholder="ex. Contrat d'apprentissage BTS, ASSR2…"></label>
+      <label class="ff"><span>Date du document</span><input class="field" type="date" data-et-f="date" value="${esc(p.date || "")}"></label>
+      <div class="ff"><span>Titulaire</span><div class="segc">${chip("moi", "Toi", who === "moi")}${holders.map((h) => chip(h, h, who === h)).join("")}${who !== "moi" && !holders.includes(who) ? chip(who, who, true) : ""}</div>
+        <input class="field" data-et-f="person" data-ac="persons" autocomplete="off" value="" placeholder="Quelqu'un d'autre…"></div>
+      <label class="ff"><span>Intitulé <small>facultatif</small></span><input class="field" data-et-f="detail" data-ac="details" autocomplete="off" value="${esc(p.detail || "")}" placeholder="ex. Contrat d'apprentissage BTS"></label>
       ${T.expiry ? `<label class="ff"><span>Expire le</span><input class="field" type="date" data-et-f="expiry" value="${esc(p.expiry || "")}"></label>` : ""}
     </div>
-    <div class="etacts"><button type="button" class="cta" data-act="c-ok" data-id="${p.id}" data-et-enter>Ranger → <small>Entrée</small></button></div></div>`;
+    <div class="etacts"><button type="button" class="cta" data-act="c-ok" data-id="${p.id}" data-et-enter>Ranger <kbd>Entrée</kbd></button></div></div>`;
+}
+function etOptions(p) {
+  if (!S.et.opts) return `<div class="etfoot"><button type="button" class="linkbtn" data-act="et-later">← Plus tard</button><button type="button" class="linkbtn" data-act="et-opts">Options</button></div>`;
+  const it = (act, label, extra = "") => `<button type="button" class="optrow" data-act="${act}" data-id="${p.id}" ${extra}>${label}</button>`;
+  return `<div class="etfoot"><button type="button" class="linkbtn" data-act="et-later">← Plus tard</button><button type="button" class="linkbtn on" data-act="et-opts">Fermer les options</button></div>
+    <div class="optbox">
+      ${it("c-unknown", "Je ne sais pas ce que c'est — le mettre de côté <kbd>I</kbd>")}
+      ${it("c-undo", "Annuler le dernier rangement <kbd>Z</kbd>", S.lastBatch ? "" : "disabled")}
+      ${p.usage ? it("c-ok", "Ranger tout de suite, sans finir les étapes") : ""}
+      ${it("reanalyze", "Relire les documents à trier")}
+      ${it("et-props", PROPS() ? "Masquer les propositions de Bon toutou" : "Afficher les propositions de Bon toutou")}
+      <div class="optmeta">${esc(p.orig)}${p.origin ? ` · depuis « ${esc(p.origin)} »` : ""} · ${CONF[p.confidence]} · ${esc(LVL[lvOf(p.cat)] ? LVL[lvOf(p.cat)][1] : "")}${p.ai_pending ? " · l'IA locale lit encore ce document" : ""}</div>
+      ${reasons(p)}
+    </div>`;
 }
 card = function (p, n) {
-  const pos = (S.inbox || []).length - n + 1, step = etStep(p);
+  const step = etStep(p);
   const body = { usage: stepUsage, chemin: stepChemin, emetteur: stepEmetteur, nom: stepNom }[step](p);
-  return `<div class="ccard card ${p.confidence}" id="ccard">
-    <div class="cleft">${preview(p)}<button class="linkbtn copen" data-open-inbox="${p.id}">Ouvrir en grand</button></div>
+  return `<div class="ccard card et" id="ccard">
+    <div class="cleft" data-doc="${p.id}">${preview(p)}<button class="linkbtn copen" data-open-inbox="${p.id}">Ouvrir en grand</button></div>
     <div class="cright">
-      <div class="ctop"><span class="sub">${pos} / ${(S.inbox || []).length}</span><span class="conf ${p.confidence}">${CONF[p.confidence]}</span>${p.cat ? lvBadge(p.cat) : ""}${p.ai_pending ? `<span class="pill acc"><span class="spin" style="width:11px;height:11px"></span> IA locale en train de lire…</span>` : ""}</div>
-      <div class="sub" style="margin:2px 0 8px">${esc(p.label)} ${cc(p.country)} · reçu : ${esc(p.origin || p.orig)}</div>
-      ${p.duplicate ? `<span class="pill bad">Doublon exact de « ${esc(p.duplicate.label)} »</span>` : ""}
+      ${p.duplicate ? `<div class="pill bad" style="margin-bottom:8px">Doublon exact de « ${esc(p.duplicate.label)} »</div>` : ""}
       ${conflictBox(p)}
       ${etDone(p, step)}
       ${body}
-      ${reasons(p)}
-      <div class="ckeys"><button class="linkbtn" data-act="c-later" title="Flèche gauche">← Plus tard</button><span>·</span><button class="linkbtn" data-act="c-undo" ${S.lastBatch ? "" : "disabled"}>Annuler (Z)</button><span>·</span><button class="linkbtn" data-act="c-unknown" data-id="${p.id}" title="Il quitte la file et ne revient pas, même si tu réimportes le dossier. « Les revoir » le ramène.">Inconnu · plus tard (I)</button>
-        ${p.usage && step !== "nom" ? `<span>·</span><button class="linkbtn" data-act="c-ok" data-id="${p.id}" title="Flèche droite">Tout est bon : ranger (→)</button>` : ""}<span>·</span><button class="linkbtn" data-act="reanalyze">Relancer l'analyse</button></div>
+      ${etOptions(p)}
     </div></div>`;
+};
+/* L'aperçu reste en place quand l'écran se met à jour (plus de rechargement pendant que l'IA lit) */
+const renderBase = render;
+render = function () {
+  const old = document.querySelector("#ccard .cleft"), oldId = old && old.dataset.doc;
+  topbar();
+  const V = { home: () => window.homeView ? homeView() : "", cal: () => window.calView ? calView() : "", contacts: () => window.contactsView ? contactsView() : "",
+              trier, docs, doc: docView, dossiers, dossier: dossierView, archives, reglages: () => window.reglagesView ? reglagesView() : "",
+              guide: () => window.guideView ? guideView() : "", setup: () => window.setupView ? setupView() : "" }[S.v];
+  $("#app").innerHTML = V ? V() : "";
+  const nw = document.querySelector("#ccard .cleft");
+  if (old && nw && nw.dataset.doc === oldId) nw.replaceWith(old);
+  $("#modal").innerHTML = S.modal && window.modalView ? modalView() : "";
+  $("#holders").innerHTML = ((S.st && S.st.settings && S.st.settings.holders) || []).map((h) => `<option value="${esc(h.nom)}">`).join("");
+  if (typeof acClose === "function") acClose();
+  bind();
+  if (window.bindExtra) bindExtra();
 };
 
 async function etSet(id, f, v, next) {
   const r = await api("/api/propose", { id, overrides: { [f]: v } });
   if (!r || r.error) { toast("Pas enregistré : " + ((r && r.error) || "erreur")); return load(); }
   await load();
-  toast({ emitter: "Émetteur", date: "Date", person: "Titulaire", detail: "Intitulé", country: "Pays", expiry: "Expiration" }[f] + " enregistré · le nom et le dossier sont mis à jour");
   if (next) { const q = (S.inbox || []).find((x) => x.id === id); if (q) etNext(q); }
 }
 document.addEventListener("click", async (e) => {
   const a = e.target.closest("[data-act]"); if (!a) return;
   const act = a.dataset.act;
-  if (!["et-usage", "et-go", "et-set", "et-ok", "et-pick", "c-fix"].includes(act)) return;
+  if (!["et-usage", "et-go", "et-set", "et-ok", "et-pick", "et-opts", "et-later", "et-props", "c-fix"].includes(act)) return;
   e.stopImmediatePropagation();
-  const p = (S.inbox || []).find((x) => x.id === (a.dataset.id || S.et.id)) || queue()[0]; if (!p) return;
+  const p = (S.inbox || []).find((x) => x.id === (a.dataset.id || S.et.id)) || queue()[0];
+  if (act === "et-props") { await api("/api/settings", { propositions: !PROPS() }); S.et.opts = false; S.et.id = null; return load(); }
+  if (!p) return;
+  if (act === "et-opts") { S.et.opts = !S.et.opts; return render(); }
+  if (act === "et-later") { const b = document.createElement("button"); b.dataset.act = "c-later"; document.body.appendChild(b); b.click(); b.remove(); return; }
   if (act === "et-usage") {
     const r = await api("/api/propose", { id: p.id, overrides: { usage: a.dataset.u } });
     if (!r || r.error) { toast("Pas enregistré"); return load(); }
-    await load(); toast(a.dataset.u === "archive" ? "Archives · il sera rangé à part, toujours retrouvable" : "Utile aujourd'hui · il sera dans Documents");
+    await load();
     const q = (S.inbox || []).find((x) => x.id === p.id); if (q) { S.et.step = "usage"; etNext(q); } return;
   }
   if (act === "et-ok") return etNext(p);
   if (act === "et-pick") { S.et.pick = true; TP.card = null; return render(); }
   if (act === "et-go" || act === "c-fix") {
-    const s = act === "c-fix" ? "nom" : a.dataset.s;   // « Corriger la date » (conflit) : l'étape du nom
-    if (s !== "usage" && !p.usage) return toast("D'abord : tu t'en sers encore ? (U / A)");
+    const s = act === "c-fix" ? "nom" : a.dataset.s;
+    if (s !== "usage" && !p.usage) return toast("D'abord : tu t'en sers encore ?");
     S.et.step = s; S.et.pick = false; return render();
   }
   if (act === "et-set") return etSet(p.id, a.dataset.f, a.dataset.v, !!a.dataset.next);
@@ -228,7 +262,7 @@ document.addEventListener("change", (e) => {
 document.addEventListener("keydown", (e) => {
   if (S.v !== "trier" || S.tmode !== "cartes" || S.modal || e.metaKey || e.ctrlKey || e.altKey) return;
   const inField = e.target.closest && e.target.closest("input,select,textarea,[contenteditable]");
-  if (inField) {   // Entrée dans « Qui l'a émis ? » : enregistre et passe à la suite
+  if (inField) {   // Entrée dans un champ : enregistre (et passe à la suite pour l'émetteur)
     if (e.key === "Enter" && !AC.box && e.target.dataset && e.target.dataset.etF && !e.target.classList.contains("tp-q")) { e.preventDefault(); e.target.blur(); }
     return;
   }

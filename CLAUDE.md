@@ -31,6 +31,8 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **v0.7.2** : cartes en étapes à droite (`etSteps` : usage → chemin → emetteur → nom ; `data-et-enter` = Entrée) ; `Bureau.known()` + `/api/known` (émetteurs, titulaires, intitulés déjà écrits) et `static/autocomplete.js` (tout champ `data-ac="emitters|persons|details"`).
 
+- **v0.7.3** : carte épurée (`etOptions`), arborescence `pathTree`, réglage profil `propositions` (faux par défaut : pas de valeur proposée, l'utilisateur choisit), `render` qui garde le nœud d'aperçu du même document, `pdfDraw` qui ne redessine pas une page déjà affichée, poll de l'IA sans rendu si rien n'a changé.
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.

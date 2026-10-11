@@ -25,7 +25,7 @@ trier = function () {
   ${S.st.counts.a_identifier ? `<div class="card box suresbar"><span class="oi">${IC.search}</span><div class="grow"><b>${S.st.counts.a_identifier} ${plural(S.st.counts.a_identifier, "document")} à identifier</b><div class="sub">Mis de côté avec « Inconnu », dans 00_A-TRIER/_A-IDENTIFIER.</div></div><button class="ghost small" data-act="c-unknown-back">Les revoir</button></div>` : ""}
   ${S.imported || P.some((x) => x.origin) ? understood(P) : ""}
   ${(() => { const U = P.filter(isUnknown); return U.length > 1 ? `<div class="card box suresbar"><span class="oi">${IC.search}</span><div class="grow"><b>${U.length} ${plural(U.length, "document inconnu", "documents inconnus")}</b><div class="sub">Type non reconnu ou confiance faible. Mets-les de côté pour avancer : ils attendent dans « À identifier » et ne reviennent pas avec un nouvel import. Annulable.</div></div><button class="ghost small" data-act="c-unknown-all">Mettre de côté les ${U.length}</button></div>` : ""; })()}
-  ${sure.length > 1 ? `<div class="card box suresbar"><span class="oi" style="background:var(--success-light);color:var(--success)">${IC.check}</span><div class="grow"><b>${sure.length} ${plural(sure.length, "document sûr", "documents sûrs")}</b><div class="sub">Confiance élevée, aucun conflit : rangés comme proposé, en une fois (dans Documents, sauf les anciennes versions). Annulable.</div></div><button class="cta small" data-act="c-sure">Ranger les sûrs d'un coup</button></div>` : ""}
+  ${sure.length > 1 && (S.st.settings.propositions) ? `<div class="card box suresbar"><span class="oi" style="background:var(--success-light);color:var(--success)">${IC.check}</span><div class="grow"><b>${sure.length} ${plural(sure.length, "document sûr", "documents sûrs")}</b><div class="sub">Confiance élevée, aucun conflit : rangés comme proposé, en une fois (dans Documents, sauf les anciennes versions). Annulable.</div></div><button class="cta small" data-act="c-sure">Ranger les sûrs d'un coup</button></div>` : ""}
   ${p ? card(p, Q.length) : !S.busy ? `<div class="card" style="padding:28px;text-align:center"><span class="oi" style="margin:0 auto 10px;background:var(--success-light);color:var(--success)">${IC.check}</span><b>Tout est trié.</b><div class="sub">Dépose un fichier ou un dossier ci-dessus.</div></div>` : ""}`;
 };
 function modeSwitch() {
@@ -200,13 +200,14 @@ async function pdfDraw() {
     }
     const P = S.pdf, page = await P.doc.getPage(P.page);
     const cv = document.getElementById("cpdfc"); if (!cv || document.getElementById("cpdf").dataset.id !== id) return;
+    if (cv.dataset.drawn === id + ":" + P.page) return;   // déjà affichée : on ne la redessine pas (plus de clignotement pendant que l'IA lit)
     const v0 = page.getViewport({ scale: 1 }), r = window.devicePixelRatio || 1;
     const fit = Math.min((box.clientWidth - 24) / v0.width, (Math.max(420, box.clientHeight) - (P.n > 1 ? 72 : 24)) / v0.height);   // la page entière, flèches comprises
     const vp = page.getViewport({ scale: fit * r });
     cv.width = vp.width; cv.height = vp.height; cv.style.width = Math.round(v0.width * fit) + "px";
     if (P.task) P.task.cancel();
     P.task = page.render({ canvasContext: cv.getContext("2d"), viewport: vp });
-    await P.task.promise.catch(() => {});
+    await P.task.promise.then(() => { cv.dataset.drawn = id + ":" + P.page; }).catch(() => {});
     P.task = null;
   } catch (e) {
     box.outerHTML = `<iframe class="cifr" src="${box.dataset.src}#toolbar=0&view=FitH" title="Aperçu"></iframe>`;

@@ -535,3 +535,37 @@ textarea.field{width:100%}
 .acitem.on,.acitem:hover{background:var(--accent-light)}
 .achint{font-size:11px;color:var(--text-tertiary);padding:6px 10px 4px;border-top:1px solid var(--border-light);margin-top:4px}
 @media (max-width:760px){.ubigs{grid-template-columns:1fr}.etq{font-size:22px}}
+
+/* v0.7.3 — Trier épuré : une question, un geste ; le chemin comme dans le Finder ; le reste dans « Options » */
+.ccard.et{border-color:var(--border-light)}
+.ccard.et .cright{display:flex;flex-direction:column;padding-top:22px}
+.etprog{display:flex;align-items:center;gap:6px;margin:0 0 14px}.etprog i{display:block;flex:1;max-width:48px;height:4px;border-radius:2px;background:var(--border-light)}
+.etprog i.d{background:var(--accent-dark)}.etprog i.c{background:var(--accent)}.etprog span{margin-left:6px;font-size:12px;color:var(--text-tertiary)}
+.etdone{display:flex;align-items:baseline;gap:12px;width:100%;text-align:left;font:inherit;border:0;border-bottom:1px solid var(--border-light);background:none;padding:9px 2px;cursor:pointer;color:var(--text)}
+.etdone .ok{color:var(--accent-dark);font-weight:700}.etdone .h{min-width:84px;font-size:12.5px;color:var(--text-tertiary)}.etdone b{flex:1;font-weight:600}
+.etdone:hover{background:var(--accent-light)}.etdone .chg{display:none}
+.etbig{margin:18px 0 6px}
+.etq{font-size:28px;line-height:1.15;margin:0 0 16px;letter-spacing:-.01em}
+.ubig{position:relative;padding:22px 18px}.ubig small{font-size:13px}.ubig.prop{box-shadow:none}
+.ubig kbd,.etacts kbd,.optrow kbd{font:600 11px/1 var(--mono, ui-monospace, monospace);padding:3px 6px;border-radius:5px;border:1px solid currentColor;opacity:.55;margin-left:8px}
+.ubig kbd{position:absolute;top:12px;right:12px;margin:0}
+.tree{border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:10px 12px;background:var(--card);margin-bottom:14px}
+.tree .tl{display:flex;align-items:center;gap:8px;padding:5px 0 5px calc(var(--d) * 18px);font-size:16px;font-weight:600;color:var(--text)}
+.tree .tl .ti{width:17px;height:17px;color:var(--accent-dark);flex-shrink:0}
+.tree .tl.file{font-weight:400;font-size:13px;color:var(--text-secondary);overflow-wrap:anywhere}
+.tree .tl.file::before{content:"";width:9px;height:12px;border:1.5px solid var(--text-tertiary);border-radius:2px;flex-shrink:0}
+.bigval{background:var(--card);border:1px solid var(--border-light);color:var(--text);font-size:22px}
+.bigname{background:var(--card);border:1px solid var(--border-light);font-size:14px}
+.field.big{width:100%;font-size:16px;padding:13px 14px}
+.etacts{margin:4px 0 12px}
+.segc{display:inline-flex;flex-wrap:wrap;gap:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin:2px 0 8px}
+.segc button{font:inherit;font-size:13.5px;border:0;border-right:1px solid var(--border-light);background:var(--card);padding:8px 14px;cursor:pointer;color:var(--text-secondary)}
+.segc button:last-child{border-right:0}.segc button.on{background:var(--accent-light);color:var(--accent-dark);font-weight:600}
+.ff>span{text-transform:none;letter-spacing:0;font-size:13px}.ff small{font-weight:400;color:var(--text-tertiary)}
+.etfoot{display:flex;justify-content:space-between;margin-top:auto;padding-top:18px;font-size:13px}
+.etfoot .linkbtn{color:var(--text-tertiary)}.etfoot .linkbtn:hover,.etfoot .linkbtn.on{color:var(--text)}
+.optbox{border-top:1px solid var(--border-light);margin-top:10px;padding-top:6px;display:grid}
+.optrow{font:inherit;font-size:13.5px;text-align:left;border:0;background:none;padding:9px 4px;border-radius:8px;cursor:pointer;color:var(--text);display:flex;justify-content:space-between;align-items:center}
+.optrow:hover{background:var(--accent-light)}.optrow:disabled{opacity:.4;cursor:default}
+.optmeta{font-size:12px;color:var(--text-tertiary);padding:8px 4px 6px;overflow-wrap:anywhere}
+.tpick .tile.prop{box-shadow:none}
