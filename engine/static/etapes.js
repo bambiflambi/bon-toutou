@@ -86,126 +86,158 @@ document.addEventListener("keydown", (e) => {
   if (/^[1-9]$/.test(e.key)) { const t = box.querySelectorAll(".tile")[+e.key - 1]; if (t) { e.preventDefault(); e.stopImmediatePropagation(); t.click(); } }
 }, true);
 
-/* ---------- Trier en cartes : les étapes */
+/* ---------- Trier en cartes : de petites étapes rapides, à droite (v0.7.2, demande de PiM)
+   1. Tu t'en sers encore ?  2. Où le ranger (le chemin, en gros)  3. Qui l'a émis ?  4. Le nom du fichier → Ranger.
+   À chaque étape : la proposition de Bon toutou (ou de l'IA locale), « C'est ça » d'un geste (Entrée), ou « Changer ». */
 S.et = S.et || {};
 const needType = (p) => p.type === "autre" || (p.doubts || []).includes("type");
+const etSteps = (p) => ["usage", "chemin", ...((S.st.types[p.type] || {}).emetteur !== false ? ["emetteur"] : []), "nom"];
 function etStep(p) {
-  if (S.et.id !== p.id) {
-    S.et = { id: p.id, step: p.usage ? (needType(p) ? "famille" : "fiche") : "usage" };
-    if (S.et.step === "famille") etOpenPicker(p);
-  }
+  if (S.et.id !== p.id) S.et = { id: p.id, step: p.usage ? "chemin" : "usage", pick: false };
   if (!p.usage) S.et.step = "usage";
+  if (!etSteps(p).includes(S.et.step)) S.et.step = "nom";
+  if (S.et.step === "chemin" && needType(p) && S.et.pick === false && !S.et.pickSeen) { S.et.pick = true; S.et.pickSeen = true; }
   return S.et.step;
 }
-function etOpenPicker(p, step) {
+function etNext(p) {
+  const L = etSteps(p), i = L.indexOf(S.et.step);
+  S.et.step = L[Math.min(i + 1, L.length - 1)]; S.et.pick = false; render();
+  setTimeout(() => { const f = document.querySelector(".etbig [data-autofocus]"); if (f) f.focus(); }, 30);
+}
+function etOpenPicker(p) {
   tpOpen("card", p.type, async (k) => {
-    S.et.step = "fiche";
+    S.et.pick = false;
     const r = await api("/api/propose", { id: p.id, overrides: { type: k } });
     if (!r || r.error) { toast("Pas enregistré : " + ((r && r.error) || "erreur")); return load(); }
     await load(); toast(`${S.st.types[k].label} · le nom et le dossier sont mis à jour`);
-  }, step);
-  if (step === "sous") TP.card.cat = (S.st.types[p.type] || {}).cat;
+    const q = (S.inbox || []).find((x) => x.id === p.id); if (q) etNext(q);
+  });
 }
-function crumbs(p) {
-  const T = S.st.types[p.type] || {}, st = S.et.step;
-  const c = (k, label, on, title) => `<button type="button" class="crumb${on ? " on" : ""}" data-act="et-go" data-s="${k}" title="${esc(title)}">${label}</button>`;
-  const u = p.usage === "archive" ? "Archives" : p.usage === "utile" ? "Utile aujourd'hui" : "Utile ou archives ?";
-  return `<nav class="crumbs" aria-label="Étapes">${c("usage", esc(u), st === "usage", "Tu t'en sers encore ?")}<span>›</span>${c("famille", esc(catName(T.cat)), st === "famille", "Changer la famille")}<span>›</span>${c("sous", esc(subName(T.sub)), false, "Changer la sous-famille")}<span>›</span>${c("fiche", esc(T.label || p.type_label), st === "fiche", "Nom, émetteur, date…")}</nav>`;
+const by = (p) => (p.engine && p.engine !== "règles" ? "l'IA locale" : "Bon toutou");
+function prettyPath(p) {
+  const parts = String(p.dest || "").split("/").map((x) => x.replace(/^\d{2}(-\d)?_/, "").replace(/^[A-Z]{2}_/, "").replace(/[_-]+/g, " "));
+  const arch = /99_ARCHIVES/.test(p.dest || "");
+  return parts.filter((x) => x && x !== "ARCHIVES").map((x, i) => `<span class="seg${i ? "" : " cty"}">${esc(x.charAt(0) + x.slice(1).toLowerCase())}</span>`).join(`<span class="sep">›</span>`)
+    + (arch ? ` <span class="pill neutral">Archives</span>` : "");
 }
-function usageLeft(p) {
-  const hint = p.usage ? "" : `<div class="sub" style="text-align:center;margin-top:6px">Bon toutou pense : ${p.usage_hint === "archive" ? "plutôt Archives" : "plutôt utile aujourd'hui"}${p.usage_hint === "archive" ? " (une version plus récente existe ou la situation est finie)" : ""}. C'est toi qui décides.</div>`;
-  return `<div class="usage${p.usage ? "" : " ask"}"><div class="u-q">Tu t'en sers encore ?</div><div class="u-btns">
-    <button type="button" class="ubtn${p.usage === "utile" ? " on" : ""}" data-act="et-usage" data-u="utile" data-id="${p.id}"><b>Utile aujourd'hui</b><small>Dans Documents (U)</small></button>
-    <button type="button" class="ubtn${p.usage === "archive" ? " on" : ""}" data-act="et-usage" data-u="archive" data-id="${p.id}"><b>Archives</b><small>Gardé, rangé à part (A)</small></button></div>${hint}</div>`;
+function etDone(p, step) {
+  const L = etSteps(p), cur = L.indexOf(step), T = S.st.types[p.type] || {};
+  const lab = { usage: p.usage === "archive" ? "Archives" : "Utile aujourd'hui", chemin: `${catName(T.cat)} › ${T.label || p.type_label}`,
+    emetteur: p.emitter && p.emitter !== "Inconnu" ? p.emitter_display || p.emitter : "Émetteur inconnu", nom: "" };
+  const head = { usage: "Usage", chemin: "Rangé dans", emetteur: "Émetteur" };
+  const rows = L.slice(0, cur).map((s) => `<button type="button" class="etdone" data-act="et-go" data-s="${s}"><span class="ok">✓</span><span class="sub">${head[s]}</span><b>${esc(lab[s])}</b><span class="chg">changer</span></button>`).join("");
+  const dots = L.map((s, i) => `<i class="${i < cur ? "d" : i === cur ? "c" : ""}"></i>`).join("");
+  return `<div class="etprog"><span class="sub">Étape ${cur + 1} sur ${L.length}</span><span class="dots">${dots}</span></div>${rows}`;
 }
-function fiche(p) {
+function stepUsage(p) {
+  const h = p.usage_hint === "archive" ? "archive" : "utile";
+  const btn = (u, t, d, key) => `<button type="button" class="ubig${p.usage === u ? " on" : ""}${h === u ? " prop" : ""}" data-act="et-usage" data-u="${u}" data-id="${p.id}" ${h === u ? "data-et-enter" : ""}>
+      <b>${t}</b><small>${d} · touche ${key}${h === u ? " · <em>proposé (Entrée)</em>" : ""}</small></button>`;
+  return `<div class="etbig"><h2 class="etq">Tu t'en sers encore ?</h2>
+    <p class="etprop">Proposition de ${by(p)} : <b>${h === "archive" ? "Archives" : "Utile aujourd'hui"}</b>${h === "archive" ? " — une version plus récente existe, ou la situation est finie" : ""}. C'est toi qui décides.</p>
+    <div class="ubigs">${btn("utile", "Utile aujourd'hui", "Dans Documents", "U")}${btn("archive", "Archives", "Gardé, rangé à part", "A")}</div></div>`;
+}
+function stepChemin(p) {
   const T = S.st.types[p.type] || {}, C = S.st.settings.countries || [];
+  if (S.et.pick && (!TP.card || TP.card.for !== p.id)) { etOpenPicker(p); TP.card.for = p.id; }
+  const sure = !needType(p);
+  return `<div class="etbig"><h2 class="etq">Où le ranger ?</h2>
+    <p class="etprop">Proposition de ${by(p)}${sure ? "" : ` <span class="pill warn">pas sûr</span>`} : <b>${esc(T.label || p.type_label)}</b></p>
+    <div class="bigpath">${prettyPath(p)}</div>
+    ${S.et.pick ? `<div class="etacts"><button type="button" class="ghost" data-act="et-ok" data-et-enter>Garder la proposition <small>Entrée</small></button><span class="sub" style="align-self:center">ou choisis ci-dessous :</span></div>${tpHTML("card")}` : `<div class="etacts"><button type="button" class="cta" data-act="et-ok" data-et-enter>✓ C'est le bon endroit <small>Entrée</small></button><button type="button" class="ghost" data-act="et-pick">Changer l'endroit <small>↓</small></button></div>`}
+    ${C.length > 1 ? `<div class="chips" style="margin-top:10px"><span class="sub" style="align-self:center">Pays :</span>${C.map((c) => `<button type="button" class="chip${c === p.country ? " first" : ""}" data-act="et-set" data-f="country" data-v="${c}">${c} · ${esc(S.st.countries[c] || c)}</button>`).join("")}</div>` : ""}</div>`;
+}
+function stepEmetteur(p) {
+  const has = p.emitter && p.emitter !== "Inconnu", em = has ? p.emitter_display || p.emitter : "";
+  const cands = (p.emitter_candidates || []).filter((x) => x !== em);
+  return `<div class="etbig"><h2 class="etq">Qui l'a émis ?</h2>
+    ${has ? `<p class="etprop">Proposition de ${by(p)}${(p.doubts || []).includes("emitter") ? ` <span class="pill warn">pas sûr</span>` : ""} :</p><div class="bigval">${esc(em)}</div>
+      <div class="etacts"><button type="button" class="cta" data-act="et-ok" data-et-enter>✓ C'est ça <small>Entrée</small></button></div>` : `<p class="etprop">Bon toutou ne l'a pas trouvé : écris-le.</p>`}
+    <label class="say big"><span aria-hidden="true">✎</span><input class="field" data-et-f="emitter" data-ac="emitters" data-ac-extra="${esc(cands.join("|"))}" autocomplete="off" ${has ? "" : "data-autofocus"} placeholder="${has ? "Ou un autre : " : ""}les premières lettres suffisent s'il est déjà dans ton bureau"></label>
+    ${cands.length ? `<div class="chips">${cands.map((x) => `<button type="button" class="chip" data-act="et-set" data-f="emitter" data-v="${esc(x)}" data-next="1">Lu dedans : ${esc(x)}</button>`).join("")}</div>` : ""}</div>`;
+}
+function stepNom(p) {
+  const T = S.st.types[p.type] || {};
   const own = S.st.settings.owner || "toi", who = p.person === "moi" || !p.person || p.person === own ? "moi" : p.person;
   const holders = (S.st.settings.holders || []).map((h) => h.nom).filter(Boolean);
-  const em = p.emitter && p.emitter !== "Inconnu" ? p.emitter_display || p.emitter : "";
-  const chip = (f, v, label, on) => `<button type="button" class="chip${on ? " first" : ""}" data-act="et-set" data-f="${f}" data-v="${esc(v)}">${esc(label)}</button>`;
+  const chip = (v, label, on) => `<button type="button" class="chip${on ? " first" : ""}" data-act="et-set" data-f="person" data-v="${esc(v)}">${esc(label)}</button>`;
   const dbt = (k) => ((p.doubts || []).includes(k) ? ` <span class="pill warn">à vérifier</span>` : "");
-  return `<div class="fiche">
-    ${T.emetteur !== false ? `<label class="ff"><span>Émetteur${dbt("emitter")}</span><input class="field" data-et-f="emitter" value="${esc(em)}" placeholder="Nom de l'entreprise, de l'école, de l'organisme…">
-      ${(p.emitter_candidates || []).length ? `<div class="chips">${p.emitter_candidates.map((x) => chip("emitter", x, x, false)).join("")}</div>` : ""}</label>` : ""}
-    <label class="ff"><span>Date du document${dbt("date")}</span><input class="field" type="date" data-et-f="date" value="${esc(p.date || "")}">${p.date_note ? `<small class="sub" style="color:var(--warning)">≈ ${esc(p.date_note)}</small>` : ""}</label>
-    <div class="ff"><span>Titulaire${dbt("person")}</span><div class="chips">${chip("person", "moi", "Toi", who === "moi")}${holders.map((h) => chip("person", h, h, who === h)).join("")}${who !== "moi" && !holders.includes(who) ? chip("person", who, who, true) : ""}</div>
-      <input class="field" data-et-f="person" value="" placeholder="Quelqu'un d'autre : son nom" style="margin-top:6px"></div>
-    <label class="ff"><span>Intitulé exact <small class="sub">(facultatif)</small></span><input class="field" data-et-f="detail" value="${esc(p.detail || "")}" placeholder="ex. Contrat d'apprentissage BTS, ASSR2…"></label>
-    ${T.expiry ? `<label class="ff"><span>Expire le</span><input class="field" type="date" data-et-f="expiry" value="${esc(p.expiry || "")}"></label>` : ""}
-    ${C.length > 1 ? `<div class="ff"><span>Pays</span><div class="chips">${C.map((c) => chip("country", c, `${c} · ${S.st.countries[c] || c}`, c === p.country)).join("")}</div></div>` : ""}
-  </div>`;
+  return `<div class="etbig"><h2 class="etq">Le nom du fichier</h2>
+    <p class="etprop">Proposition de ${by(p)} — modifie un morceau si besoin, le nom suit :</p>
+    <div class="bigname fname">${esc(p.name)}</div>
+    <div class="fiche">
+      <label class="ff"><span>Date du document${dbt("date")}</span><input class="field" type="date" data-et-f="date" value="${esc(p.date || "")}">${p.date_note ? `<small class="sub" style="color:var(--warning)">≈ ${esc(p.date_note)}</small>` : ""}</label>
+      <div class="ff"><span>Titulaire${dbt("person")}</span><div class="chips">${chip("moi", "Toi", who === "moi")}${holders.map((h) => chip(h, h, who === h)).join("")}${who !== "moi" && !holders.includes(who) ? chip(who, who, true) : ""}</div>
+        <input class="field" data-et-f="person" data-ac="persons" autocomplete="off" value="" placeholder="Quelqu'un d'autre : les premières lettres suffisent" style="margin-top:6px"></div>
+      <label class="ff"><span>Intitulé exact <small class="sub">(facultatif)</small></span><input class="field" data-et-f="detail" data-ac="details" autocomplete="off" value="${esc(p.detail || "")}" placeholder="ex. Contrat d'apprentissage BTS, ASSR2…"></label>
+      ${T.expiry ? `<label class="ff"><span>Expire le</span><input class="field" type="date" data-et-f="expiry" value="${esc(p.expiry || "")}"></label>` : ""}
+    </div>
+    <div class="etacts"><button type="button" class="cta" data-act="c-ok" data-id="${p.id}" data-et-enter>Ranger → <small>Entrée</small></button></div></div>`;
 }
 card = function (p, n) {
   const pos = (S.inbox || []).length - n + 1, step = etStep(p);
-  let right;
-  if (step === "usage") right = `<div class="et-wait"><b>D'abord, à gauche : tu t'en sers encore ?</b><div class="sub">Bon toutou propose : ${esc(p.label)}${p.emitter && p.emitter !== "Inconnu" ? ` · ${esc(p.emitter_display || p.emitter)}` : ""} · ${frd(p.date)}. Tu pourras tout changer à l'étape suivante.</div></div>`;
-  else if (step === "famille" || step === "sous") { if (!TP.card || S.et.pk !== p.id + step) { etOpenPicker(p, step); S.et.pk = p.id + step; } right = tpHTML("card"); }
-  else right = fiche(p);
+  const body = { usage: stepUsage, chemin: stepChemin, emetteur: stepEmetteur, nom: stepNom }[step](p);
   return `<div class="ccard card ${p.confidence}" id="ccard">
-    <div class="cleft">${usageLeft(p)}${preview(p)}<button class="linkbtn copen" data-open-inbox="${p.id}">Ouvrir en grand</button></div>
+    <div class="cleft">${preview(p)}<button class="linkbtn copen" data-open-inbox="${p.id}">Ouvrir en grand</button></div>
     <div class="cright">
       <div class="ctop"><span class="sub">${pos} / ${(S.inbox || []).length}</span><span class="conf ${p.confidence}">${CONF[p.confidence]}</span>${p.cat ? lvBadge(p.cat) : ""}${p.ai_pending ? `<span class="pill acc"><span class="spin" style="width:11px;height:11px"></span> IA locale en train de lire…</span>` : ""}</div>
-      ${crumbs(p)}
-      <h2 class="ctitle">${esc(p.label)} ${cc(p.country)}</h2>
+      <div class="sub" style="margin:2px 0 8px">${esc(p.label)} ${cc(p.country)} · reçu : ${esc(p.origin || p.orig)}</div>
       ${p.duplicate ? `<span class="pill bad">Doublon exact de « ${esc(p.duplicate.label)} »</span>` : ""}
       ${conflictBox(p)}
-      ${right}
-      ${step !== "usage" ? `<div class="cdest"><span class="sub">Rangé dans</span> <span class="fname">${esc(p.dest)}/</span><br><span class="fname"><b>${esc(p.name)}</b></span>
-        <div class="sub">${esc(p.relation)} · reçu : ${esc(p.source)}${p.origin ? ` · depuis « ${esc(p.origin)} »` : ` · ${esc(p.orig)}`}</div></div>` : ""}
+      ${etDone(p, step)}
+      ${body}
       ${reasons(p)}
-      <div class="cacts">
-        <button class="ghost" data-act="c-later" title="Flèche gauche">← Plus tard</button>
-        <button class="ghost${step === "famille" || step === "sous" ? " on" : ""}" data-act="et-go" data-s="famille" title="Changer la famille (flèche bas)">↓ Changer</button>
-        <button class="cta" data-act="c-ok" data-id="${p.id}" title="${p.usage ? "Flèche droite" : "Choisis d'abord : utile aujourd'hui ou archives"}" ${p.usage ? "" : "disabled"}>Ranger →</button>
-      </div>
-      <div class="ckeys"><button class="linkbtn" data-act="c-undo" ${S.lastBatch ? "" : "disabled"}>Annuler (Z)</button><span>·</span><button class="linkbtn" data-act="c-unknown" data-id="${p.id}" title="Il quitte la file et ne revient pas, même si tu réimportes le dossier. « Les revoir » le ramène.">Inconnu · plus tard (I)</button><span>·</span><button class="linkbtn" data-act="reanalyze" title="Relit les documents à trier avec les règles actuelles. Tes corrections sont gardées.">Relancer l'analyse</button><span class="sub">U A ← → ↓ 1–9 I Z au clavier</span></div>
+      <div class="ckeys"><button class="linkbtn" data-act="c-later" title="Flèche gauche">← Plus tard</button><span>·</span><button class="linkbtn" data-act="c-undo" ${S.lastBatch ? "" : "disabled"}>Annuler (Z)</button><span>·</span><button class="linkbtn" data-act="c-unknown" data-id="${p.id}" title="Il quitte la file et ne revient pas, même si tu réimportes le dossier. « Les revoir » le ramène.">Inconnu · plus tard (I)</button>
+        ${p.usage && step !== "nom" ? `<span>·</span><button class="linkbtn" data-act="c-ok" data-id="${p.id}" title="Flèche droite">Tout est bon : ranger (→)</button>` : ""}<span>·</span><button class="linkbtn" data-act="reanalyze">Relancer l'analyse</button></div>
     </div></div>`;
 };
 
-async function etSet(id, f, v) {
+async function etSet(id, f, v, next) {
   const r = await api("/api/propose", { id, overrides: { [f]: v } });
   if (!r || r.error) { toast("Pas enregistré : " + ((r && r.error) || "erreur")); return load(); }
   await load();
   toast({ emitter: "Émetteur", date: "Date", person: "Titulaire", detail: "Intitulé", country: "Pays", expiry: "Expiration" }[f] + " enregistré · le nom et le dossier sont mis à jour");
+  if (next) { const q = (S.inbox || []).find((x) => x.id === id); if (q) etNext(q); }
 }
 document.addEventListener("click", async (e) => {
   const a = e.target.closest("[data-act]"); if (!a) return;
   const act = a.dataset.act;
-  if (!["et-usage", "et-go", "et-set", "c-fix"].includes(act)) return;
+  if (!["et-usage", "et-go", "et-set", "et-ok", "et-pick", "c-fix"].includes(act)) return;
   e.stopImmediatePropagation();
   const p = (S.inbox || []).find((x) => x.id === (a.dataset.id || S.et.id)) || queue()[0]; if (!p) return;
   if (act === "et-usage") {
-    const first = !p.usage;
-    S.et = { id: p.id, step: first ? (needType(p) ? "famille" : "fiche") : S.et.step === "usage" ? "fiche" : S.et.step };
-    if (S.et.step === "famille") etOpenPicker(p);
     const r = await api("/api/propose", { id: p.id, overrides: { usage: a.dataset.u } });
     if (!r || r.error) { toast("Pas enregistré"); return load(); }
-    await load(); return toast(a.dataset.u === "archive" ? "Archives · il sera rangé à part, toujours retrouvable" : "Utile aujourd'hui · il sera dans Documents");
+    await load(); toast(a.dataset.u === "archive" ? "Archives · il sera rangé à part, toujours retrouvable" : "Utile aujourd'hui · il sera dans Documents");
+    const q = (S.inbox || []).find((x) => x.id === p.id); if (q) { S.et.step = "usage"; etNext(q); } return;
   }
+  if (act === "et-ok") return etNext(p);
+  if (act === "et-pick") { S.et.pick = true; TP.card = null; return render(); }
   if (act === "et-go" || act === "c-fix") {
-    const s = act === "c-fix" ? "fiche" : a.dataset.s;   // « Corriger la date » (conflit) : la fiche
-    if (s === "usage") { S.et.step = p.usage ? S.et.step : "usage"; const el = document.querySelector(".usage"); if (el) { el.classList.add("pulse"); setTimeout(() => el.classList.remove("pulse"), 900); } return; }
-    if (!p.usage) return toast("D'abord, à gauche : utile aujourd'hui ou archives ?");
-    S.et.step = s === "sous" ? "sous" : s; S.et.pk = null;
-    if (s === "famille" || s === "sous") { etOpenPicker(p, s); S.et.pk = p.id + s; }
-    return render();
+    const s = act === "c-fix" ? "nom" : a.dataset.s;   // « Corriger la date » (conflit) : l'étape du nom
+    if (s !== "usage" && !p.usage) return toast("D'abord : tu t'en sers encore ? (U / A)");
+    S.et.step = s; S.et.pick = false; return render();
   }
-  if (act === "et-set") return etSet(p.id, a.dataset.f, a.dataset.v);
+  if (act === "et-set") return etSet(p.id, a.dataset.f, a.dataset.v, !!a.dataset.next);
 }, true);
 document.addEventListener("change", (e) => {
   const el = e.target.closest && e.target.closest("[data-et-f]"); if (!el || !S.et.id) return;
   const v = el.value.trim(); if (!v && el.dataset.etF !== "detail") return;
-  etSet(S.et.id, el.dataset.etF, v);
+  etSet(S.et.id, el.dataset.etF, v, el.dataset.etF === "emitter" && S.et.step === "emetteur");
 });
 document.addEventListener("keydown", (e) => {
   if (S.v !== "trier" || S.tmode !== "cartes" || S.modal || e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.target.closest && e.target.closest("input,select,textarea,[contenteditable]")) return;
+  const inField = e.target.closest && e.target.closest("input,select,textarea,[contenteditable]");
+  if (inField) {   // Entrée dans « Qui l'a émis ? » : enregistre et passe à la suite
+    if (e.key === "Enter" && !AC.box && e.target.dataset && e.target.dataset.etF && !e.target.classList.contains("tp-q")) { e.preventDefault(); e.target.blur(); }
+    return;
+  }
   const p = queue()[0]; if (!p) return;
   const click = (sel) => { const b = document.querySelector(sel); if (b && !b.disabled) { e.preventDefault(); e.stopImmediatePropagation(); b.click(); } };
+  if (e.key === "Enter") return click("[data-et-enter]");
   if (e.key === "u" || e.key === "U") return click('[data-act=et-usage][data-u=utile]');
   if (e.key === "a" || e.key === "A") return click('[data-act=et-usage][data-u=archive]');
-  if (e.key === "ArrowDown") return click('[data-act=et-go][data-s=famille]');
+  if (e.key === "ArrowDown") return click("[data-act=et-pick]");
   if (e.key === "ArrowRight" && !p.usage) { e.preventDefault(); e.stopImmediatePropagation(); return toast("D'abord : utile aujourd'hui (U) ou archives (A) ?"); }
 }, true);
 
@@ -218,6 +250,7 @@ editFields = function (p) {
   const pick = `<div class="ff-type"><span class="lbl">Type</span><button type="button" class="ghost small" data-act="tp-list" data-id="${p.id}">${catIc(T.cat).replace("<svg", '<svg style="width:14px;height:14px"')} ${esc(catName(T.cat))} › ${esc(T.label || p.type)} · ${open ? "fermer" : "changer"}</button>
     <span class="seg u-seg"><button type="button" class="${p.usage === "utile" ? "on" : ""}" data-act="et-usage-l" data-u="utile" data-id="${p.id}">Utile aujourd'hui</button><button type="button" class="${p.usage === "archive" ? "on" : ""}" data-act="et-usage-l" data-u="archive" data-id="${p.id}">Archives</button></span>
     ${open ? tpHTML("list_" + p.id) : ""}</div>`;
+  h = h.replace('data-f="emitter"', 'data-f="emitter" data-ac="emitters" autocomplete="off"').replace('data-f="detail"', 'data-f="detail" data-ac="details" autocomplete="off"').replace('data-f="person"', 'data-f="person" data-ac="persons" autocomplete="off"');
   return h.replace(/<label>Type<select[\s\S]*?<\/select><\/label>/, "") .replace('<div class="edit">', pick + '<div class="edit">');
 };
 document.addEventListener("click", async (e) => {
@@ -251,5 +284,6 @@ docView = function () {
   }
   const k = TP.doc.cur, T = S.st.types[k] || {};
   const picker = `<div class="ff-type" style="grid-column:1/-1"><span class="lbl">Type</span><b id="fx_type_lab">${esc(catName(T.cat))} › ${esc(T.label || k)}</b><input type="hidden" id="fx_type" value="${esc(k)}">${tpHTML("doc")}</div>`;
+  h = h.replace('id="fx_emitter"', 'id="fx_emitter" data-ac="emitters" autocomplete="off"').replace('id="fx_detail"', 'id="fx_detail" data-ac="details" autocomplete="off"').replace('id="fx_person"', 'id="fx_person" data-ac="persons" autocomplete="off"');
   return h.replace(/<label>Type<select class="field" id="fx_type">[\s\S]*?<\/select><\/label>/, picker);
 };

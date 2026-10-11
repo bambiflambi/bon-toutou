@@ -957,7 +957,7 @@ class Bureau:
              "emitter_candidates": [e for e in (a.get("emitter_candidates") or []) if classify.slugify(e) != a["emitter"]][:3],
              "date_year": a.get("date_year") if not ov.get("date") else None,
              "set": [k for k in ("type", "emitter", "date", "person", "country", "detail") if ov.get(k)],
-             "holder_seen": a.get("holder_seen")}
+             "holder_seen": a.get("holder_seen"), "engine": a.get("engine") or "règles"}
         dup = self.db.execute("SELECT id,label,path FROM docs WHERE sha=?", (row["sha"],)).fetchone()
         p["duplicate"] = dict(dup) if dup else None
         cur = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status='actuel'", (key,)).fetchone() if key else None
@@ -1499,6 +1499,39 @@ class Bureau:
                     os.rmdir(d)   # dossier vide laissé par un déplacement : rien d'autre n'est jamais supprimé
             except OSError:
                 pass
+
+    def known(self):
+        """Ce que tu as déjà écrit (émetteurs, titulaires, intitulés), du plus fréquent au plus rare : proposé dès les
+        premières lettres tapées, pour ne jamais réécrire deux fois le même nom."""
+        from collections import Counter
+        em, det, per = Counter(), Counter(), Counter()
+        for r in self.db.execute("SELECT emitter, detail, person, extra FROM docs").fetchall():
+            ex = json.loads(r["extra"] or "{}") if r["extra"] else {}
+            e = ex.get("emitter_display") or (r["emitter"] or "").replace("-", " ")
+            if e and e != "Inconnu":
+                em[e.strip()] += 1
+            if r["detail"]:
+                det[r["detail"].strip()] += 1
+            if r["person"] and r["person"] != "moi":
+                per[r["person"].strip()] += 1
+        for r in self.db.execute("SELECT overrides FROM inbox WHERE state='a_trier'").fetchall():
+            ov = json.loads(r["overrides"] or "{}")
+            if ov.get("emitter"):
+                em[ov["emitter"].strip()] += 1
+            if ov.get("detail"):
+                det[ov["detail"].strip()] += 1
+            if ov.get("person") and ov["person"] != "moi":
+                per[ov["person"].strip()] += 1
+        for h in self.settings.get("holders") or []:
+            if h.get("nom"):
+                per[h["nom"].strip()] += 1
+        # une même entreprise écrite de deux façons (« LCL » / « Lcl ») : la forme la plus utilisée
+        def uniq(c):
+            best = {}
+            for k, n in c.most_common():
+                best.setdefault(classify.slugify(k).lower(), k)
+            return list(best.values())[:400]
+        return {"emitters": uniq(em), "details": uniq(det), "persons": uniq(per)}
 
     # ------------------------------------------------------------ recommencer de zéro / revenir à un rangement précédent
     def _rangements_dir(self):

@@ -29,6 +29,8 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **v0.7.1** : `Bureau.restart` (plan compressé `.bontoutou/rangements/rangement-*.zip` : plan.json + meta + règles + profil, puis documents remis dans 00_A-TRIER, ops `delete_doc` / `inbox_new` annulables) et `Bureau.restore` (remet en place par empreinte ce qui est encore dans Trier). Signature : « Mange papiers. »
 
+- **v0.7.2** : cartes en étapes à droite (`etSteps` : usage → chemin → emetteur → nom ; `data-et-enter` = Entrée) ; `Bureau.known()` + `/api/known` (émetteurs, titulaires, intitulés déjà écrits) et `static/autocomplete.js` (tout champ `data-ac="emitters|persons|details"`).
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.

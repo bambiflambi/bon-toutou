@@ -40,6 +40,7 @@ async function load() {
   if (S.st.setup) { S.v = "setup"; return render(); }
   if (S.v === "setup") S.v = "home";
   if (S.v === "trier") S.inbox = await api("/api/inbox");
+  if (S.v === "trier" || S.v === "doc") S.known = await api("/api/known", {});
   if (S.v === "docs") { S.docs = await api("/api/docs"); S.groups = await api("/api/emitters/groups", {}); if (!S.arch) S.arch = await api("/api/archives"); }
   if (S.v === "doc") S.doc = await api("/api/doc?id=" + S.docId);
   if (S.v === "dossiers") S.dossiers = await api("/api/dossiers");

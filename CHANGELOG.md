@@ -2,6 +2,10 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.7.2 — De petites étapes rapides, et les noms déjà connus reviennent tout seuls
+- **Trier (Cartes) : une question à la fois, en grand, à droite.** 1. Tu t'en sers encore ? 2. Où le ranger (le chemin en gros : France › Banque › Relevés…) 3. Qui l'a émis ? 4. Le nom du fichier → Ranger. À chaque étape, la proposition de Bon toutou (ou de l'IA locale) : **Entrée** pour la garder, ou **Changer**. Les étapes faites restent visibles au-dessus, chacune modifiable d'un clic. L'aperçu du document occupe toute la gauche.
+- **Les noms déjà connus reviennent tout seuls** : dans Émetteur, Titulaire et Intitulé (Trier, mode Liste, Corriger le classement), dès 2 lettres, Bon toutou propose ce que tu as déjà écrit dans ton bureau, du plus utilisé au plus rare. ↓ ↑ pour choisir, Entrée ou Tab pour prendre. Une correction en cours compte aussi : écrite une fois, proposée pour le document suivant.
+
 ## 0.7.1 — Mange papiers, et recommencer de zéro
 - Nouvelle signature sous le nom : **« Mange papiers. »**
 - **Réglages › Recommencer de zéro** : tous les documents rangés (Documents et Archives) reviennent dans Trier sous leur nom d'origine, pour un nouveau tri. Avant, le rangement actuel est **gardé, compressé** dans `.bontoutou/rangements` (le plan : où était chaque document, son type, son émetteur, sa date, ses fiches ; les documents ne sont pas copiés). Confirmation en écrivant RECOMMENCER ; un seul « Annuler » juste après.
