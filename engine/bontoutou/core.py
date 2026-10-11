@@ -247,6 +247,9 @@ class Bureau:
                         break
             p = os.path.join(p, name)
             os.makedirs(p, exist_ok=True)
+        if T.get("inner"):   # « Autre » d'une sous-famille : un dossier Autres dedans
+            p = os.path.join(p, T["inner"])
+            os.makedirs(p, exist_ok=True)
         return p
 
     def demarches_dir(self, cc):
@@ -957,7 +960,7 @@ class Bureau:
              "emitter_candidates": [e for e in (a.get("emitter_candidates") or []) if classify.slugify(e) != a["emitter"]][:3],
              "date_year": a.get("date_year") if not ov.get("date") else None,
              "set": [k for k in ("type", "emitter", "date", "person", "country", "detail") if ov.get(k)],
-             "holder_seen": a.get("holder_seen"), "engine": a.get("engine") or "règles"}
+             "holder_seen": a.get("holder_seen"), "engine": a.get("engine") or "règles", "suggest": ov.get("suggest") or ""}
         dup = self.db.execute("SELECT id,label,path FROM docs WHERE sha=?", (row["sha"],)).fetchone()
         p["duplicate"] = dict(dup) if dup else None
         cur = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status='actuel'", (key,)).fetchone() if key else None
@@ -1005,7 +1008,7 @@ class Bureau:
         with self.lock:
             row = self.db.execute("SELECT * FROM inbox WHERE id=?", (iid,)).fetchone()
             ov = json.loads(row["overrides"] or "{}")
-            ov.update({k: v for k, v in overrides.items() if k in ("type", "country", "emitter", "date", "expiry", "person", "detail", "resolved", "usage")})
+            ov.update({k: v for k, v in overrides.items() if k in ("type", "country", "emitter", "date", "expiry", "person", "detail", "resolved", "usage", "suggest")})
             seen = json.loads(row["analysis"] or "{}").get("holder_seen")
             own = (self.settings.get("owner") or "").strip()
             if seen and overrides.get("person") and overrides["person"].strip() in (own, "moi") and self._match_person(seen) != "moi":
@@ -1093,7 +1096,9 @@ class Bureau:
                     self.db.execute("UPDATE docs SET detail=? WHERE id=?", (a["detail"].strip(), did))
                 ex = {k: a[k] for k in ("lot", "emitter_display", "origin") if a.get(k)}
                 if p.get("usage") == "utile":
-                    ex["usage"] = "utile"   # tu as dit t'en servir encore : jamais rangé dans Archives automatiquement
+                    ex["usage"] = "utile"
+                if p.get("suggest") and (T.get("generic") or a["type"] == "autre"):
+                    ex["suggestion"] = p["suggest"].strip()[:120]   # famille suggérée pour ce cas particulier (à étudier)   # tu as dit t'en servir encore : jamais rangé dans Archives automatiquement
                 if ex:
                     self.db.execute("UPDATE docs SET extra=? WHERE id=?", (json.dumps(ex, ensure_ascii=False), did))
                 ops.append({"t": "insert_doc", "id": did})
@@ -1504,9 +1509,11 @@ class Bureau:
         """Ce que tu as déjà écrit (émetteurs, titulaires, intitulés), du plus fréquent au plus rare : proposé dès les
         premières lettres tapées, pour ne jamais réécrire deux fois le même nom."""
         from collections import Counter
-        em, det, per = Counter(), Counter(), Counter()
+        em, det, per, sug = Counter(), Counter(), Counter(), Counter()
         for r in self.db.execute("SELECT emitter, detail, person, extra FROM docs").fetchall():
             ex = json.loads(r["extra"] or "{}") if r["extra"] else {}
+            if ex.get("suggestion"):
+                sug[ex["suggestion"]] += 1
             e = ex.get("emitter_display") or (r["emitter"] or "").replace("-", " ")
             if e and e != "Inconnu":
                 em[e.strip()] += 1
@@ -1522,6 +1529,8 @@ class Bureau:
                 det[ov["detail"].strip()] += 1
             if ov.get("person") and ov["person"] != "moi":
                 per[ov["person"].strip()] += 1
+            if ov.get("suggest"):
+                sug[ov["suggest"].strip()] += 1
         for h in self.settings.get("holders") or []:
             if h.get("nom"):
                 per[h["nom"].strip()] += 1
@@ -1531,7 +1540,20 @@ class Bureau:
             for k, n in c.most_common():
                 best.setdefault(classify.slugify(k).lower(), k)
             return list(best.values())[:400]
-        return {"emitters": uniq(em), "details": uniq(det), "persons": uniq(per)}
+        return {"emitters": uniq(em), "details": uniq(det), "persons": uniq(per), "suggestions": uniq(sug)}
+
+    def autres(self):
+        """Tous les documents rangés dans un « Autres » (famille, sous-famille ou Autres familles), avec la famille suggérée :
+        la matière pour décider, plus tard, s'il faut créer de nouvelles familles."""
+        out = []
+        for r in self.db.execute("SELECT * FROM docs WHERE type='autre' OR type LIKE 'autre\\_%' ESCAPE '\\' ORDER BY cat, sub, doc_date DESC").fetchall():
+            ex = json.loads(r["extra"] or "{}") if r["extra"] else {}
+            T = TYPES.get(r["type"]) or TYPES["autre"]
+            out.append({"id": r["id"], "type": r["type"], "where": T["label"].replace("Autre — ", ""), "cat": T["cat"], "sub": T["sub"],
+                        "inner": bool(T.get("inner")), "label": r["label"], "date": r["doc_date"], "path": r["path"],
+                        "emitter": ex.get("emitter_display") or (r["emitter"] or "").replace("-", " "), "suggestion": ex.get("suggestion") or "",
+                        "status": r["status"]})
+        return out
 
     # ------------------------------------------------------------ recommencer de zéro / revenir à un rangement précédent
     def _rangements_dir(self):
@@ -1996,6 +2018,7 @@ class Bureau:
                        "sent": c("SELECT COUNT(*) FROM dossiers WHERE state='envoye'"),
                        "egress": len(self.sorties())},
             "types": {k: {"label": v["label"], "cat": v["cat"], "sub": v["sub"], "countries": v.get("countries"), "expiry": bool(v.get("expiry")),
+                          "generic": bool(v.get("generic")),
                           "emetteur": v.get("emetteur", True) is not False,
                           "mots": " ".join(v.get("titre", []) + v.get("kw", [])[:12])} for k, v in TYPES.items()},
             "countries": {k: v["name"] for k, v in COUNTRIES.items()},

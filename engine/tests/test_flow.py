@@ -292,7 +292,7 @@ check(C6.analyze("BANQUE EXEMPLE\nLIVRET EPARGNE POPULAIRE (LEP)\nCONVENTION DE 
 check(C6.analyze("Contrat d'apprentissage\n(art. L6211-1 du code du travail)\nCerfa formulaire diplome baccalaureat", "CONTRAT_CERFA_1234.pdf", ["FR"])["type"] == "contrat_travail", "Cerfa rempli titré « Contrat d'apprentissage » : contrat")
 check(C6.analyze("FORMULAIRE\nCONTRAT PEDAGOGIQUE DE L'APPRENTI\nCFA EXEMPLE\nBTS diplome", "Contrat pedagogique.pdf", ["FR"])["type"] == "inscription_formation", "contrat pédagogique : formation")
 check(C6.analyze("LE CONTRAT\nType de contrat ou d'avenant\nle 10/02/1210", "suite.pdf", ["FR"])["date"] != "1210-02-10", "année OCR absurde (1210) ignorée")
-check(catalog.TYPES["autre"]["sub"] == "11-4" and catalog.TYPES["formulaire"]["sub"] == "13-4", "Autre → Divers, Cerfa → Formulaires")
+check(catalog.TYPES["autre"]["sub"] == "16-1" and catalog.TYPES["formulaire"]["sub"] == "13-4", "Autre famille → 16 Autres familles, Cerfa → Formulaires")
 # v0.6.3 : grand import — ce qui est déjà rangé ou mis de côté ne revient pas ; mise de côté groupée
 _ib = br.inbox()
 if len(_ib) >= 2:
@@ -371,5 +371,18 @@ if _ib:
     br.set_overrides(_ib[0]["id"], {"emitter": "Banque Exemple Zéphyr", "detail": "Intitulé témoin"})
     _k = br.known()
     check("Banque Exemple Zéphyr" in _k["emitters"] and "Intitulé témoin" in _k["details"], "noms déjà connus : une correction en cours est proposée aussitôt")
+# v0.7.4 : « Autres » dans chaque famille et sous-famille, avec la famille imaginée
+_ib = br.inbox()
+if _ib:
+    _x = _ib[0]
+    _p = br.set_overrides(_x["id"], {"type": "autre_03_1", "suggest": "Formation professionnelle", "usage": "utile"})
+    check(_p["dest"].replace(os.sep, "/").endswith("03-1_Contrats/Autres"), "Autre dans une sous-famille : dossier Autres dedans")
+    _r = br.validate([_x["id"]])
+    _a = [d for d in br.autres() if d["type"] == "autre_03_1"]
+    check(_r["ok"] and _a and _a[0]["suggestion"] == "Formation professionnelle", "« Autres » à étudier : retrouvé avec la famille imaginée")
+    check("Formation professionnelle" in br.known()["suggestions"], "famille imaginée proposée la fois suivante")
+    br.undo(_r["batch"])
+check("autre_05" in catalog.TYPES and catalog.TYPES["autre_05"]["sub"] == "05-9" and not [t for t in classify.build_prompt("x", "x", ["FR"]).split("parmi : ")[1].split(")")[0].split(", ") if t.startswith("autre_")],
+      "« Autres » de famille : jamais proposés à l'IA")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

@@ -569,3 +569,9 @@ textarea.field{width:100%}
 .optrow:hover{background:var(--accent-light)}.optrow:disabled{opacity:.4;cursor:default}
 .optmeta{font-size:12px;color:var(--text-tertiary);padding:8px 4px 6px;overflow-wrap:anywhere}
 .tpick .tile.prop{box-shadow:none}
+
+/* v0.7.4 — « Autres » dans chaque famille et sous-famille */
+.tile.autre{border-style:dashed}.tile.autre b{color:var(--text-secondary)}
+.tp-autres{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}.tp-autres .sub{margin-right:4px;font-size:12.5px}
+.tp-autres .chip{font-size:12.5px;padding:4px 10px;border-style:dashed}
+.ff.sugg{margin:0 0 14px}

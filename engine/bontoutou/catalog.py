@@ -201,7 +201,19 @@ def load(bureau_fm=None, disabled=()):
             if p and "perso" not in disabled:
                 _apply(p, "perso")
     if "autre" not in TYPES:
-        TYPES["autre"] = dict(label="Autre document", slug="Document", cat="11", sub="11-1", suivi="none", kw=[], fn=[], _origin="Socle")
+        TYPES["autre"] = dict(label="Autre famille", slug="Document", cat="16", sub="16-1", suivi="none", kw=[], fn=[], _origin="Socle")
+    # « Autres » dans chaque famille et chaque sous-famille (v0.7.4) : pour les cas particuliers, étudiés AVANT de créer
+    # de nouvelles familles. Jamais proposés par les règles ni par l'IA (generic) : seulement choisis par l'utilisateur.
+    real_subs = [s for s in SUB_FOLDERS_FR if not s.endswith("-9") and s[:2] in CATEGORIES and s[:2] != TYPES["autre"]["cat"]]
+    for cat, name in CATEGORIES.items():
+        if cat == TYPES["autre"]["cat"]:
+            continue
+        SUB_FOLDERS_FR.setdefault(cat + "-9", "Autres")
+        TYPES["autre_" + cat] = dict(label="Autre — " + name, slug="Autre", cat=cat, sub=cat + "-9", suivi="none", kw=[], fn=[],
+                                     generic=True, _origin="Socle")
+    for sub in real_subs:
+        TYPES["autre_" + sub.replace("-", "_")] = dict(label="Autre — " + SUB_FOLDERS_FR[sub].replace("-", " "), slug="Autre", cat=sub[:2], sub=sub,
+                                                       inner="Autres", suivi="none", kw=[], fn=[], generic=True, _origin="Socle")
     return PACKS
 
 

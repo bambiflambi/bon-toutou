@@ -733,7 +733,7 @@ def apply_hints(a, hints, text_employer=None, today=None):
 
 # ---------- IA locale (moteur interchangeable : voir ia.py) ----------
 def build_prompt(text, filename, countries):
-    ids = [t for t in TYPES]
+    ids = [t for t in TYPES if not TYPES[t].get("generic")]
     return (
         "Tu es l'assistant de rangement d'une personne. Tu lis UN document administratif et tu réponds UNIQUEMENT en JSON "
         "avec les clés : "

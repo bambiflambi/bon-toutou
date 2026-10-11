@@ -49,6 +49,7 @@ async function load() {
   if (S.v === "reglages" && S.sv === "mail") S.mst = await api("/api/mail/status", {});
   if (S.v === "reglages") { S.hist = await api("/api/history"); S.rules = await api("/api/rules"); }
   if (S.v === "reglages" && S.sv === "zero") S.rgs = await api("/api/rangements", {});
+  if (S.v === "reglages" && S.sv === "autres") S.autres = await api("/api/autres", {});
   if (S.v === "guide") S.inbox = await api("/api/inbox");
   if (S.v === "guide" || (S.v === "trier" && S.st && !S.st.settings.guide.fini && !S.st.settings.guide.masque)) S.guide = await api("/api/guide");
   render();

@@ -33,6 +33,8 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **v0.7.3** : carte épurée (`etOptions`), arborescence `pathTree`, réglage profil `propositions` (faux par défaut : pas de valeur proposée, l'utilisateur choisit), `render` qui garde le nœud d'aperçu du même document, `pdfDraw` qui ne redessine pas une page déjà affichée, poll de l'IA sans rendu si rien n'a changé.
 
+- **v0.7.4** : types génériques créés par `catalog.load` : `autre_<cat>` (sous-dossier `<cat>-9_Autres`) et `autre_<cat>_<n>` (dossier `Autres` dans la sous-famille, clé `inner`), `generic: True` = jamais proposés (exclus du prompt IA, du score, des tuiles normales) ; « autre » → catégorie 16 Autres familles. Override `suggest` → `extra.suggestion`. `Bureau.autres()` / `/api/autres`, Réglages › Les « Autres » à étudier.
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.

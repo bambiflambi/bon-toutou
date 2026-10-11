@@ -32,6 +32,7 @@ const REG = [
            ["orgs", "building", "Organismes", () => `Checklist pour donner ta nouvelle adresse · ${(S.st.settings.orgs_done || []).length}/${(S.st.orgs || []).length}`]]],
   ["Comment Bon toutou lit tes papiers", [["ia", "sparkles", "IA locale", () => S.st.settings.use_ollama && S.st.settings.ollama_model ? `Activée · ${S.st.settings.ollama_model}` : "Facultative · tourne sur ton ordinateur"],
            ["lecture", "eye", "Lecture des documents", () => { const T = S.st.tools; return `PDF ${T.pypdf || T.pdftotext ? "✓" : "✗"} · scans et photos ${T.apple_vision || T.tesseract ? "✓" : "✗"}`; }],
+           ["autres", "folder", "Les « Autres » à étudier", () => "Les cas particuliers, avant de créer une nouvelle famille"],
            ["regles", "tag", "Mes règles et catalogue", () => `${((S.rules || {}).rules || []).length} ${plural(((S.rules || {}).rules || []).length, "règle")} · ${(S.st.packs || []).length} packs`]]],
   ["Sécurité et continuité", [["save", "drive", "Sauvegarde", () => "Ton dossier est fait de fichiers ordinaires", "bientôt"],
            ["cont", "heart", "Continuité", () => S.st.settings.trusted ? `Personne de confiance : ${S.st.settings.trusted}` : "Personne de confiance et accès d'urgence", "bientôt"],
@@ -156,6 +157,16 @@ function reglagesView() {
   if (sv === "maj") return `${setHead("up", "Version et mises à jour", "")}${window.majSection ? noLabel(majSection()).split('<div class="label">Signaler')[0] : ""}
     <div class="label" style="margin:22px 0 8px">Mode test</div>
     <div class="card box"><label class="consent" style="margin:0"><input type="checkbox" id="diag_on" ${s.diagnostic ? "checked" : ""}> <span><b style="color:var(--text)">Noter le détail de chaque analyse</b><br>Pour la phase de test : texte lu, proposition des règles, réponse de l'IA locale, tes corrections et le rangement final sont notés dans <span class="fname">.bontoutou/diagnostic</span>, dans ton bureau. Ces notes restent sur ton ordinateur et contiennent le début du texte de tes papiers : désactive-le après les tests.</span></label></div>`;
+  if (sv === "autres") {
+    const A = S.autres || [], G = {};
+    A.forEach((d) => { const k = d.type === "autre" ? "Autres familles" : `${catName(d.cat)}${d.inner ? " › " + subName(d.sub) : ""} › Autres`; (G[k] = G[k] || []).push(d); });
+    const sug = {}; A.forEach((d) => { if (d.suggestion) sug[d.suggestion] = (sug[d.suggestion] || 0) + 1; });
+    const SG = Object.entries(sug).sort((a, b) => b[1] - a[1]);
+    return `${setHead("folder", "Les « Autres » à étudier", "Chaque document que tu ranges dans un « Autres » est un cas particulier. Quand il y en aura assez, on les étudie ensemble pour décider s'il faut une nouvelle famille ou sous-famille — pas avant.")}
+    ${SG.length ? `<div class="label" style="margin:0 0 8px">Familles que tu as imaginées</div><div class="card box">${SG.map(([k, n]) => `<div class="row" style="padding:6px 0"><div class="grow"><b>${esc(k)}</b></div><span class="pill neutral">${n} ${plural(n, "document")}</span></div>`).join("")}</div>` : ""}
+    ${Object.keys(G).sort().map((k) => `<div class="label" style="margin:22px 0 8px">${esc(k)} · ${G[k].length}</div><div class="card">${G[k].map((d) => `<div class="row" data-doc="${d.id}" role="button" tabindex="0" style="cursor:pointer"><span class="oi">${IC.folder}</span><div class="grow"><b>${esc(d.label)}</b><div class="sub">${frd(d.date)}${d.emitter && d.emitter !== "Inconnu" ? " · " + esc(d.emitter) : ""}${d.suggestion ? ` · imaginé : <b>${esc(d.suggestion)}</b>` : ""}${d.status !== "actuel" ? " · archives" : ""}</div></div><span>›</span></div>`).join("")}</div>`).join("")
+      || `<div class="card empty">Aucun pour l'instant. Dans Trier, « Autres » existe dans chaque famille et chaque sous-famille.</div>`}`;
+  }
   if (sv === "zero") {
     const R = S.rgs || [], n = st.counts.docs + st.counts.old + st.counts.done;
     return `${setHead("sync", "Recommencer de zéro", "Tous tes documents rangés reviennent dans Trier sous leur nom d'origine, pour un nouveau tri. Rien n'est supprimé.")}

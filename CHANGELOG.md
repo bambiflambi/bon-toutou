@@ -2,6 +2,13 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.7.4 — Un « Autres » partout, pour étudier les cas particuliers
+- **Chaque famille a son « Autres »** (ex. Travail & revenus › Autres) et **chaque sous-famille aussi** (ex. Travail & revenus › Contrats › Autres). Dans le choix en tuiles : une tuile « Autres » dans chaque famille, une tuile « Autre » dans chaque sous-famille, et « Autre famille » quand aucune ne convient (dossier 16 Autres familles › À étudier).
+- **Quelle famille imagines-tu ?** Quand un document va dans un « Autres », tu peux écrire la famille que tu verrais pour lui (facultatif, avec les idées déjà écrites proposées dès 2 lettres). Elle est gardée dans sa fiche.
+- **Réglages › Les « Autres » à étudier** : tous les cas particuliers, groupés par endroit, et le décompte des familles imaginées. On décide des nouvelles familles après les avoir étudiés, pas avant.
+- Les « Autres » ne sont jamais proposés par les règles ni par l'IA : seulement choisis par toi.
+- « Autre document » (sans famille) va maintenant dans 16 Autres familles › À étudier, plus dans Contrats › Divers. Les fichiers déjà rangés ne bougent pas.
+
 ## 0.7.3 — Trier épuré
 - **Une question, un geste.** La carte ne montre plus que l'avancement, les étapes faites et la question en cours. Confiance, confidentialité, nom reçu, « Pourquoi ? », Annuler, mettre de côté, relire : tout est dans **Options**, en bas à droite. « ← Plus tard » reste en bas à gauche.
 - **Le chemin comme dans le Finder** : un dossier par ligne (France › Banque › Comptes et relevés…), le nom du fichier au bout. Noms de sous-dossiers écrits en français correct (accents, « et »).

@@ -20,7 +20,8 @@
   "12": "École & formation",
   "13": "Juridique",
   "14": "Aides",
-  "15": "Carrière"
+  "15": "Carrière",
+  "16": "Autres familles"
  },
  "cat_folders": {
   "01": "01_IDENTITE",
@@ -37,7 +38,8 @@
   "12": "12_ECOLE-FORMATION",
   "13": "13_JURIDIQUE",
   "14": "14_AIDES",
-  "15": "15_CARRIERE"
+  "15": "15_CARRIERE",
+  "16": "16_AUTRES"
  },
  "sub_folders": {
   "01-1": "Pieces-identite",
@@ -98,7 +100,8 @@
   "15-4": "Recommandations",
   "11-4": "Divers",
   "12-4": "Inscriptions-conventions",
-  "13-4": "Formulaires"
+  "13-4": "Formulaires",
+  "16-1": "A-etudier"
  },
  "expiry_hints": [
   "date d'expiration",
@@ -952,10 +955,10 @@
    "emetteur": false
   },
   "autre": {
-   "label": "Autre document",
+   "label": "Autre famille",
    "slug": "Document",
-   "cat": "11",
-   "sub": "11-4",
+   "cat": "16",
+   "sub": "16-1",
    "suivi": "none",
    "kw": [],
    "fn": []

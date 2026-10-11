@@ -246,6 +246,8 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.tidy_jobs())
             if p == "/api/unknown":
                 return self._json(B.unknown(data["id"]))
+            if p == "/api/autres":
+                return self._json(B.autres())
             if p == "/api/known":
                 return self._json(B.known())
             if p == "/api/rangements":

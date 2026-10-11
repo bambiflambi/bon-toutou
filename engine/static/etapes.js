@@ -8,11 +8,15 @@
 const TP = {};   // état de chaque sélecteur ouvert, par clé
 function tpTypes() {
   const C = S.st.settings.countries || [];
-  return Object.entries(S.st.types).filter(([, t]) => !t.countries || t.countries.some((c) => C.includes(c)));
+  return Object.entries(S.st.types).filter(([k, t]) => !t.generic && k !== "autre" && (!t.countries || t.countries.some((c) => C.includes(c))));
 }
-function tpFamilies() {
-  const seen = new Set(tpTypes().map(([, t]) => t.cat));
-  return Object.keys(S.st.categories).filter((c) => seen.has(c)).sort();
+const AUTRE_CAT = () => (S.st.types.autre || {}).cat;
+function tpFamilies() {   // toutes les familles (même sans type connu : leur « Autres » reste utile), sauf « Autres familles »
+  return Object.keys(S.st.categories).filter((c) => c !== AUTRE_CAT()).sort();
+}
+const isAutre = (k) => k === "autre" || /^autre_/.test(k || "");
+function catSubs(cat) {   // toutes les sous-familles d'une famille (même vides), sans son « Autres »
+  return Object.keys(S.st.subs).filter((s) => s.slice(0, 2) === cat && !s.endsWith("-9")).sort();
 }
 function tpSubs(cat) {
   const subs = {};
@@ -25,8 +29,8 @@ const SUBL = { "01-1": "Pièces d'identité", "01-2": "État civil", "01-4": "Ti
   "07-4": "Prévoyance et vie", "08-1": "Achat et vente", "08-3": "Entretien et contrôles", "09-1": "Union, mariage, PACS", "09-3": "Parents à charge",
   "10-2": "Placements et épargne", "10-3": "Parts de société", "10-4": "Transmission, testament", "11-2": "Télécoms", "11-3": "Achats et garanties",
   "12-1": "Diplômes", "12-3": "Bulletins scolaires", "12-4": "Inscriptions et conventions", "13-2": "Recommandés", "14-1": "Allocations CAF",
-  "14-3": "Aides au logement", "14-4": "Autres aides", "15-2": "Lettres de motivation" };
-const subName = (s) => SUBL[s] || String(S.st.subs[s] || s).replace(/-/g, " ");
+  "14-3": "Aides au logement", "14-4": "Autres aides", "15-2": "Lettres de motivation", "16-1": "À étudier" };
+const subName = (s) => SUBL[s] || (/-9$/.test(s) ? "Autres" : String(S.st.subs[s] || s).replace(/-/g, " "));
 const catName = (c) => S.st.categories[c] || c;
 function tpOpen(key, cur, onPick, step) {
   const t = S.st.types[cur] || {};
@@ -45,15 +49,21 @@ function tpInner(key) {
   } else if (st.step === "famille") {
     const F = tpFamilies(); const prop = F.includes(curT.cat) ? [curT.cat, ...F.filter((c) => c !== curT.cat)] : F;
     head = `<div class="tp-h">Quelle famille ?</div>`;
-    body = `<div class="tiles">${prop.map((c, i) => `<button type="button" class="tile${c === curT.cat ? " prop" : ""}" data-tp="${key}" data-tp-cat="${c}">${n(i)}<span class="oi">${catIc(c)}</span><b>${esc(catName(c))}</b>${c === curT.cat ? `<small>proposé</small>` : ""}</button>`).join("")}</div>`;
+    body = `<div class="tiles">${prop.map((c, i) => `<button type="button" class="tile${c === curT.cat ? " prop" : ""}" data-tp="${key}" data-tp-cat="${c}">${n(i)}<span class="oi">${catIc(c)}</span><b>${esc(catName(c))}</b>${c === curT.cat ? `<small>proposé</small>` : ""}</button>`).join("")}
+      <button type="button" class="tile autre" data-tp="${key}" data-tp-type="autre"><span class="oi">${IC.folder}</span><b>Autre famille</b><small>Aucune ne convient : tu diras laquelle tu imagines</small></button></div>`;
   } else if (st.step === "sous") {
     const L = tpSubs(st.cat);
     head = `<div class="tp-h"><button type="button" class="linkbtn" data-tp="${key}" data-tp-back="famille">← Familles</button> ${esc(catName(st.cat))} : quelle sous-famille ?</div>`;
-    body = `<div class="tiles">${L.map(([s, ks], i) => `<button type="button" class="tile${s === curT.sub ? " prop" : ""}" data-tp="${key}" data-tp-sub="${s}">${n(i)}<b>${esc(subName(s))}</b><small>${ks.map((k) => esc(T[k].label)).join(" · ")}</small></button>`).join("")}</div>`;
+    const ac = "autre_" + st.cat, inSubs = catSubs(st.cat).filter((x) => T["autre_" + x.replace("-", "_")]);
+    body = `<div class="tiles">${L.map(([s, ks], i) => `<button type="button" class="tile${s === curT.sub ? " prop" : ""}" data-tp="${key}" data-tp-sub="${s}">${n(i)}<b>${esc(subName(s))}</b><small>${ks.map((k) => esc(T[k].label)).join(" · ")}</small></button>`).join("")}
+      ${T[ac] ? `<button type="button" class="tile autre" data-tp="${key}" data-tp-type="${ac}"><span class="oi">${IC.folder}</span><b>Autres</b><small>Dans ${esc(catName(st.cat))}, sans sous-famille</small></button>` : ""}</div>
+      ${inSubs.length ? `<div class="tp-autres"><span class="sub">Un autre papier dans une sous-famille :</span>${inSubs.map((x) => `<button type="button" class="chip" data-tp="${key}" data-tp-type="autre_${x.replace("-", "_")}">${esc(subName(x))} › Autres</button>`).join("")}</div>` : ""}`;
   } else {
     const ks = (tpSubs(st.cat).find(([s]) => s === st.sub) || [, []])[1];
     head = `<div class="tp-h"><button type="button" class="linkbtn" data-tp="${key}" data-tp-back="sous">← ${esc(catName(st.cat))}</button> ${esc(subName(st.sub))} : lequel ?</div>`;
-    body = `<div class="tiles">${ks.map((k, i) => `<button type="button" class="tile${k === st.cur ? " prop" : ""}" data-tp="${key}" data-tp-type="${k}">${n(i)}<b>${esc(T[k].label)}</b></button>`).join("")}</div>`;
+    const as = "autre_" + String(st.sub).replace("-", "_");
+    body = `<div class="tiles">${ks.map((k, i) => `<button type="button" class="tile${k === st.cur ? " prop" : ""}" data-tp="${key}" data-tp-type="${k}">${n(i)}<b>${esc(T[k].label)}</b></button>`).join("")}
+      ${T[as] ? `<button type="button" class="tile autre" data-tp="${key}" data-tp-type="${as}"><b>Autre</b><small>Dans ${esc(subName(st.sub))} › Autres</small></button>` : ""}</div>`;
   }
   return head + body;
 }
@@ -151,6 +161,8 @@ function stepChemin(p) {
   if (pick && (!TP.card || TP.card.for !== p.id)) etOpenPicker(p);
   return `<div class="etbig"><h2 class="etq">${pick ? "C'est quoi, ce document ?" : "Il sera rangé ici"}</h2>
     ${pick ? tpHTML("card") : `${pathTree(p)}
+      ${isAutre(p.type) ? `<label class="ff sugg"><span>Quelle famille imagines-tu pour lui ? <small>facultatif — pour étudier plus tard les « Autres »</small></span>
+        <input class="field" data-et-f="suggest" data-ac="suggestions" autocomplete="off" value="${esc(p.suggest || "")}" placeholder="ex. Travail › Formation professionnelle"></label>` : ""}
       <div class="etacts"><button type="button" class="cta" data-act="et-ok" data-et-enter>Valider <kbd>Entrée</kbd></button><button type="button" class="ghost" data-act="et-pick">Changer</button></div>
       ${C.length > 1 ? `<div class="segc">${C.map((c) => `<button type="button" class="${c === p.country ? "on" : ""}" data-act="et-set" data-f="country" data-v="${c}">${esc(S.st.countries[c] || c)}</button>`).join("")}</div>` : ""}`}</div>`;
 }
