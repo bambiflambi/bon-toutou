@@ -1290,10 +1290,12 @@ class Bureau:
         with self.lock:
             ops = []
             changes = self._redetect(ops)
+            redated = self._redate(ops)
             closed = self.close_old_employers(ops)
             if not ops:
                 return {"ok": True, "n": 0, "closed": [], "changes": []}
             parts = ([f"{len(changes)} émetteur{'s' if len(changes) > 1 else ''} retrouvé{'s' if len(changes) > 1 else ''}"] if changes else []) + \
+                    ([f"{len(redated)} date{'s' if len(redated) > 1 else ''} de délivrance corrigée{'s' if len(redated) > 1 else ''}"] if redated else []) + \
                     ([f"{len(closed)} ancien{'s' if len(closed) > 1 else ''} employeur{'s' if len(closed) > 1 else ''} dans Anciennes versions"] if closed else [])
             b = self._journal("Mise à jour : " + ", ".join(parts), ops)
             return {"ok": True, "n": len(changes), "changes": changes, "closed": closed, "batch": b, "msg": " · ".join(parts)}
@@ -1328,6 +1330,32 @@ class Bureau:
                         keys.add(k)
             self._fix_suivi(keys, ops)
             return changes
+
+    def _redate(self, ops):
+        """v0.7.6 : titres à date d'expiration (carte d'identité, passeport, permis, titre de séjour) rangés avec la date de naissance
+        ou la date du jour : on relit le texte en cache et on prend la date de délivrance quand elle est écrite. Annulable."""
+        ids = [k for k, T in TYPES.items() if T.get("expiry") and not T.get("generic")]
+        if not ids:
+            return []
+        rows = self.db.execute("SELECT * FROM docs WHERE type IN (%s)" % ",".join("?" * len(ids)), ids).fetchall()
+        changes, keys = [], set()
+        for d in rows:
+            text = self.text_of(d["sha"], d["path"])[0] or ""
+            if not text.strip():
+                continue
+            date, expiry, why = classify._pick_dates(text, d["orig_name"] or "", today())
+            if not date or not (why or "").startswith("date de délivrance") or date.isoformat() == d["doc_date"]:
+                continue
+            f = {"date": date.isoformat()}
+            if expiry and not d["expiry"]:
+                f["expiry"] = expiry.isoformat()
+            if self.reclassify(d["id"], f, ops).get("ok"):
+                changes.append({"label": d["label"], "date": f["date"]})
+                k = self.db.execute("SELECT suivi FROM docs WHERE id=?", (d["id"],)).fetchone()["suivi"]
+                if k:
+                    keys.add(k)
+        self._fix_suivi(keys, ops)
+        return changes
 
     def _fix_suivi(self, keys, ops):
         """Après un regroupement : dans chaque suivi, la version la plus récente est l'actuelle, les autres passent dans l'historique."""

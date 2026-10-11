@@ -1,0 +1,156 @@
+/* Bon toutou — v0.7.6 : chercher en petites étapes.
+   Documents et Archives s'ouvrent sur les familles ; une famille montre ses sous-familles ; une sous-famille montre ses documents.
+   Un fil (Documents › Famille › Sous-famille) permet de remonter d'un clic. La recherche donne une liste courte, chaque ligne dit
+   où est le document. Ouvrir un document puis revenir ramène exactement où l'on était (Archives reste Archives, la recherche reste). */
+S.dn = S.dn || { docs: {}, archives: {} };
+
+/* ---- Revenir d'où l'on vient */
+const goNav = go;
+go = function (v, extra = {}) {
+  if (v === "doc" && S.v !== "doc") S.from = { v: S.v, q: S.q, at: S.at, y: window.scrollY };
+  if (v !== "doc" && v !== S.v) S.info = false;
+  if (v === "archives" && S.v !== "archives" && S.v !== "dossier" && !("at" in extra)) S.at = "old";   // Archives s'ouvre sur les anciens documents
+  return goNav(v, extra);
+};
+async function navBack() {
+  const f = S.from && S.from.v ? S.from : { v: "docs", q: "", y: 0 };
+  Object.assign(S, { v: f.v, q: f.q || "", at: f.at || S.at, fix: false, confirm: null, info: false });
+  await load();
+  window.scrollTo(0, f.y || 0);
+}
+const fromArchives = () => S.v === "doc" && S.from && S.from.v === "archives";
+
+/* ---- Le fil d'étapes et les tuiles */
+const dnSubOf = (d) => d.sub || String(d.sub_folder || "").split("_")[0] || "?";
+function dnTiles(kind, L, level) {
+  const key = level === "cat" ? (d) => d.cat : dnSubOf;
+  const K = [...new Set(L.map(key))].sort();
+  return `<div class="groups dntiles">${K.map((k) => {
+    const n = L.filter((d) => key(d) === k).length;
+    const lab = level === "cat" ? `${k} ${esc(catName(k))}` : esc(subName(k));
+    return `<button class="group" data-dn="${kind}" data-dn-${level}="${esc(k)}"><span class="oi" style="width:30px;height:30px">${level === "cat" ? catIc(k) : IC.folder}</span><b>${lab}</b><span class="n">${n}</span></button>`;
+  }).join("")}</div>`;
+}
+function dnCrumbs(kind, root, sub, single) {
+  const st = S.dn[kind], parts = [`<button class="linkbtn" data-dn="${kind}" data-dn-up="root">${esc(root)}</button>`];
+  if (st.cat) parts.push(sub && !single ? `<button class="linkbtn" data-dn="${kind}" data-dn-up="cat">${esc(catName(st.cat))}</button>` : `<b>${esc(catName(st.cat))}</b>`);
+  if (sub) parts.push(`<b>${esc(subName(sub))}</b>`);
+  return `<nav class="crumbs dncrumbs" aria-label="Où tu es">${parts.join("<span>›</span>")}</nav>`;
+}
+function dnCountries(kind, L) {
+  const st = S.dn[kind], ccs = [...new Set(L.map((d) => d.country))].sort();
+  if (st.cc && !ccs.includes(st.cc)) st.cc = null;
+  if (ccs.length < 2) return "";
+  return `<div class="dnpays">${[null, ...ccs].map((c) => `<button class="chip${(st.cc || null) === c ? " on" : ""}" data-dn="${kind}" data-dn-cc="${c || ""}">${c ? cc(c) + " " + esc(S.st.countries[c] || c) : "Tous les pays"} <span class="sub">${(c ? L.filter((d) => d.country === c) : L).length}</span></button>`).join("")}</div>`;
+}
+/* Liste d'une sous-famille : un intertitre par émetteur quand il y en a plusieurs. */
+function dnList(kind, L) {
+  const rows = (X) => (kind === "archives" ? suiviRows(X, "old") : X.map(docRow).join(""));
+  const E = [...new Set(L.map((d) => d.emitter_folder || ""))].sort();
+  if (E.length < 2) return `<div class="card doclist">${rows(L)}</div>`;
+  return `<div class="card doclist">${E.map((e) => { const Y = L.filter((d) => (d.emitter_folder || "") === e);
+    return `<div class="subhead" style="text-transform:none;letter-spacing:0">${esc(e ? e.replace(/-/g, " ") : "Sans émetteur")} · ${Y.length}</div>${rows(Y)}`; }).join("")}</div>`;
+}
+function drill(kind, L, root) {
+  const st = S.dn[kind];
+  const pays = dnCountries(kind, L);
+  const X = st.cc ? L.filter((d) => d.country === st.cc) : L;
+  if (st.cat && !X.some((d) => d.cat === st.cat)) { st.cat = null; st.sub = null; }
+  if (!st.cat) return pays + `<p class="sub dnhint">Choisis une famille.</p>` + dnTiles(kind, X, "cat");
+  const Y = X.filter((d) => d.cat === st.cat), subs = [...new Set(Y.map(dnSubOf))];
+  if (st.sub && !subs.includes(st.sub)) st.sub = null;
+  const single = subs.length === 1, sub = st.sub || (single ? subs[0] : null);   // une seule sous-famille : on l'ouvre directement
+  if (!sub) return pays + dnCrumbs(kind, root) + dnTiles(kind, Y, "sub");
+  return pays + dnCrumbs(kind, root, sub, single) + dnList(kind, Y.filter((d) => dnSubOf(d) === sub));
+}
+/* Recherche : une liste courte, chaque document avec son chemin. */
+function dnSearch(kind, L, q) {
+  const n = acNorm(q), hit = L.filter((d) => acNorm([d.label, d.emitter, d.detail, d.person, catName(d.cat), subName(dnSubOf(d))].join(" ")).includes(n));
+  if (!hit.length) return `<div class="card empty">Aucun résultat pour « ${esc(q)} ».</div>`;
+  const G = [...new Set(hit.map((d) => d.cat + "|" + dnSubOf(d)))].sort();
+  return `<p class="sub dnhint">${hit.length} ${plural(hit.length, "résultat")}</p><div class="card doclist">${G.map((g) => { const [c, s] = g.split("|"), X = hit.filter((d) => d.cat === c && dnSubOf(d) === s);
+    return `<div class="subhead" style="text-transform:none;letter-spacing:0">${esc(catName(c))} › ${esc(subName(s))} · ${X.length}</div>${kind === "archives" ? suiviRows(X, "old") : X.map(docRow).join("")}`; }).join("")}</div>`;
+}
+
+/* ---- Documents */
+docs = function () {
+  const ax = S.ax === "exp" ? "exp" : "fam", q = S.q.trim();
+  const head = `<div class="thead"><h1>Documents</h1><button class="ghost" data-act="doc-refresh" title="Retrouve les émetteurs manquants et range les anciens employeurs">${IC.sync} Mettre à jour</button></div>
+  <p class="lead">${S.docs.length} ${plural(S.docs.length, "document suivi", "documents suivis")}, dans leur version actuelle.</p>
+  <div class="search">${IC.search}<input id="q" value="${esc(S.q)}" placeholder="Chercher : passeport, EDF, fiche de paie…" aria-label="Chercher dans Documents"></div>
+  ${q ? "" : `<div class="axes">${[["fam", "Par famille"], ["exp", "Expirent bientôt"]].map((a) => `<button class="${ax === a[0] ? "on" : ""}" data-ax="${a[0]}">${a[1]}</button>`).join("")}</div>`}`
+    + (window.regroupCard ? regroupCard() : "");
+  if (S.busy) return head + `<div class="card busy"><span class="spin"></span>${esc(S.busy)}</div>`;
+  if (!S.docs.length) return head + `<div class="card empty">Aucun document pour l'instant. Commence par <button class="linkbtn" data-go="trier">Trier</button>.</div>`;
+  if (q) return head + dnSearch("docs", S.docs, q);
+  if (ax === "exp") { const L = S.docs.filter((d) => d.expiry && daysTo(d.expiry) <= 365).sort((a, b) => a.expiry.localeCompare(b.expiry));
+    return head + `<div class="card doclist">${L.map(docRow).join("") || `<div class="row sub">Rien n'expire dans l'année.</div>`}</div>`; }
+  return head + drill("docs", S.docs, "Documents");
+};
+
+/* ---- Archives */
+const archivesNav = archives;
+archives = function () {
+  if (!S.at || S.at === "done") S.at = "old";
+  if (!S.arch || S.at === "sent") return archivesNav();
+  const A = S.arch, L = [...A.old, ...A.done], q = S.q.trim();
+  return `<h1>Archives</h1><p class="lead">Ce qui n'est plus valable ou déjà envoyé. Rien n'est détruit.</p>
+  <div class="search">${IC.search}<input id="q" value="${esc(S.q)}" placeholder="Chercher dans les archives : ancien RIB, bail, avis d'impôt 2024…" aria-label="Chercher dans les archives"></div>
+  <div class="axes">${[["old", "Anciens documents", L.length], ["sent", "Dossiers envoyés", A.sent.length]].map((t) => `<button class="${S.at === t[0] ? "on" : ""}" data-at="${t[0]}">${t[1]} <span class="sub" style="color:inherit;opacity:.75">${t[2]}</span></button>`).join("")}</div>
+  ${!L.length ? `<div class="card empty">Aucun ancien document.</div>` : q ? dnSearch("archives", L, q) : drill("archives", L, "Archives")}`;
+};
+
+/* ---- Fiche d'un document : l'essentiel, le reste derrière « i » */
+function docExtra(d) { try { return typeof d.extra === "string" ? JSON.parse(d.extra || "{}") || {} : d.extra || {}; } catch (e) { return {}; } }
+const docViewNav = docView;
+docView = function () {
+  const d = S.doc; if (!d) return "";
+  let h = docViewNav();
+  const back = fromArchives() ? "← Archives" : S.from && S.from.v === "home" ? "← Aujourd'hui" : S.from && S.from.v === "cal" ? "← Calendrier" : S.from && S.from.v === "dossier" ? "← Dossier" : "← Documents";
+  h = h.replace(/<button class="back" data-go="docs">← Documents<\/button>/, `<button class="back" data-act="nav-back">${back}</button>`);
+  // annexes retirées de la fiche principale
+  const annex = [];
+  h = h.replace(/<dt>Fichier<\/dt><dd class="fname">([\s\S]*?)<\/dd>/, (m, v) => (annex.push(["Fichier", v, 1]), ""));
+  h = h.replace(/<dt>Sorties<\/dt><dd>([\s\S]*?)<\/dd>/, (m, v) => (annex.push(["Sorties", v]), ""));
+  h = h.replace(/<dt>Confidentialité<\/dt><dd>([\s\S]*?)<\/dd>/, (m, v) => (annex.push(["Confidentialité", v]), ""));
+  h = h.replace(/<dt>Reçu sous le nom<\/dt><dd class="fname">([\s\S]*?)<\/dd>/, (m, v) => (annex.push(["Reçu sous le nom", v, 1]), ""));
+  const ex = docExtra(d);
+  if (ex.origin) annex.push(["Trouvé dans", esc(ex.origin), 1]);
+  if (ex.lot) annex.push(["Lot", esc(typeof ex.lot === "string" ? ex.lot : JSON.stringify(ex.lot))]);
+  if (ex.suggestion) annex.push(["Famille imaginée", esc(ex.suggestion)]);
+  if (d.added_at) annex.push(["Rangé le", frd(String(d.added_at).slice(0, 10))]);
+  if (d.sha) annex.push(["Empreinte", esc(String(d.sha).slice(0, 16)) + "…", 1]);
+  const ibtn = `<button class="ibtn${S.info ? " on" : ""}" data-act="doc-info" aria-expanded="${!!S.info}" aria-label="Informations annexes" title="Informations annexes">i</button>`;
+  h = h.replace(/(<h1 style="margin:0">[\s\S]*?<\/h1>)/, `$1${ibtn}`);
+  const panel = S.info ? `<div class="infobox"><dl class="kv">${annex.map((a) => `<dt>${a[0]}</dt><dd${a[2] ? ' class="fname"' : ""}>${a[1]}</dd>`).join("")}</dl></div>` : "";
+  h = h.replace(/(<\/dl>)(\s*<div class="acts" style="margin-top:12px">)/, `$1${panel}$2`);
+  if (!S.info) h = h.replace(/<div class="fname sub">[^<]*<\/div><\/div><button class="linkbtn" data-open=/g, "</div><button class=\"linkbtn\" data-open=");
+  // la ligne sous le titre : seulement ce qui aide à reconnaître le document
+  h = h.replace(/<p class="sub" style="margin:0 0 14px"><span class="pill acc">Document suivi<\/span>[\s\S]*?<\/p>/, `<p class="sub" style="margin:0 0 14px">${esc(catName(d.cat))} › ${esc(subName(d.sub || dnSubOf(d)))}${d.status !== "actuel" ? ` · <span class="pill neutral">${esc(d.status_label)}</span>` : ""}</p>`);
+  return h;
+};
+
+document.addEventListener("click", (e) => {
+  const t = e.target;
+  const a = t.closest("[data-act]");
+  if (a && a.dataset.act === "nav-back") { e.stopImmediatePropagation(); return navBack(); }
+  if (a && a.dataset.act === "doc-info") { e.stopImmediatePropagation(); S.info = !S.info; return render(); }
+  const b = t.closest("[data-dn]"); if (!b) return;
+  e.stopImmediatePropagation();
+  const st = S.dn[b.dataset.dn];
+  if (b.dataset.dnCc !== undefined) { st.cc = b.dataset.dnCc || null; st.cat = null; st.sub = null; }
+  else if (b.dataset.dnCat) { st.cat = b.dataset.dnCat; st.sub = null; }
+  else if (b.dataset.dnSub) st.sub = b.dataset.dnSub;
+  else if (b.dataset.dnUp === "root") { st.cat = null; st.sub = null; }
+  else if (b.dataset.dnUp === "cat") st.sub = null;
+  render(); window.scrollTo(0, 0);
+}, true);
+/* Échap remonte d'une étape. */
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || editing() || S.modal) return;
+  if (S.v === "doc" && S.from) return navBack();
+  const st = S.v === "docs" ? S.dn.docs : S.v === "archives" ? S.dn.archives : null;
+  if (!st || (!st.cat && !st.sub)) return;
+  if (st.sub) st.sub = null; else st.cat = null;
+  render();
+});

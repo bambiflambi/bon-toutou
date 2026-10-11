@@ -402,5 +402,19 @@ if len(_ib) >= 2:
           "plan appliqué : pré-rempli (type, usage), marqué « Claude »")
     check(_p[_ib[1]["id"]]["emitter_display"] == "Choix de l'utilisateur", "plan : ne remplace jamais un choix déjà fait")
     check(br.db.execute("SELECT COUNT(*) FROM docs").fetchone()[0] == _n0, "plan : rien n'est rangé avant validation")
+# v0.7.6 : « Mettre à jour » corrige la date d'un titre d'identité rangé avec la date de naissance
+pdf(os.path.join(src, "cni_v076.pdf"), ["REPUBLIQUE FRANCAISE", "CARTE NATIONALE D'IDENTITE", "Ne(e) le : 31.12.1985", "Carte valable jusqu'au : 04.10.2029", "delivree le : 05.10.2014"])
+_i = br.add_upload("cni_v076.pdf", open(os.path.join(src, "cni_v076.pdf"), "rb").read())
+_pp = [x for x in br.inbox() if x["orig"] == "cni_v076.pdf"]
+if _pp:
+    br.set_overrides(_pp[0]["id"], {"type": "carte_identite", "date": "1985-12-31"})
+    br.validate([_pp[0]["id"]])
+    _d = br.db.execute("SELECT * FROM docs WHERE orig_name='cni_v076.pdf'").fetchone()
+    check(_d and _d["doc_date"] == "1985-12-31", "titre rangé avec une mauvaise date (naissance)")
+    _r = br.refresh()
+    _d = br.db.execute("SELECT * FROM docs WHERE orig_name='cni_v076.pdf'").fetchone()
+    check(_d["doc_date"] == "2014-10-05" and "2014-10-05" in _d["path"] and "délivrance" in (_r.get("msg") or ""), "Mettre à jour : date de délivrance relue, fichier renommé")
+    br.undo(_r["batch"])
+    check(br.db.execute("SELECT doc_date FROM docs WHERE orig_name='cni_v076.pdf'").fetchone()[0] == "1985-12-31", "correction de date annulable")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

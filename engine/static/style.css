@@ -587,3 +587,15 @@ textarea.field{width:100%}
 .gmore{display:block;padding:10px 16px}
 .gcard{display:flex;flex-direction:column;align-items:stretch}.gcard>.ghead,.gcard>.grow-row,.gcard>.gmore{width:100%;box-sizing:border-box;flex:none}
 .ghead .grow{flex:1;min-width:0}.grow-row>.grow{flex:1;min-width:0}
+
+/* ---- v0.7.6 : petites étapes (Documents, Archives) et bouton « i » */
+.dnpays{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.dnpays .chip.on{border-color:var(--accent);background:var(--accent-light)}
+.dnhint{margin:0 0 10px}
+.dncrumbs{font-size:14px;margin:0 0 12px}
+.dncrumbs .linkbtn{padding:0;font-size:14px}
+.dntiles .group{min-height:58px}
+.ibtn{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--text-secondary);font:600 13px/1 Georgia,serif;font-style:italic;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.ibtn:hover,.ibtn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.infobox{margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--bg);border:1px dashed var(--border)}
+.infobox .kv{margin:0}

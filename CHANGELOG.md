@@ -2,6 +2,14 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.7.6 — Chercher en petites étapes
+- **Documents et Archives s'ouvrent sur les familles.** Une famille montre ses sous-familles, une sous-famille montre ses documents (avec un intertitre par émetteur). Un fil « Documents › Famille › Sous-famille » permet de remonter d'un clic ; Échap remonte d'une étape. Plus de longues listes d'un coup. Un filtre par pays apparaît quand tu en as plusieurs.
+- **On reste dans Archives.** Ouvrir un document depuis Archives (ou depuis une recherche) puis revenir ramène dans Archives, à la même recherche et au même endroit. L'onglet du haut reste sur Archives. Archives s'ouvre sur les anciens documents.
+- **Recherche** : une liste courte, groupée par famille › sous-famille, pour savoir où est chaque document.
+- **Bouton « i »** sur la fiche d'un document : l'essentiel reste visible (date, expiration, titulaire, émetteur) ; le chemin du fichier, le nom reçu, l'endroit où il a été trouvé, les sorties, la confidentialité et l'empreinte sont derrière « i ».
+- **Titres d'identité : la bonne date.** Carte d'identité, passeport, permis, titre de séjour prennent la date de délivrance, jamais la date de naissance ni la date du jour. Quand le scan est un tableau mal lu, la délivrance est retrouvée 5, 10 ou 15 ans avant l'expiration. « 04 OCT 2029 » n'est plus lu aussi comme « fin octobre 2029 ».
+- **Documents › Mettre à jour** corrige aussi la date des titres d'identité déjà rangés (relue dans le texte déjà lu, fichier renommé, annulable).
+
 ## 0.7.5 — Un plan de rangement, validé par groupes
 - **Plan de rangement** : un fichier préparé pour toi (dans `.bontoutou/plans`, par exemple par Claude à ta demande) propose pour chaque document de Trier son usage, son type, son émetteur, son titulaire et une note. « Appliquer le plan » pré-remplit les documents, **sans rien ranger**, et sans jamais écraser un choix que tu as déjà fait.
 - **Trier › Groupes** : les documents regroupés par dossier de destination (ex. « France › Archives › Travail & revenus › Bulletins de paie › Kayser · 10 documents »). Tu décoches les exceptions, tu ranges le groupe d'un clic (un seul « Annuler »). « Corriger » ouvre ce document en cartes.

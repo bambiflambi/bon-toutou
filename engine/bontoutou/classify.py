@@ -60,20 +60,27 @@ def find_dates(text):
         d = _mkdate(m.group(3), m.group(2), m.group(1))
         if d:
             out.append((m.start(), d))
+    for m in re.finditer(r"(?<!\d)(\d{2}) (\d{2}) ((?:19|20)\d{2})(?!\d)", t):   # « 05 10 2019 » (passeports, cartes)
+        d = _mkdate(m.group(3), m.group(2), m.group(1))
+        if d:
+            out.append((m.start(), d))
     for m in re.finditer(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)", t):
         d = _mkdate(m.group(1), m.group(2), m.group(3))
         if d:
             out.append((m.start(), d))
     mn = "|".join(sorted(MONTHS, key=len, reverse=True))
+    full = set()   # mois déjà pris dans une date complète : « 04 oct 2029 » n'est pas aussi « oct 2029 »
     for m in re.finditer(r"(?<!\d)(\d{1,2})(?:er)?\s+(" + mn + r")\.?\s+(\d{4})", t):
         d = _mkdate(m.group(3), MONTHS[m.group(2)], m.group(1))
         if d:
-            out.append((m.start(), d))
+            out.append((m.start(), d)); full.add(m.start(2))
     for m in re.finditer(r"(" + mn + r")\.?\s+(\d{1,2}),?\s+(\d{4})", t):
         d = _mkdate(m.group(3), MONTHS[m.group(1)], m.group(2))
         if d:
             out.append((m.start(), d))
     for m in re.finditer(r"(?<![\d\w])(" + mn + r")\.?\s+(\d{4})", t):  # "mars 2025" -> fin de mois
+        if m.start(1) in full:
+            continue
         y, mo = int(m.group(2)), MONTHS[m.group(1)]
         nxt = dt.date(y + (mo == 12), mo % 12 + 1, 1)
         out.append((m.start(), nxt - dt.timedelta(days=1)))
@@ -246,13 +253,45 @@ def emitter_candidates(text, found=None):
     return res[:3]
 
 
+# Dates qui ne sont jamais la date d'un document : naissance (v0.7.6 : une carte d'identité prenait la date de naissance).
+BIRTH_HINTS = ("ne le", "nee le", "ne(e) le", "naissance", "date of birth", "birth", "nacimiento", "geburtsdatum", "nascita", "geboren")
+# Date de délivrance : la date d'un titre (carte, passeport, permis, titre de séjour).
+ISSUE_HINTS = ("delivre le", "delivree le", "delivre(e) le", "date de delivrance", "delivrance", "date of issue", "issue date", "issued",
+               "expedicion", "ausstellungsdatum", "rilascio", "uitgifte")
+
+
+def _last_hint(ctx):
+    """Le libellé le plus proche avant une date : 'birth', 'issue', 'expiry' ou None."""
+    best, kind = -1, None
+    for k, H in (("birth", BIRTH_HINTS), ("issue", ISSUE_HINTS), ("expiry", EXPIRY_HINTS)):
+        for h in H:
+            i = ctx.rfind(h)
+            if i > best:
+                best, kind = i, k
+    return kind
+
+
 def _pick_dates(text, filename, today):
     dates, t = find_dates(text)
+    hint = {pos: _last_hint(t[max(0, pos - 45):pos]) for pos, _ in dates}
     expiry = None
     for pos, d in dates:
-        ctx = t[max(0, pos - 45):pos]
-        if any(h in ctx for h in EXPIRY_HINTS):
+        if hint[pos] == "expiry":
             expiry = d if expiry is None else max(expiry, d)
+    dates = [(pos, d) for pos, d in dates if hint[pos] != "birth"]
+    # titre d'identité : date de délivrance écrite, ou date qui précède l'expiration de 5, 10 ou 15 ans pile (tableaux mal lus)
+    for pos, d in dates:
+        if hint[pos] == "issue" and d <= today:
+            return d, expiry, "date de délivrance"
+    if expiry:
+        for pos, d in dates:
+            for n in (10, 15, 5):
+                try:
+                    back = expiry.replace(year=expiry.year - n)
+                except ValueError:
+                    back = expiry - dt.timedelta(days=365 * n)
+                if d <= today and abs((d - back).days) <= 1:
+                    return d, expiry, f"date de délivrance (validité de {n} ans jusqu'à l'expiration)"
     past = [d for _, d in dates if dt.date(1990, 1, 1) <= d <= today]
     doc_date, why = None, None
     # période « du … au … » (fiches de paie, relevés) : on garde la fin de période
@@ -263,7 +302,7 @@ def _pick_dates(text, filename, today):
     # priorité : date d'émission explicite
     for pos, d in dates:
         ctx = t[max(0, pos - 40):pos]
-        if d <= today and any(k in ctx for k in ("emis le", "etabli le", "date d'emission", "date :", "le ", "date de la facture",
+        if d <= today and hint[pos] != "expiry" and any(k in ctx for k in ("emis le", "etabli le", "date d'emission", "date :", "le ", "date de la facture",
                                                   "issue date", "date of issue", "periode du", "au ")):
             doc_date, why = d, "date lue près d'un libellé de date"
             break

@@ -87,7 +87,7 @@ function topbar() {
   const vv = $("#ver"); if (vv && S.st) vv.textContent = "Bon toutou " + (S.st.version ? "v" + S.st.version : "") + " · local · code public AGPL-3.0";
   const setup = S.v === "setup" || (S.st && S.st.setup);
   const c = (S.st && S.st.counts) || {};
-  const on = { doc: "docs", dossier: "dossiers", guide: "trier" }[S.v] || S.v;
+  const on = { doc: S.from && S.from.v === "archives" ? "archives" : "docs", dossier: "dossiers", guide: "trier" }[S.v] || S.v;
   const plusOn = PLUS.find((x) => x[0] === on);
   const th = (S.st && S.st.settings && S.st.settings.theme) || "champagne";
   $("#topbar").innerHTML = `<button class="brand" ${setup ? "" : 'data-go="home"'}><span class="mark">${IC.dog}</span><span><b>Bon toutou</b><small class="tagline">Mange papiers.</small></span></button>

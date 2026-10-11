@@ -37,6 +37,8 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **v0.7.5** : `Bureau.plans()` / `plan_apply()` (`.bontoutou/plans/*.json` : items par `sha` avec usage, type, émetteur, titulaire, intitulé, suggestion, note ; overrides sans écraser ceux de l'utilisateur, `ov.plan` = source) ; `static/groupes.js` (Trier › Groupes : par destination, rangement d'un groupe, « Corriger » → cartes avec `S.focusId`). IA locale coupée quand `propositions` est faux ; le worker lit le texte en cache (`text_of`).
 
+- **v0.7.6** : `static/navigation.js` (chargé en dernier) : Documents et Archives en étapes (`drill` : pays → famille → sous-famille → liste, état `S.dn[docs|archives]`, fil `dnCrumbs`), recherche groupée (`dnSearch`), retour à l'origine (`go` mémorise `S.from`, `navBack`), fiche avec bouton « i » (`S.info`, annexes : fichier, nom reçu, `extra.origin`, sorties, confidentialité, empreinte). Dates : `classify._pick_dates` écarte les dates de naissance (`BIRTH_HINTS`), prend la délivrance (`ISSUE_HINTS`, ou expiration − 5/10/15 ans) ; `Bureau._redate` dans `refresh()`.
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.

@@ -108,5 +108,16 @@ except sortie.SortieRefusee:
     check(not os.path.exists(os.path.join(tmp, "m", "bad.gguf")) and os.path.exists(os.path.join(tmp, "m", "bad.gguf.part.rejete")),
           "empreinte fausse : fichier refusé, gardé à part, jamais utilisé")
 
+# v0.7.6 : un titre d'identité prend la date de délivrance, jamais la date de naissance
+from bontoutou.classify import _pick_dates
+import datetime as _dt
+_T = _dt.date(2026, 10, 12)
+d, e, _w = _pick_dates("CARTE NATIONALE D IDENTITE Ne(e) le : 31.12.1985 Carte valable jusqu au : 04.10.2029 delivree le : 05.10.2014", "cni.pdf", _T)
+check(d == _dt.date(2014, 10, 5) and e == _dt.date(2029, 10, 4), "carte d'identité : date de délivrance, pas la naissance")
+d, e, _w = _pick_dates("PASSEPORT Date of birth 31 12 1985 Date of issue Date of expiry 05 10 2019 04 10 2029", "p.pdf", _T)
+check(d == _dt.date(2019, 10, 5) and e == _dt.date(2029, 10, 4), "passeport en tableau : délivrance retrouvée 10 ans avant l'expiration")
+d, e, _w = _pick_dates("date of issue 05 OCT 2019 date of expiry 04 OCT 2029", "p.pdf", _T)
+check(e == _dt.date(2029, 10, 4), "« 04 OCT 2029 » n'est pas lu aussi comme « fin octobre 2029 »")
+
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)")
 sys.exit(1 if fails else 0)
