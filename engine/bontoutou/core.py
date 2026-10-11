@@ -584,6 +584,8 @@ class Bureau:
     def _ai_wanted(self, a, text):
         if not (self.settings.get("use_ollama") and self.settings.get("ollama_model")) or a["confidence"] == "haute":
             return False
+        if not self.settings.get("propositions"):   # propositions masquées : l'IA ne tourne pas pour rien (ordinateur plus rapide)
+            return False
         # IA lente sur cet ordinateur (essai > 60 s) : on ne la dérange que pour les documents « à vérifier »
         if self._ai_secs() > 60 and a["confidence"] != "basse":
             return False
@@ -603,11 +605,18 @@ class Bureau:
                         if json.loads(r["analysis"]).get("ai_pending")]
             if not rows:
                 return
+            if not self.settings.get("propositions"):   # propositions masquées pendant la file : on arrête et on libère la file
+                with self.lock:
+                    for r0 in rows:
+                        a0 = json.loads(r0["analysis"]); a0["ai_pending"] = False
+                        self.db.execute("UPDATE inbox SET analysis=? WHERE id=?", (json.dumps(a0), r0["id"]))
+                    self.db.commit()
+                return
             r = rows[0]
             a = json.loads(r["analysis"])
             path = self.abs(r["path"])
             try:
-                text, _ = reader.extract(path) if os.path.exists(path) else ("", "")
+                text, _ = self.text_of(r["sha"], r["path"]) if os.path.exists(path) else ("", "")   # texte déjà lu : pas de nouvel OCR
                 vision = self.settings.get("ai_mode") == "vision"
                 img = reader.page_image(path) if vision and len((text or "").strip()) < 80 else None
                 eng = ia.engine_by_id(self.settings.get("ai_engine") or "auto") or {"url": None, "kind": "", "name": ""}
@@ -960,7 +969,8 @@ class Bureau:
              "emitter_candidates": [e for e in (a.get("emitter_candidates") or []) if classify.slugify(e) != a["emitter"]][:3],
              "date_year": a.get("date_year") if not ov.get("date") else None,
              "set": [k for k in ("type", "emitter", "date", "person", "country", "detail") if ov.get(k)],
-             "holder_seen": a.get("holder_seen"), "engine": a.get("engine") or "règles", "suggest": ov.get("suggest") or ""}
+             "holder_seen": a.get("holder_seen"), "engine": a.get("engine") or "règles", "suggest": ov.get("suggest") or "",
+             "plan": ov.get("plan") or "", "plan_note": ov.get("plan_note") or ""}
         dup = self.db.execute("SELECT id,label,path FROM docs WHERE sha=?", (row["sha"],)).fetchone()
         p["duplicate"] = dict(dup) if dup else None
         cur = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status='actuel'", (key,)).fetchone() if key else None
@@ -1554,6 +1564,63 @@ class Bureau:
                         "emitter": ex.get("emitter_display") or (r["emitter"] or "").replace("-", " "), "suggestion": ex.get("suggestion") or "",
                         "status": r["status"]})
         return out
+
+    # ------------------------------------------------------------ plan de rangement préparé ailleurs (v0.7.5)
+    PLAN_FIELDS = ("usage", "type", "country", "emitter", "date", "expiry", "person", "detail", "suggest")
+
+    def _plans_dir(self):
+        return os.path.join(self.fm, "plans")
+
+    def plans(self):
+        """Plans de rangement préparés pour toi (par ex. par Claude, à ta demande) : un fichier JSON par plan dans .bontoutou/plans.
+        Rien n'est rangé tant que tu n'as pas validé dans Trier."""
+        out, d = [], self._plans_dir()
+        waiting = {r["sha"] for r in self.db.execute("SELECT sha FROM inbox WHERE state='a_trier'").fetchall()}
+        for f in sorted(os.listdir(d), reverse=True) if os.path.isdir(d) else []:
+            if not f.endswith(".json"):
+                continue
+            pl = read_json(os.path.join(d, f), {}) or {}
+            items = pl.get("items") or []
+            out.append({"file": f, "source": pl.get("source") or "?", "created": pl.get("created"), "n": len(items),
+                        "match": sum(1 for x in items if isinstance(x, dict) and x.get("sha") in waiting), "applied": pl.get("applied")})
+        return out
+
+    def plan_apply(self, fname):
+        """Pré-remplit les documents de Trier avec un plan : chaque document reçoit les champs proposés (usage, type, émetteur,
+        date…), sans écraser ce que tu as déjà choisi toi-même. Les fichiers ne bougent pas : tu valides ensuite, par groupes."""
+        path = os.path.join(self._plans_dir(), os.path.basename(fname or ""))
+        pl = read_json(path, None)
+        if not pl or not isinstance(pl.get("items"), list):
+            return {"ok": False, "msg": "Plan illisible"}
+        src = str(pl.get("source") or "plan")[:40]
+        n, unknown = 0, 0
+        with self.lock:
+            for it in pl["items"]:
+                if not isinstance(it, dict):
+                    continue
+                row = self.db.execute("SELECT * FROM inbox WHERE sha=? AND state='a_trier'", (it.get("sha"),)).fetchone()
+                if not row:
+                    continue
+                if it.get("type") and it["type"] not in TYPES:
+                    unknown += 1
+                    continue
+                if it.get("country") and it["country"] not in COUNTRIES:
+                    it["country"] = None
+                ov = json.loads(row["overrides"] or "{}")
+                for k in self.PLAN_FIELDS:
+                    v = it.get(k)
+                    if v not in (None, "") and not ov.get(k):
+                        ov[k] = str(v).strip()[:160]
+                ov["plan"] = src
+                if it.get("note"):
+                    ov["plan_note"] = str(it["note"])[:240]
+                self.db.execute("UPDATE inbox SET overrides=? WHERE id=?", (json.dumps(ov), row["id"]))
+                n += 1
+            self.db.commit()
+        pl["applied"] = now()
+        write_json(path, pl)
+        self.diag("plan", fichier=os.path.basename(path), source=src, appliques=n, types_inconnus=unknown)
+        return {"ok": True, "n": n, "unknown": unknown}
 
     # ------------------------------------------------------------ recommencer de zéro / revenir à un rangement précédent
     def _rangements_dir(self):

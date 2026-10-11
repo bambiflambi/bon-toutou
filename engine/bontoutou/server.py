@@ -246,6 +246,10 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.tidy_jobs())
             if p == "/api/unknown":
                 return self._json(B.unknown(data["id"]))
+            if p == "/api/plans":
+                return self._json(B.plans())
+            if p == "/api/plan/apply":
+                return self._json(B.plan_apply(data.get("file")))
             if p == "/api/autres":
                 return self._json(B.autres())
             if p == "/api/known":

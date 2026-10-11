@@ -35,6 +35,8 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **v0.7.4** : types génériques créés par `catalog.load` : `autre_<cat>` (sous-dossier `<cat>-9_Autres`) et `autre_<cat>_<n>` (dossier `Autres` dans la sous-famille, clé `inner`), `generic: True` = jamais proposés (exclus du prompt IA, du score, des tuiles normales) ; « autre » → catégorie 16 Autres familles. Override `suggest` → `extra.suggestion`. `Bureau.autres()` / `/api/autres`, Réglages › Les « Autres » à étudier.
 
+- **v0.7.5** : `Bureau.plans()` / `plan_apply()` (`.bontoutou/plans/*.json` : items par `sha` avec usage, type, émetteur, titulaire, intitulé, suggestion, note ; overrides sans écraser ceux de l'utilisateur, `ov.plan` = source) ; `static/groupes.js` (Trier › Groupes : par destination, rangement d'un groupe, « Corriger » → cartes avec `S.focusId`). IA locale coupée quand `propositions` est faux ; le worker lit le texte en cache (`text_of`).
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.

@@ -2,6 +2,11 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.7.5 — Un plan de rangement, validé par groupes
+- **Plan de rangement** : un fichier préparé pour toi (dans `.bontoutou/plans`, par exemple par Claude à ta demande) propose pour chaque document de Trier son usage, son type, son émetteur, son titulaire et une note. « Appliquer le plan » pré-remplit les documents, **sans rien ranger**, et sans jamais écraser un choix que tu as déjà fait.
+- **Trier › Groupes** : les documents regroupés par dossier de destination (ex. « France › Archives › Travail & revenus › Bulletins de paie › Kayser · 10 documents »). Tu décoches les exceptions, tu ranges le groupe d'un clic (un seul « Annuler »). « Corriger » ouvre ce document en cartes.
+- **Plus rapide pendant le tri** : quand les propositions sont masquées, l'IA locale ne tourne plus en arrière-plan (elle occupait l'ordinateur pour rien), et elle ne relit plus les scans déjà lus.
+
 ## 0.7.4 — Un « Autres » partout, pour étudier les cas particuliers
 - **Chaque famille a son « Autres »** (ex. Travail & revenus › Autres) et **chaque sous-famille aussi** (ex. Travail & revenus › Contrats › Autres). Dans le choix en tuiles : une tuile « Autres » dans chaque famille, une tuile « Autre » dans chaque sous-famille, et « Autre famille » quand aucune ne convient (dossier 16 Autres familles › À étudier).
 - **Quelle famille imagines-tu ?** Quand un document va dans un « Autres », tu peux écrire la famille que tu verrais pour lui (facultatif, avec les idées déjà écrites proposées dès 2 lettres). Elle est gardée dans sa fiche.

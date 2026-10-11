@@ -384,5 +384,23 @@ if _ib:
     br.undo(_r["batch"])
 check("autre_05" in catalog.TYPES and catalog.TYPES["autre_05"]["sub"] == "05-9" and not [t for t in classify.build_prompt("x", "x", ["FR"]).split("parmi : ")[1].split(")")[0].split(", ") if t.startswith("autre_")],
       "« Autres » de famille : jamais proposés à l'IA")
+# v0.7.5 : plan de rangement préparé ailleurs, appliqué sans rien ranger, puis validé par groupes
+_ib = [x for x in br.inbox() if not x["overridden"]]
+if len(_ib) >= 2:
+    _sh = {x["id"]: br.db.execute("SELECT sha FROM inbox WHERE id=?", (x["id"],)).fetchone()[0] for x in _ib[:2]}
+    os.makedirs(os.path.join(br.fm, "plans"), exist_ok=True)
+    br.set_overrides(_ib[1]["id"], {"emitter": "Choix de l'utilisateur"})
+    json.dump({"format": 1, "source": "Claude", "items": [{"sha": _sh[_ib[0]["id"]], "type": "releve_bancaire", "emitter": "Banque Plan", "usage": "archive", "note": "test"},
+                                                          {"sha": _sh[_ib[1]["id"]], "type": "rib", "emitter": "Écrasé ?", "usage": "utile"},
+                                                          {"sha": "inconnu", "type": "rib"}]}, open(os.path.join(br.fm, "plans", "plan-test.json"), "w"))
+    _pl = br.plans()
+    check(_pl and _pl[0]["match"] == 2, "plan : documents de Trier reconnus par empreinte")
+    _n0 = br.db.execute("SELECT COUNT(*) FROM docs").fetchone()[0]
+    _r = br.plan_apply("plan-test.json")
+    _p = {x["id"]: x for x in br.inbox()}
+    check(_r["n"] == 2 and _p[_ib[0]["id"]]["type"] == "releve_bancaire" and _p[_ib[0]["id"]]["plan"] == "Claude" and "99_ARCHIVES" in _p[_ib[0]["id"]]["dest"],
+          "plan appliqué : pré-rempli (type, usage), marqué « Claude »")
+    check(_p[_ib[1]["id"]]["emitter_display"] == "Choix de l'utilisateur", "plan : ne remplace jamais un choix déjà fait")
+    check(br.db.execute("SELECT COUNT(*) FROM docs").fetchone()[0] == _n0, "plan : rien n'est rangé avant validation")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

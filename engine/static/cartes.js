@@ -2,7 +2,7 @@
    ← Plus tard · ↓ Corriger · → Ranger · Z Annuler. Le mode Liste (app.js) reste disponible.
    Aussi : ce que Bon toutou a compris de ton rangement (import d'un dossier), et « Regrouper les employeurs » (Documents). */
 const trierListe = trier;
-try { S.tmode = localStorage.getItem("bt.trier") === "liste" ? "liste" : "cartes"; } catch (e) { S.tmode = "cartes"; }
+try { const m = localStorage.getItem("bt.trier"); S.tmode = m === "liste" || m === "groupes" ? m : "cartes"; } catch (e) { S.tmode = "cartes"; }
 S.later = S.later || [];
 
 const ymLabel = (ym) => (ym ? `${M[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}` : "");

@@ -575,3 +575,15 @@ textarea.field{width:100%}
 .tp-autres{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}.tp-autres .sub{margin-right:4px;font-size:12.5px}
 .tp-autres .chip{font-size:12.5px;padding:4px 10px;border-style:dashed}
 .ff.sugg{margin:0 0 14px}
+
+/* v0.7.5 — valider par groupes */
+.planbar{display:flex;gap:12px;align-items:center;margin-bottom:14px;border-color:var(--accent)}
+.gcard{margin-bottom:14px;overflow:hidden}
+.ghead{display:flex;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border-light);background:var(--accent-light)}
+.ghead b{font-size:15px}
+.grow-row{display:flex;gap:12px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--border-light)}
+.grow-row .fname{font-size:13px;overflow-wrap:anywhere}.grow-row .sub{font-size:12px}
+.grow-row input{width:16px;height:16px;accent-color:var(--accent-dark)}
+.gmore{display:block;padding:10px 16px}
+.gcard{display:flex;flex-direction:column;align-items:stretch}.gcard>.ghead,.gcard>.grow-row,.gcard>.gmore{width:100%;box-sizing:border-box;flex:none}
+.ghead .grow{flex:1;min-width:0}.grow-row>.grow{flex:1;min-width:0}

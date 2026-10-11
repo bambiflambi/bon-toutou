@@ -82,9 +82,12 @@ check(len(s) == 1 and s[0]["purpose"] == "modele" and "Ministral 3 · 8B" in s[0
 t = b.ai_test("lmstudio", "local-model"); check(t["ok"] and t["secondes"] >= 0, "essai chronométré du modèle")
 
 check(SEEN and any(x[1].get("keep_alive") == "30m" for x in SEEN if x[0] == "/api/generate"), "le modèle reste chargé 30 min entre deux documents")
-b.save_settings({"use_ollama": True, "ollama_model": "ministral-3:3b", "ai_bench": {"ministral-3:3b": 75}})
+b.save_settings({"propositions": True, "use_ollama": True, "ollama_model": "ministral-3:3b", "ai_bench": {"ministral-3:3b": 75}})
 check(b._ai_timeout(False) == 285, "délai adapté à la vitesse mesurée (75 s → 285 s)")
 check(not b._ai_wanted({"confidence": "moyenne"}, "x" * 50) and b._ai_wanted({"confidence": "basse"}, "x" * 50), "IA lente : sollicitée seulement pour les documents « à vérifier »")
+b.save_settings({"propositions": False})
+check(not b._ai_wanted({"confidence": "basse"}, "x" * 50), "propositions masquées : l'IA locale ne tourne pas (ordinateur plus rapide)")
+b.save_settings({"propositions": True})
 
 # moteur intégré : téléchargement GGUF seulement avec une empreinte, et vérifiée
 r = ia.pull(EI, "ministral-3-3b", b.log_sortie)
