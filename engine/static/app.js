@@ -181,8 +181,8 @@ function tcard(p) {
 /* ------------------------------------------------ DOCUMENTS */
 function docRow(d) {
   const e = d.expiry ? daysTo(d.expiry) : null;
-  return `<div class="row drow k-${esc(d.country)}" data-doc="${d.id}" role="button" tabindex="0" style="cursor:pointer"><span class="oi">${catIc(d.cat)}</span><div class="grow"><b>${esc(d.label)}</b> ${cc(d.country)}
-    <div class="sub">${d.person && d.person !== "moi" && d.person !== S.st.settings.owner ? esc(d.person) + " · " : ""}${frd(d.doc_date)}${d.versions > 1 ? ` · ${d.versions} versions` : ""}</div></div>
+  return `<div class="row drow k-${esc(d.country)}" data-doc="${d.id}" role="button" tabindex="0" style="cursor:pointer"><span class="oi">${catIc(d.cat)}</span><div class="grow"><b>${esc(d.label)}</b>${d.person && d.person !== "moi" && d.person !== S.st.settings.owner ? ` <span class="whoname">— ${esc(d.person)}</span>` : ""} ${cc(d.country)}
+    <div class="sub">${frd(d.doc_date)}${d.versions > 1 ? ` · ${d.versions} versions` : ""}</div></div>
     ${e !== null && e <= 365 ? `<span class="pill ${e < 0 ? "bad" : e <= 30 ? "warn" : "neutral"}">${e < 0 ? "expiré" : "expire dans " + e + " j"}</span>` : ""}${lvBadge(d.cat)}</div>`;
 }
 function subBlock(D, c) {
@@ -399,7 +399,7 @@ document.addEventListener("click", async (e) => {
   if (act === "undo") { const r = await api("/api/undo", { batch: a.dataset.b }); $("#toast").hidden = true; await load(); toast(r.msg); }
   if (act === "reveal") { const r = await api("/api/reveal", { p: a.dataset.p }); if (!r.ok) toast(r.msg || "Impossible d'ouvrir le dossier"); }
   if (act === "doc-refresh") { S.busy = "Mise à jour de ton bureau…"; render(); const r = await api("/api/refresh", {}); S.busy = ""; await load();
-    return toast(r.n || (r.closed || []).length ? r.msg : "Tout est déjà à jour", r.batch); }
+    return toast(r.msg || "Tout est déjà à jour", r.batch); }
   if (act === "redetect") { S.busy = "Relecture des documents sans émetteur…"; render(); const r = await api("/api/redetect", {}); S.busy = ""; await load();
     toast(r.n ? `Émetteur retrouvé pour ${r.n} ${plural(r.n, "document")} · rangés dans leur dossier` : "Aucun émetteur retrouvé : corrige-les un par un avec « Corriger le classement »", r.batch); }
   if (act === "askterm") { S.confirm = "term"; render(); }

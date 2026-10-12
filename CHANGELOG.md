@@ -2,6 +2,16 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.7.8 — Chaque version à sa place, chaque papier à son nom
+- **Fiche d'un document** : depuis Documents, tu vois ses anciennes versions marquées « dans Archives » ; depuis Archives, la version qui l'a remplacé, marquée « dans Documents ». Chaque ligne ouvre la fiche de cette version (plus de fichier ouvert par surprise).
+- **À qui est ce papier** : dans Documents, Archives, la recherche et la fiche, le nom du titulaire s'affiche à côté de l'intitulé dès que ce n'est pas toi (« Passeport — Éric … »).
+- **Émetteur lisible** : « Préfecture de la Charente-Maritime », plus « Prefecture-de-la-Charente-Maritime ».
+- **Intertitres justes** : dans une sous-famille, « Pièces d'identité » puis « Autres », plus « Sans émetteur ».
+- **Documents › Mettre à jour** :
+  - repère les **doublons** (même texte lu deux fois) et prépare une revue « Doublons trouvés » : un document et ses copies, rien n'est déplacé avant que tu l'appliques ;
+  - corrige les **dates manifestement fausses** : date de naissance prise pour la date du document, ou date du jour du rangement quand une vraie date est écrite dans le texte.
+- Une date qui suit « Né le … » n'est plus prise pour une naissance.
+
 ## 0.7.7 — La Revue, et des pièces d'identité lues comme il faut
 - **Revue des documents déjà rangés** : une revue préparée pour toi (dans `.bontoutou/revues`, par exemple par Claude après avoir vérifié tes papiers avec toi) apparaît en haut de Documents. « Voir le détail » montre, document par document, ce qui change et pourquoi ; « Appliquer la revue » fait tout d'un coup, avec un seul « Annuler ».
 - **Copies** : plusieurs scans d'un même papier (recto, verso, copie couleur…) deviennent **un document et ses copies**. Les copies sont rangées dans un dossier « Copies » à côté de lui, visibles derrière « i », et n'encombrent plus ni Documents ni Archives. Rien n'est supprimé.

@@ -605,3 +605,5 @@ textarea.field{width:100%}
 .rvlist{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:420px;overflow:auto}
 .rvline{padding:8px 10px;border-radius:var(--radius-sm);background:var(--bg)}
 .rvwhy{font-style:italic;margin-top:2px}
+.whoname{font-weight:500;color:var(--text-secondary)}
+h1 .whoname{font-size:.6em}

@@ -461,5 +461,16 @@ check(br.settings["owner"] == "Camille-Rose Martin" and _a["person"] == "Camille
       "revue « ton nom » : vrai nom dans le profil, titulaires et émetteurs unifiés")
 br.undo(_r["batch"])
 check(br.settings["owner"] == "Kami" and br.db.execute("SELECT person FROM docs WHERE id=?", (_ds[0]["id"],)).fetchone()[0] != "Camille-Rose Martin", "changement de nom annulable")
+# v0.7.8 : Mettre à jour prépare une revue des doublons (texte identique) et corrige une date de naissance prise pour la date
+_L = ["ATTESTATION DE SCOLARITE", "Je soussigne certifie que l eleve est inscrit dans notre etablissement pour l annee", "Fait pour servir et valoir ce que de droit", "Ne le 10/03/2003", "Le 05/09/2019"]
+for _n in ("scol_a.pdf", "scol_b.pdf"):
+    pdf(os.path.join(src, _n), _L + ([" "] if _n == "scol_b.pdf" else [])); br.add_upload(_n, open(os.path.join(src, _n), "rb").read())
+for _x in br.inbox():
+    if _x["orig"].startswith("scol_"):
+        br.set_overrides(_x["id"], {"type": "autre", "date": "2003-03-10"}); br.validate([_x["id"]])
+_r = br.refresh()
+_dr = [r for r in br.revues() if r["file"].startswith("revue-doublons-") and not r["applied"]]
+check(_dr and any(l["to"].get("status") == "copie" for l in _dr[0]["lines"]), "Mettre à jour : doublons repérés, revue préparée (rien déplacé)")
+check(br.db.execute("SELECT doc_date FROM docs WHERE orig_name='scol_a.pdf'").fetchone()[0] == "2019-09-05", "date de naissance prise pour la date du document : corrigée")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

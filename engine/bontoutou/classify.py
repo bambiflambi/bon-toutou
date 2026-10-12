@@ -403,8 +403,7 @@ ISSUE_HINTS = ("delivre le", "delivree le", "delivre(e) le", "date de delivrance
                "expedicion", "ausstellungsdatum", "rilascio", "uitgifte")
 
 
-def _last_hint(ctx):
-    """Le libellé le plus proche avant une date : 'birth', 'issue', 'expiry' ou None."""
+def _hint_in(ctx):
     best, kind = -1, None
     for k, H in (("birth", BIRTH_HINTS), ("issue", ISSUE_HINTS), ("expiry", EXPIRY_HINTS)):
         for h in H:
@@ -412,6 +411,17 @@ def _last_hint(ctx):
             if i > best:
                 best, kind = i, k
     return kind
+
+
+def _last_hint(ctx):
+    """Le libellé le plus proche avant une date : 'birth', 'issue', 'expiry' ou None.
+    La naissance ne vaut que jusqu'à la date précédente (« Né le 10/03/2003 · Le 05/09/2019 » : la 2e n'est pas une naissance) ;
+    délivrance et expiration valent aussi pour les tableaux (libellés en ligne, valeurs dessous)."""
+    k = _hint_in(re.split(r"\d{4}", ctx)[-1])
+    if k:
+        return k
+    k = _hint_in(ctx)
+    return k if k != "birth" else None
 
 
 def _pick_dates(text, filename, today):

@@ -1323,14 +1323,18 @@ class Bureau:
             redated = self._redate(ops)
             renamed = self._canon_people(ops)
             closed = self.close_old_employers(ops)
+            dups = self._dup_revue()
             if not ops:
-                return {"ok": True, "n": 0, "closed": [], "changes": []}
+                return {"ok": True, "n": 0, "closed": [], "changes": [], "dups": dups,
+                        **({"msg": f"{dups} doublon{'s' if dups > 1 else ''} trouvé{'s' if dups > 1 else ''} : revue prête en haut de Documents"} if dups else {})}
             parts = ([f"{len(changes)} émetteur{'s' if len(changes) > 1 else ''} retrouvé{'s' if len(changes) > 1 else ''}"] if changes else []) + \
                     ([f"{len(redated)} date{'s' if len(redated) > 1 else ''} de délivrance corrigée{'s' if len(redated) > 1 else ''}"] if redated else []) + \
                     ([f"{len(renamed)} nom{'s' if len(renamed) > 1 else ''} de titulaire ou d'émetteur unifié{'s' if len(renamed) > 1 else ''}"] if renamed else []) + \
                     ([f"{len(closed)} ancien{'s' if len(closed) > 1 else ''} employeur{'s' if len(closed) > 1 else ''} dans Anciennes versions"] if closed else [])
             b = self._journal("Mise à jour : " + ", ".join(parts), ops)
-            return {"ok": True, "n": len(changes), "changes": changes, "closed": closed, "batch": b, "msg": " · ".join(parts)}
+            if dups:
+                parts.append(f"{dups} doublon{'s' if dups > 1 else ''} trouvé{'s' if dups > 1 else ''} : revue prête en haut de Documents")
+            return {"ok": True, "n": len(changes), "changes": changes, "closed": closed, "batch": b, "msg": " · ".join(parts), "dups": dups}
 
     def redetect(self):
         """Relit le texte (déjà en mémoire) des documents rangés sans émetteur et retrouve l'émetteur
@@ -1395,22 +1399,31 @@ class Bureau:
         return changes
 
     def _redate(self, ops):
-        """v0.7.6 : titres à date d'expiration (carte d'identité, passeport, permis, titre de séjour) rangés avec la date de naissance
-        ou la date du jour : on relit le texte en cache et on prend la date de délivrance quand elle est écrite. Annulable."""
-        ids = [k for k, T in TYPES.items() if T.get("expiry") and not T.get("generic")]
-        if not ids:
-            return []
-        rows = self.db.execute("SELECT * FROM docs WHERE type IN (%s)" % ",".join("?" * len(ids)), ids).fetchall()
+        """Dates manifestement fausses, relues dans le texte déjà lu (aucun nouvel OCR) :
+        - titres d'identité : la date de délivrance (jamais la naissance) ;
+        - tout document : une date de naissance prise par erreur, ou la date du jour du rangement (aucune date trouvée alors)."""
+        ids = {k for k, T in TYPES.items() if T.get("expiry") and not T.get("generic")}
         changes, keys = [], set()
-        for d in rows:
-            text = self.text_of(d["sha"], d["path"])[0] or ""
+        for d in self.db.execute("SELECT * FROM docs WHERE status!='copie'").fetchall():
+            text = self.text_of(d["sha"])[0] or ""
             if not text.strip():
                 continue
             date, expiry, why = classify._pick_dates(text, d["orig_name"] or "", today())
-            if not date or not (why or "").startswith("date de délivrance") or date.isoformat() == d["doc_date"]:
+            if not date or date.isoformat() == d["doc_date"]:
+                continue
+            if d["type"] in ids:
+                ok = (why or "").startswith("date de délivrance")
+            else:
+                dates, t = classify.find_dates(text)
+                births = {x.isoformat() for p, x in dates if classify._last_hint(t[max(0, p - 45):p]) == "birth"}
+                M = classify.mrz(text)
+                if M and M.get("birth"):
+                    births.add(M["birth"].isoformat())
+                ok = (d["doc_date"] in births or d["doc_date"] == (d["added_at"] or "")[:10]) and "vérifier" not in (why or "")
+            if not ok:
                 continue
             f = {"date": date.isoformat()}
-            if expiry and not d["expiry"]:
+            if expiry and not d["expiry"] and TYPES.get(d["type"], {}).get("expiry"):
                 f["expiry"] = expiry.isoformat()
             if self.reclassify(d["id"], f, ops).get("ok"):
                 changes.append({"label": d["label"], "date": f["date"]})
@@ -1419,6 +1432,35 @@ class Bureau:
                     keys.add(k)
         self._fix_suivi(keys, ops)
         return changes
+
+    def _dup_revue(self):
+        """Doublons : deux fichiers dont le texte lu est identique (même scan enregistré deux fois, copie renommée…).
+        Rien n'est déplacé : une revue « Doublons » est préparée, tu la vérifies et tu l'appliques (un document + ses copies)."""
+        import hashlib
+        from collections import defaultdict
+        G = defaultdict(list)
+        for d in self.db.execute("SELECT * FROM docs WHERE status!='copie' ORDER BY CASE status WHEN 'actuel' THEN 0 ELSE 1 END, length(orig_name), added_at").fetchall():
+            t = re.sub(r"[^a-z0-9]", "", classify.norm(self.text_of(d["sha"])[0] or ""))
+            if len(t) >= 80:
+                G[hashlib.sha1(t.encode()).hexdigest()].append(d)
+        items = []
+        for L in G.values():
+            if len(L) < 2:
+                continue
+            main = L[0]
+            for c in L[1:]:
+                items.append({"sha": c["sha"], "status": "copie", "copy_of": main["sha"],
+                              "note": f"Même texte que « {main['orig_name']} » : rattaché comme copie, rien n'est supprimé."})
+        if not items:
+            return 0
+        d = self._revues_dir()
+        os.makedirs(d, exist_ok=True)
+        pending = [f for f in os.listdir(d) if f.startswith("revue-doublons-") and not (read_json(os.path.join(d, f), {}) or {}).get("applied")]
+        for f in pending:   # une seule revue de doublons en attente : la plus récente remplace l'ancienne
+            write_json(os.path.join(d, f), {**(read_json(os.path.join(d, f), {}) or {}), "applied": "remplacée"})
+        write_json(os.path.join(d, f"revue-doublons-{dt.date.today().isoformat()}.json"),
+                   {"format": FORMAT, "source": "Bon toutou", "title": "Revue · Doublons trouvés", "created": now(), "items": items})
+        return len(items)
 
     def _fix_suivi(self, keys, ops):
         """Après un regroupement : dans chaque suivi, la version la plus récente est l'actuelle, les autres passent dans l'historique."""

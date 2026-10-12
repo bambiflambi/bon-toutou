@@ -20,6 +20,10 @@ async function navBack() {
 }
 const fromArchives = () => S.v === "doc" && S.from && S.from.v === "archives";
 
+/* ---- À qui est ce papier : le nom s'affiche dès que ce n'est pas toi */
+const whoOf = (d) => (d && d.person && d.person !== "moi" && d.person !== (S.st.settings.owner || "") ? d.person : "");
+const emDisp = (d) => { const ex = docExtra(d); return ex.emitter_display || String(d.emitter || "").replace(/-/g, " "); };
+
 /* ---- Le fil d'étapes et les tuiles */
 const dnSubOf = (d) => d.sub || String(d.sub_folder || "").split("_")[0] || "?";
 function dnTiles(kind, L, level) {
@@ -46,10 +50,11 @@ function dnCountries(kind, L) {
 /* Liste d'une sous-famille : un intertitre par émetteur quand il y en a plusieurs. */
 function dnList(kind, L) {
   const rows = (X) => (kind === "archives" ? suiviRows(X, "old") : X.map(docRow).join(""));
-  const E = [...new Set(L.map((d) => d.emitter_folder || ""))].sort();
+  const E = [...new Set(L.map((d) => d.emitter_folder || ""))].sort((a, b) => (a === "Autres") - (b === "Autres") || a.localeCompare(b));
   if (E.length < 2) return `<div class="card doclist">${rows(L)}</div>`;
+  const head = (e) => (e === "Autres" ? "Autres" : e ? e.replace(/-/g, " ") : subName(dnSubOf(L[0])));   // dossier « Autres » de la sous-famille, ou un émetteur
   return `<div class="card doclist">${E.map((e) => { const Y = L.filter((d) => (d.emitter_folder || "") === e);
-    return `<div class="subhead" style="text-transform:none;letter-spacing:0">${esc(e ? e.replace(/-/g, " ") : "Sans émetteur")} · ${Y.length}</div>${rows(Y)}`; }).join("")}</div>`;
+    return `<div class="subhead" style="text-transform:none;letter-spacing:0">${esc(head(e))} · ${Y.length}</div>${rows(Y)}`; }).join("")}</div>`;
 }
 function drill(kind, L, root) {
   const st = S.dn[kind];
@@ -125,6 +130,18 @@ docView = function () {
   const panel = S.info ? `<div class="infobox"><dl class="kv">${annex.map((a) => `<dt>${a[0]}</dt><dd${a[2] ? ' class="fname"' : ""}>${a[1]}</dd>`).join("")}</dl></div>` : "";
   h = h.replace(/(<\/dl>)(\s*<div class="acts" style="margin-top:12px">)/, `$1${panel}$2`);
   if (!S.info) h = h.replace(/<div class="fname sub">[^<]*<\/div><\/div><button class="linkbtn" data-open=/g, "</div><button class=\"linkbtn\" data-open=");
+  // émetteur écrit comme un nom, pas comme un nom de fichier
+  h = h.replace(/<dt>Émetteur<\/dt><dd>[^<]*<\/dd>/, `<dt>Émetteur</dt><dd>${esc(emDisp(d))}</dd>`);
+  // à qui : dans le titre quand ce n'est pas toi
+  if (whoOf(d)) h = h.replace(/(<h1 style="margin:0">)([\s\S]*?)(<\/h1>)/, `$1$2 <span class="whoname">— ${esc(whoOf(d))}</span>$3`);
+  // versions : chacune à sa place. Depuis Documents, les anciennes (dans Archives) ; depuis Archives, l'actuelle (dans Documents)
+  const H = (d.history || []).filter((x) => x.id !== d.id), cur = H.filter((x) => x.status === "actuel"), olds = H.filter((x) => x.status !== "actuel");
+  const vrow = (x, where) => `<div class="row drow vjump" data-doc="${x.id}" role="button" tabindex="0" style="cursor:pointer"><span class="pill ${x.status === "actuel" ? "ok" : "neutral"}">${esc(x.status_label)}</span><div class="grow"><b>${frd(x.doc_date)}</b> <span class="sub">· ${where}</span></div><span>›</span></div>`;
+  const vers = (d.status === "actuel"
+      ? (olds.length ? `<div class="label" style="margin:22px 0 8px">Anciennes versions · rangées dans Archives</div><div class="card">${olds.map((x) => vrow(x, "dans Archives")).join("")}</div>` : "")
+      : (cur.length ? `<div class="label" style="margin:22px 0 8px">Remplacé par · dans Documents</div><div class="card">${cur.map((x) => vrow(x, "dans Documents")).join("")}</div>` : "")
+        + (olds.length ? `<div class="label" style="margin:22px 0 8px">Autres anciennes versions</div><div class="card">${olds.map((x) => vrow(x, "dans Archives")).join("")}</div>` : ""));
+  h = h.replace(/<div class="label" style="margin:22px 0 8px">Version actuelle et historique<\/div>[\s\S]*?(<div class="label" style="margin:22px 0 8px">Utilisé dans)/, vers + "$1");
   // la ligne sous le titre : seulement ce qui aide à reconnaître le document
   h = h.replace(/<p class="sub" style="margin:0 0 14px"><span class="pill acc">Document suivi<\/span>[\s\S]*?<\/p>/, `<p class="sub" style="margin:0 0 14px">${esc(catName(d.cat))} › ${esc(subName(d.sub || dnSubOf(d)))}${d.status !== "actuel" ? ` · <span class="pill neutral">${esc(d.status_label)}</span>` : ""}</p>`);
   return h;

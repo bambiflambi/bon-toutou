@@ -13,7 +13,7 @@ function suiviRows(X, kind) {
     const ended = L.some((x) => x.status === "termine");
     const what = n > 1 ? `${n} ${ended ? "documents" : "anciennes versions"} · ${span}` : (ended ? frd(d.doc_date) : `ancienne version du ${frd(d.doc_date)}`);
     const head = `<div class="row drow k-${esc(d.country)} arow" ${n > 1 ? `data-opens="${esc(k)}" role="button" tabindex="0" aria-expanded="${open}"` : `data-doc="${d.id}" role="button" tabindex="0"`} style="cursor:pointer">
-      <span class="oi">${kind === "old" ? IC.archive : catIc(d.cat)}</span><div class="grow"><b>${esc(d.label)}</b> ${cc(d.country)}<div class="sub">${what}</div></div>
+      <span class="oi">${kind === "old" ? IC.archive : catIc(d.cat)}</span><div class="grow"><b>${esc(d.label)}</b>${d.person && d.person !== "moi" && d.person !== S.st.settings.owner ? ` <span class="whoname">— ${esc(d.person)}</span>` : ""} ${cc(d.country)}<div class="sub">${what}</div></div>
       ${L.some((x) => x.status === "termine") ? `<span class="pill neutral">situation finie</span>` : ""}<span class="chev">${n > 1 ? (open ? "▾" : "▸") : "›"}</span></div>`;
     const body = open ? `<div class="vlist">${L.map((v) => `<div class="row vrow" data-doc="${v.id}" role="button" tabindex="0" style="cursor:pointer"><span class="vdate">${frd(v.doc_date)}</span><span class="sub grow">${esc(v.label)}</span><button class="linkbtn" data-open="${esc(v.path)}">Ouvrir</button></div>`).join("")}</div>` : "";
     return head + body;
