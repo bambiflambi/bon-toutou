@@ -119,5 +119,11 @@ check(d == _dt.date(2019, 10, 5) and e == _dt.date(2029, 10, 4), "passeport en t
 d, e, _w = _pick_dates("date of issue 05 OCT 2019 date of expiry 04 OCT 2029", "p.pdf", _T)
 check(e == _dt.date(2029, 10, 4), "« 04 OCT 2029 » n'est pas lu aussi comme « fin octobre 2029 »")
 
+from bontoutou.classify import mrz as _mrz
+_m = _mrz("P<FRAMARTIN<<CAMILLE<<<<<<<<<<<<<<<<<<<<<<<<<<<\n24CD987654FRA0303103F3407220<<<<<<<<<<<<<<06", _T)
+check(_m and _m["kind"] == "passeport" and _m["birth"] == _dt.date(2003, 3, 10) and _m["expiry"] == _dt.date(2034, 7, 22), "bande MRZ d'un passeport : naissance et expiration")
+d, e, _w = _pick_dates("CARTE NATIONALE D IDENTITE\nDATE DE NAISS / Date of birth\nM FRA 10 03 2003\nDATE D EXPIR / Expiry date\n| X1 22072034", "c.pdf", _T)
+check(d == _dt.date(2024, 7, 23) and e == _dt.date(2034, 7, 22) and "vérifier" in _w, "nouvelle carte : expiration sans séparateur, délivrance déduite (à vérifier)")
+
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)")
 sys.exit(1 if fails else 0)

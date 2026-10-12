@@ -52,7 +52,7 @@ DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "
                    "02": "autorisation", "03": "autorisation", "07": "autorisation", "12": "autorisation", "14": "autorisation",
                    "08": "externe", "11": "externe", "15": "externe"}
 
-STATUS_LABEL = {"actuel": "Version actuelle", "ancienne_version": "Ancienne version", "termine": "Terminé"}
+STATUS_LABEL = {"actuel": "Version actuelle", "ancienne_version": "Ancienne version", "termine": "Terminé", "copie": "Copie"}
 NAME_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})_([A-Z]{2,3})_(\d{2})_([^_]+)_(.+)\.[A-Za-z0-9]+$")
 
 
@@ -542,6 +542,8 @@ class Bureau:
                     self.db.execute(f"INSERT OR REPLACE INTO docs({', '.join(r0)}) VALUES({', '.join('?' * len(r0))})", tuple(r0.values()))
                 elif t == "inbox_new":
                     self.db.execute("DELETE FROM inbox WHERE id=?", (op["id"],))
+                elif t == "settings":   # réglage du profil changé par une revue (ton nom)
+                    self.save_settings(op["before"])
             self.db.execute("UPDATE journal SET undone=1 WHERE batch=?", (r["batch"],))
             self.db.commit()
             self._flush_meta()
@@ -841,31 +843,51 @@ class Bureau:
 
     PERSONAL_CATS = ("01", "06", "09", "12", "15")
 
+    def _is_owner(self, name):
+        """Toi, quelle que soit l'écriture : « PM Belleperche », « PAUL-MARIE BELLEPERCHE », un pseudonyme confirmé (owner_aliases)…"""
+        n = (name or "").replace("-", " ").strip()
+        if not n:
+            return False
+        own = [self.settings.get("owner") or ""] + list(self.settings.get("owner_aliases") or [])
+        return any(o.strip() and (classify.slugify(o).lower() == classify.slugify(n).lower() or classify.same_person(o, n)) for o in own)
+
     def _match_person(self, name):
         """Nom lu dans un document -> « moi » (toi, ou un nom que tu as déjà confirmé comme le tien), un proche, ou None."""
-        toks = lambda x: {w for w in classify.slugify(x or "").lower().split("-") if len(w) >= 2}
-        n = toks(name)
-        if not n:
+        if not (name or "").strip():
             return None
-        same = lambda x: len(n & toks(x)) >= 2 or (toks(x) and toks(x) <= n)
-        if any(same(o) for o in [self.settings.get("owner") or ""] + list(self.settings.get("owner_aliases") or [])):
+        if self._is_owner(name):
             return "moi"
         for h in self.settings.get("holders") or []:
-            if isinstance(h, dict) and h.get("nom") and same(h["nom"]):
+            if isinstance(h, dict) and h.get("nom") and (classify.slugify(h["nom"]).lower() == classify.slugify(name).lower() or classify.same_person(h["nom"], name)):
                 return h["nom"]
         return None
 
+    def _canon_person(self, name):
+        """Une personne déjà présente dans ton bureau sous une autre écriture : on garde l'écriture la plus utilisée."""
+        rows = self.db.execute("SELECT person, COUNT(*) n FROM docs WHERE person IS NOT NULL AND person!='' GROUP BY person ORDER BY n DESC, person").fetchall()
+        for r in rows:
+            if r["person"] != name and (classify.slugify(r["person"]).lower() == classify.slugify(name).lower() or classify.same_person(r["person"], name)) and not self._is_owner(r["person"]):
+                return r["person"]
+        return name
+
     def holder(self, a):
-        """Titulaire du document : le nom saisi, sinon toi (nom des Réglages)."""
+        """Titulaire du document, toujours écrit de la même façon : ton nom (Réglages) pour toi, le nom d'un proche tel que tu l'as
+        écrit, sinon l'écriture déjà la plus utilisée dans ton bureau."""
         h = (a.get("person") or "").strip()
+        own = (self.settings.get("owner") or "").strip()
         if not h or h.lower() == "moi":
-            h = (self.settings.get("owner") or "").strip() or "moi"
-        return h
+            return own or "moi"
+        w = self._match_person(h)
+        if w == "moi":
+            return own or "moi"
+        return w or self._canon_person(h)
 
     def _holder_key(self, a):
         h = self.holder(a)
         own = (self.settings.get("owner") or "").strip()
-        return "moi" if h == "moi" or (own and classify.slugify(h).lower() == classify.slugify(own).lower()) else classify.slugify(h).lower()
+        if h == "moi" or (own and classify.slugify(h).lower() == classify.slugify(own).lower()) or self._is_owner(h):
+            return "moi"   # ton nom, ou un nom que tu as confirmé comme le tien (owner_aliases)
+        return classify.slugify(h).lower()
 
     def _suivi_key(self, a):
         mode = TYPES[a["type"]].get("suivi", "none")
@@ -900,7 +922,10 @@ class Bureau:
 
     def canon_emitter(self, a):
         """Un employeur déjà connu sous un autre nom (« Fournil » / « Boulangerie-Fournil ») : on garde le nom déjà utilisé.
-        Si le nom vient de TON dossier (import), c'est lui qui fait foi : rien n'est remplacé."""
+        Si le nom vient de TON dossier (import), c'est lui qui fait foi : rien n'est remplacé.
+        Un papier que tu as écrit toi-même (CV, lettre…) : ton nom, toujours écrit de la même façon."""
+        if a.get("emitter") and a["emitter"] != "Inconnu" and self.settings.get("owner") and self._is_owner(a["emitter"]):
+            return classify.slugify(self.settings["owner"])
         if a.get("emitter_display") or a.get("emitter_rule") or a.get("type") not in classify.EMPLOYMENT or not a.get("emitter") or a["emitter"] == "Inconnu":
             return a["emitter"]
         names = [r[0] for r in self.db.execute("SELECT emitter, COUNT(*) n FROM docs WHERE type IN (%s) AND emitter IS NOT NULL AND emitter!='Inconnu' GROUP BY emitter ORDER BY n DESC"
@@ -1211,6 +1236,8 @@ class Bureau:
         if not d:
             return None
         out = self._doc_pub(d)
+        out["copies"] = [{"id": c["id"], "path": c["path"], "orig_name": c["orig_name"], "doc_date": c["doc_date"]}
+                         for c in self.db.execute("SELECT * FROM docs WHERE status='copie' AND extra LIKE ?", ('%"copy_of": "' + did + '"%',)).fetchall()]
         if d["suivi"]:
             vs = self.db.execute("SELECT * FROM docs WHERE suivi=? ORDER BY doc_date DESC", (d["suivi"],)).fetchall()
             out["history"] = [self._doc_pub(v) for v in vs]
@@ -1254,6 +1281,9 @@ class Bureau:
             if a["type"] not in TYPES or a["country"] not in COUNTRIES:
                 return {"ok": False, "msg": "Type ou pays inconnu"}
             a["emitter"] = a["emitter"] or "Inconnu"
+            if a["emitter"] != "Inconnu" and self.settings.get("owner") and self._is_owner(a["emitter"]):
+                a["emitter"] = classify.slugify(self.settings["owner"])
+                a["emitter_display"] = ex["emitter_display"] = self.settings["owner"]
             T = TYPES[a["type"]]
             key = self._suivi_key(a)
             ops = [] if own else ops
@@ -1291,11 +1321,13 @@ class Bureau:
             ops = []
             changes = self._redetect(ops)
             redated = self._redate(ops)
+            renamed = self._canon_people(ops)
             closed = self.close_old_employers(ops)
             if not ops:
                 return {"ok": True, "n": 0, "closed": [], "changes": []}
             parts = ([f"{len(changes)} émetteur{'s' if len(changes) > 1 else ''} retrouvé{'s' if len(changes) > 1 else ''}"] if changes else []) + \
                     ([f"{len(redated)} date{'s' if len(redated) > 1 else ''} de délivrance corrigée{'s' if len(redated) > 1 else ''}"] if redated else []) + \
+                    ([f"{len(renamed)} nom{'s' if len(renamed) > 1 else ''} de titulaire ou d'émetteur unifié{'s' if len(renamed) > 1 else ''}"] if renamed else []) + \
                     ([f"{len(closed)} ancien{'s' if len(closed) > 1 else ''} employeur{'s' if len(closed) > 1 else ''} dans Anciennes versions"] if closed else [])
             b = self._journal("Mise à jour : " + ", ".join(parts), ops)
             return {"ok": True, "n": len(changes), "changes": changes, "closed": closed, "batch": b, "msg": " · ".join(parts)}
@@ -1330,6 +1362,37 @@ class Bureau:
                         keys.add(k)
             self._fix_suivi(keys, ops)
             return changes
+
+    def set_owner(self, name):
+        """Ton nom change (Réglages) : l'ancien devient une autre écriture de toi, et tes documents passent à ton nom,
+        fichiers renommés. Un seul « Annuler »."""
+        name = (name or "").strip()
+        with self.lock:
+            old = (self.settings.get("owner") or "").strip()
+            ops = [{"t": "settings", "before": {"owner": old, "owner_aliases": self.settings.get("owner_aliases") or []}}]
+            al = list(self.settings.get("owner_aliases") or [])
+            if old and old not in al and classify.slugify(old).lower() != classify.slugify(name).lower():
+                al.append(old)
+            self.save_settings({"owner": name, "owner_aliases": [a for a in al if classify.slugify(a).lower() != classify.slugify(name).lower()]})
+            ch = self._canon_people(ops)
+            b = self._journal(f"Ton nom : {name}" + (f" ({len(ch)} document{'s' if len(ch) > 1 else ''} renommé{'s' if len(ch) > 1 else ''})" if ch else ""), ops)
+        return {"ok": True, "n": len(ch), "batch": b}
+
+    def _canon_people(self, ops):
+        """Une même personne écrite de plusieurs façons (titulaire ou émetteur) : une seule écriture partout, fichiers renommés."""
+        changes = []
+        own = (self.settings.get("owner") or "").strip()
+        for d in self.db.execute("SELECT * FROM docs WHERE status!='copie'").fetchall():
+            f = {}
+            if d["person"]:
+                h = self.holder({"person": d["person"]})
+                if h != d["person"]:
+                    f["person"] = h
+            if own and d["emitter"] and d["emitter"] != "Inconnu" and self._is_owner(d["emitter"]) and d["emitter"] != classify.slugify(own):
+                f["emitter"] = own
+            if f and self.reclassify(d["id"], f, ops).get("ok"):
+                changes.append({"label": d["label"], **f})
+        return changes
 
     def _redate(self, ops):
         """v0.7.6 : titres à date d'expiration (carte d'identité, passeport, permis, titre de séjour) rangés avec la date de naissance
@@ -1558,7 +1621,7 @@ class Bureau:
             if r["detail"]:
                 det[r["detail"].strip()] += 1
             if r["person"] and r["person"] != "moi":
-                per[r["person"].strip()] += 1
+                per[self.holder({"person": r["person"]})] += 1
         for r in self.db.execute("SELECT overrides FROM inbox WHERE state='a_trier'").fetchall():
             ov = json.loads(r["overrides"] or "{}")
             if ov.get("emitter"):
@@ -1566,7 +1629,7 @@ class Bureau:
             if ov.get("detail"):
                 det[ov["detail"].strip()] += 1
             if ov.get("person") and ov["person"] != "moi":
-                per[ov["person"].strip()] += 1
+                per[self.holder({"person": ov["person"]})] += 1
             if ov.get("suggest"):
                 sug[ov["suggest"].strip()] += 1
         for h in self.settings.get("holders") or []:
@@ -1649,6 +1712,118 @@ class Bureau:
         write_json(path, pl)
         self.diag("plan", fichier=os.path.basename(path), source=src, appliques=n, types_inconnus=unknown)
         return {"ok": True, "n": n, "unknown": unknown}
+
+    # ------------------------------------------------------------ revue des documents rangés (v0.7.7)
+    REVUE_FIELDS = ("type", "country", "emitter", "date", "expiry", "person", "detail")
+    REVUE_STATUS = ("actuel", "ancienne_version", "termine", "copie")
+
+    def _revues_dir(self):
+        return os.path.join(self.fm, "revues")
+
+    def revues(self):
+        """Corrections préparées pour des documents DÉJÀ rangés (par ex. par Claude après une revue avec toi) : un fichier JSON
+        par revue dans .bontoutou/revues. Chaque ligne dit ce qui change et pourquoi. Rien ne bouge avant « Appliquer »."""
+        out, d = [], self._revues_dir()
+        by_sha = {r["sha"]: r for r in self.db.execute("SELECT * FROM docs").fetchall()}
+        for f in sorted(os.listdir(d), reverse=True) if os.path.isdir(d) else []:
+            if not f.endswith(".json"):
+                continue
+            rv = read_json(os.path.join(d, f), {}) or {}
+            items = [x for x in rv.get("items") or [] if isinstance(x, dict)]
+            lines = []
+            for x in items:
+                r = by_sha.get(x.get("sha"))
+                if r:
+                    lines.append({"label": r["label"], "status": r["status"], "date": r["doc_date"], "why": str(x.get("note") or "")[:240],
+                                  "to": {k: x[k] for k in self.REVUE_FIELDS + ("status",) if x.get(k) not in (None, "")}})
+            prof = {k: v for k, v in (rv.get("profile") or {}).items() if k in ("owner", "owner_aliases") and v} if isinstance(rv.get("profile"), dict) else {}
+            out.append({"file": f, "source": rv.get("source") or "?", "title": rv.get("title") or f, "n": len(items), "match": len(lines) + (1 if prof else 0),
+                        "applied": rv.get("applied"), "lines": lines, "profile": prof})
+        return out
+
+    def revue_apply(self, fname):
+        """Applique une revue : champs corrigés (fichier renommé et déplacé), statut (actuel, ancienne version, terminé) et copies
+        (rattachées à leur document, rangées dans un dossier « Copies » à côté de lui, jamais supprimées). Une seule annulation."""
+        path = os.path.join(self._revues_dir(), os.path.basename(fname or ""))
+        rv = read_json(path, None)
+        if not rv or not isinstance(rv.get("items"), list):
+            return {"ok": False, "msg": "Revue illisible"}
+        src = str(rv.get("source") or "revue")[:40]
+        items = [x for x in rv["items"] if isinstance(x, dict) and x.get("sha")]
+        doc = lambda sha: self.db.execute("SELECT * FROM docs WHERE sha=? ORDER BY CASE status WHEN 'actuel' THEN 0 ELSE 1 END LIMIT 1", (sha,)).fetchone()
+        with self.lock:
+            ops, n, skipped = [], 0, 0
+            prof = rv.get("profile") if isinstance(rv.get("profile"), dict) else {}
+            prof = {k: v for k, v in prof.items() if k in ("owner", "owner_aliases") and v}
+            if prof:   # ton nom (et ses autres écritures) : réglage du profil, annulable avec le reste
+                ops.append({"t": "settings", "before": {k: self.settings.get(k) for k in prof}})
+                if "owner_aliases" in prof:
+                    prof["owner_aliases"] = list(dict.fromkeys(list(self.settings.get("owner_aliases") or []) + [str(x) for x in prof["owner_aliases"]]))
+                self.save_settings(prof)
+                n += 1
+            copies = [x for x in items if x.get("status") == "copie" and x.get("copy_of")]
+            # 1) les copies quittent leur suivi d'abord : elles ne déplacent plus la version actuelle
+            for x in copies:
+                d = doc(x["sha"])
+                if d and d["suivi"]:
+                    self._doc_update(d["id"], {"suivi": None}, ops)
+            # 2) champs corrigés
+            for x in items:
+                if x in copies:
+                    continue
+                d = doc(x["sha"])
+                if not d:
+                    skipped += 1
+                    continue
+                f = {k: str(x[k]).strip() for k in self.REVUE_FIELDS if x.get(k) not in (None, "")}
+                if f.get("type") and f["type"] not in TYPES or f.get("country") and f["country"] not in COUNTRIES:
+                    skipped += 1
+                    continue
+                if f and self.reclassify(d["id"], f, ops).get("ok"):
+                    n += 1
+            # 3) statuts
+            for x in items:
+                st = x.get("status")
+                if x in copies or st not in self.REVUE_STATUS or st == "copie":
+                    continue
+                d = doc(x["sha"])
+                if not d or d["status"] == st:
+                    continue
+                folder = self.doc_dir(d["country"], d["type"], d["emitter"], archive=st != "actuel")
+                fields = {"status": st}
+                s0 = self.abs(d["path"])
+                if os.path.exists(s0) and os.path.dirname(s0) != os.path.abspath(folder):
+                    dst = unique_path(folder, os.path.basename(s0))
+                    self._move(s0, dst, ops)
+                    fields["path"] = self.rel(dst)
+                self._doc_update(d["id"], fields, ops)
+                n += 1
+            # 4) copies rangées à côté de leur document
+            for x in copies:
+                d, m = doc(x["sha"]), doc(x["copy_of"])
+                if not d or not m or d["id"] == m["id"]:
+                    skipped += 1
+                    continue
+                ex = json.loads(d["extra"] or "{}") if d["extra"] else {}
+                ex["copy_of"] = m["id"]
+                fields = {"status": "copie", "suivi": None, "extra": json.dumps(ex, ensure_ascii=False)}
+                folder = os.path.join(os.path.dirname(self.abs(m["path"])), "Copies")
+                s0 = self.abs(d["path"])
+                if os.path.exists(s0):
+                    dst = unique_path(folder, os.path.basename(s0))
+                    self._move(s0, dst, ops)
+                    fields["path"] = self.rel(dst)
+                self._doc_update(d["id"], fields, ops)
+                n += 1
+            if prof:
+                n += len(self._canon_people(ops))
+            if not ops:
+                return {"ok": True, "n": 0, "skipped": skipped}
+            b = self._journal(f"Revue ({src}) : {n} correction{'s' if n > 1 else ''}", ops)
+        rv["applied"] = now()
+        write_json(path, rv)
+        self.diag("revue", fichier=os.path.basename(path), source=src, corrections=n, ignorees=skipped)
+        return {"ok": True, "n": n, "skipped": skipped, "batch": b}
 
     # ------------------------------------------------------------ recommencer de zéro / revenir à un rangement précédent
     def _rangements_dir(self):

@@ -73,7 +73,7 @@ function reglagesView() {
   if (sv === "profil") {
     const H = S.hEdit || (S.hEdit = (s.holders || []).map((h) => Object.assign({}, h)));
     return `${setHead("user", "Profil", "Ce que Bon toutou sait de toi. Ça reste dans ton dossier, sur ton ordinateur.")}
-    <div class="card box"><dl class="kv"><dt>Ton nom</dt><dd><input class="field" id="owner" value="${esc(s.owner || "")}" placeholder="Prénom Nom" style="width:min(280px,100%)"><div class="sub" style="margin-top:4px">Titulaire par défaut, ajouté au nom de tes pièces d'identité, santé, diplômes.</div></dd>
+    <div class="card box"><dl class="kv"><dt>Ton nom</dt><dd><input class="field" id="owner" value="${esc(s.owner || "")}" placeholder="Prénom Nom" style="width:min(280px,100%)"><div class="sub" style="margin-top:4px">Ton vrai nom, comme sur tes papiers : tous les documents triés sont à ce nom, sauf ceux que tu attribues à un proche. Tes autres écritures (« PM Dupont », « DUPONT Paul-Marie », un pseudonyme) sont reconnues comme toi.</div></dd>
       <dt>Tes pays</dt><dd>${Object.entries(st.countries).map(([k, v]) => `<label class="chk" style="display:inline-flex;margin-right:16px"><input type="checkbox" data-country="${k}" ${s.countries.includes(k) ? "checked" : ""}> ${cc(k)} ${esc(v)}</label>`).join("")}
         <div class="sub">Chaque pays a ses dossiers, ses organismes et ses échéances.</div></dd></dl></div>
     <div class="label" style="margin:22px 0 8px">Tes proches</div>
@@ -203,7 +203,7 @@ function reglagesView() {
     if (prevBind) prevBind();
     if (S.v !== "reglages") { S.hEdit = null; return; }
     const dg = $("#diag_on"); if (dg) dg.onchange = async () => { await api("/api/settings", { diagnostic: dg.checked }); toast(dg.checked ? "Mode test activé" : "Mode test désactivé"); load(); };
-    const ow = $("#owner"); if (ow) ow.onchange = async () => { await api("/api/settings", { owner: ow.value.trim() }); toast("Nom enregistré"); load(); };
+    const ow = $("#owner"); if (ow) ow.onchange = async () => { const r = await api("/api/settings", { owner: ow.value.trim() }); await load(); toast(r && r.n ? `Nom enregistré · ${r.n} ${plural(r.n, "document renommé", "documents renommés")} à ton nom` : "Nom enregistré", r && r.batch); };
     document.querySelectorAll("[data-country]").forEach((el) => (el.onchange = async () => {
       const c = [...document.querySelectorAll("[data-country]:checked")].map((x) => x.dataset.country);
       if (!c.length) { el.checked = true; return toast("Garde au moins un pays"); }

@@ -60,6 +60,11 @@ def find_dates(text):
         d = _mkdate(m.group(3), m.group(2), m.group(1))
         if d:
             out.append((m.start(), d))
+    for m in re.finditer(r"(?<![\w])(\d{2})(\d{2})((?:19|20)\d{2})(?![\w])", t):   # « 22072034 » (nouvelles cartes), seulement après un libellé de date
+        if re.search(r"(date|expir|deliv|valid|naiss|birth|issue)[^\n]{0,40}\n?[^\n]{0,40}$", t[max(0, m.start() - 90):m.start()]):
+            d = _mkdate(m.group(3), m.group(2), m.group(1))
+            if d:
+                out.append((m.start(), d))
     for m in re.finditer(r"(?<!\d)(\d{2}) (\d{2}) ((?:19|20)\d{2})(?!\d)", t):   # « 05 10 2019 » (passeports, cartes)
         d = _mkdate(m.group(3), m.group(2), m.group(1))
         if d:
@@ -253,6 +258,144 @@ def emitter_candidates(text, found=None):
     return res[:3]
 
 
+# ---------- Une même personne écrite de plusieurs façons ----------
+# « PM Belleperche », « PAUL-MARIE BELLEPERCHE », « Belleperche Paul-Marie », « Paul Marie Joël Marius Belleperche » : une seule personne.
+# « Marie Belleperche » ou « Éric Belleperche » : d'autres personnes (le premier prénom doit concorder).
+_PARTICLES = {"de", "du", "des", "la", "le", "d", "van", "von", "der", "den", "da", "di", "dos", "del", "y", "mr", "mme", "m", "mlle", "dr"}
+
+
+def _name_parts(s):
+    s = s or ""
+    if "<<" in s and re.match(r"^[PIAC][A-Z<][A-Z]{3}", s):   # ligne MRZ : « P<FRA » devant le nom
+        s = s[5:]
+    s = norm(s).replace("<", " ").replace(",", " ").replace(".", " ").replace("_", " ")
+    out = []
+    for u in s.split():
+        parts = [p for p in re.split(r"[-']", u) if p and p.isalpha()]
+        if parts and not (len(parts) == 1 and parts[0] in _PARTICLES):
+            out.append(parts)
+    return out
+
+
+def same_person(a, b):
+    """Vrai si deux écritures désignent la même personne : même nom de famille, premier prénom concordant (en entier ou en
+    initiales), et chaque prénom écrit en entier dans la forme courte retrouvé dans la forme longue."""
+    A, B = _name_parts(a), _name_parts(b)
+    fa, fb = [p for u in A for p in u], [p for u in B for p in u]
+    if not fa or not fb:
+        return False
+    if fa == fb:
+        return True
+    shared = {p for p in set(fa) & set(fb) if len(p) >= 3}
+    if not shared:
+        return False
+    for sur in shared:   # le nom de famille est l'un des mots communs : on essaie chacun
+
+        def given(F, other):
+            G = [p for p in F if p != sur]
+            letters, words = [], []
+            for p in G:
+                if len(p) <= 3 and p not in other and p not in ("eva", "leo", "ali", "noe", "eve", "ana", "ian", "tom", "max", "sam", "lou", "zoe", "ida", "guy", "luc", "paz"):
+                    letters.extend(p)          # « PM » = initiales
+                else:
+                    letters.append(p[0])
+                    words.append(p)
+            return G, letters, words
+        ga, la, wa = given(fa, fb)
+        gb, lb, wb = given(fb, fa)
+        if not ga and not gb:
+            return True
+        if not ga or not gb:
+            continue
+        short, long_ = (la, lb) if len(la) <= len(lb) else (lb, la)
+        if long_[:len(short)] != short or len(short) < 1:
+            continue
+        if len(short) == 1 and not (wa and wb):   # une seule initiale (« P. Dupont ») : trop vague
+            continue
+        if wa and wb and ga[0] in wa and gb[0] in wb and wa[0] != wb[0]:   # deux premiers prénoms écrits en entier et différents
+            continue
+        sw, lw = (wa, wb) if len(wa) <= len(wb) else (wb, wa)
+        if all(w in lw for w in sw):
+            return True
+    return False
+
+
+# ---------- Bande lisible par machine (MRZ, norme OACI 9303) : la même dans tous les pays ----------
+# Passeport (TD3, 2 lignes de 44) : ligne 2 = n° (9) + clé, nationalité, naissance AAMMJJ + clé, sexe, expiration AAMMJJ + clé.
+# Carte d'identité (TD1, 3 lignes de 30) : ligne 2 = naissance AAMMJJ + clé, sexe, expiration AAMMJJ + clé, nationalité.
+# Ancienne carte française (2 lignes de 36) : ligne 2 commence par l'année et le mois de délivrance (AAMM).
+_MRZ_W = (7, 3, 1)
+
+
+def _mrz_check(s, c):
+    v = lambda ch: int(ch) if ch.isdigit() else (ord(ch) - 55 if "A" <= ch <= "Z" else 0)
+    return c.isdigit() and sum(v(ch) * _MRZ_W[i % 3] for i, ch in enumerate(s)) % 10 == int(c)
+
+
+def _yymmdd(s, future=False, today=None):
+    try:
+        y, m, d = int(s[:2]), int(s[2:4]), int(s[4:6])
+        today = today or dt.date.today()
+        cent = 2000 if (2000 + y <= today.year + (20 if future else 0)) else 1900
+        return dt.date(cent + y, m, d)
+    except ValueError:
+        return None
+
+
+def mrz(text, today=None):
+    """Lit la bande MRZ si elle est là. Retourne {kind, country, birth, expiry, issue_ym, number_ok} ou None.
+    Les clés de contrôle disent si la lecture OCR est sûre (dates gardées seulement si leur clé est juste, ou si la ligne est nette)."""
+    L = [re.sub(r"[^A-Z0-9<]", "", l.upper().replace(" ", "")) for l in (text or "").splitlines()]
+    L = [l for l in L if l.count("<") >= 2 and len(l) >= 28]
+    if not L:
+        return None
+    out = {"kind": None, "country": None, "birth": None, "expiry": None, "issue_ym": None}
+    first = next((l for l in L if re.match(r"^(P|I|A|C)[A-Z<][A-Z<]{3}", l)), None)
+    if first:
+        out["kind"] = "passeport" if first[0] == "P" else "carte"
+        out["country"] = first[2:5].replace("<", "") or None
+    for l in L:
+        m = re.search(r"([A-Z0-9<]{9})(\d)([A-Z<]{3})(\d{6})(\d)([MF<X])(\d{6})(\d)", l)   # passeport
+        if m:
+            b, e = _yymmdd(m.group(4), today=today), _yymmdd(m.group(7), future=True, today=today)
+            if b and (_mrz_check(m.group(4), m.group(5)) or not out["birth"]):
+                out["birth"] = b
+            if e and (_mrz_check(m.group(7), m.group(8)) or not out["expiry"]):
+                out["expiry"] = e
+            out["kind"] = out["kind"] or "passeport"
+            continue
+        m = re.match(r"^(\d{6})(\d)([MF<X])(\d{6})(\d)([A-Z<]{3})", l)                          # carte (TD1)
+        if m:
+            out["birth"], out["expiry"] = _yymmdd(m.group(1), today=today), _yymmdd(m.group(4), future=True, today=today)
+            out["kind"] = out["kind"] or "carte"
+            continue
+        m = re.match(r"^(\d{2})(0[1-9]|1[0-2])[0-9A-Z]{3}\d{5}\d[A-Z<]+?(\d{6})\d[MF]", l)        # ancienne carte FR
+        if m:
+            out["issue_ym"] = (2000 + int(m.group(1)) if int(m.group(1)) <= (today or dt.date.today()).year % 100 else 1900 + int(m.group(1)), int(m.group(2)))
+            out["birth"] = _yymmdd(m.group(3), today=today)
+            out["kind"] = "carte"
+    return out if (out["birth"] or out["expiry"] or out["issue_ym"]) else None
+
+
+def _issue_from_expiry(expiry, birth, kind):
+    """Délivrance déduite de l'expiration : passeport 10 ans (5 ans pour un mineur), carte d'identité 10 ans.
+    Approximation à vérifier : la règle exacte dépend du pays et de l'année (cartes françaises 2014-2021 : 15 ans)."""
+    def back(n):
+        try:
+            return expiry.replace(year=expiry.year - n) + dt.timedelta(days=1)
+        except ValueError:
+            return expiry - dt.timedelta(days=365 * n - 1)
+    d = back(10)
+    if kind == "passeport" and birth:
+        try:
+            adult = birth.replace(year=birth.year + 18)
+        except ValueError:
+            adult = birth + dt.timedelta(days=365 * 18 + 4)
+        if back(5) < adult:
+            d = back(5)
+    return d
+
+
 # Dates qui ne sont jamais la date d'un document : naissance (v0.7.6 : une carte d'identité prenait la date de naissance).
 BIRTH_HINTS = ("ne le", "nee le", "ne(e) le", "naissance", "date of birth", "birth", "nacimiento", "geburtsdatum", "nascita", "geboren")
 # Date de délivrance : la date d'un titre (carte, passeport, permis, titre de séjour).
@@ -278,6 +421,11 @@ def _pick_dates(text, filename, today):
     for pos, d in dates:
         if hint[pos] == "expiry":
             expiry = d if expiry is None else max(expiry, d)
+    M = mrz(text, today)
+    if M:   # la bande MRZ fait foi : naissance écartée partout, expiration prise
+        dates = [(p, d) for p, d in dates if d != M["birth"]]
+        if M["expiry"]:
+            expiry = M["expiry"]
     dates = [(pos, d) for pos, d in dates if hint[pos] != "birth"]
     # titre d'identité : date de délivrance écrite, ou date qui précède l'expiration de 5, 10 ou 15 ans pile (tableaux mal lus)
     for pos, d in dates:
@@ -292,6 +440,22 @@ def _pick_dates(text, filename, today):
                     back = expiry - dt.timedelta(days=365 * n)
                 if d <= today and abs((d - back).days) <= 1:
                     return d, expiry, f"date de délivrance (validité de {n} ans jusqu'à l'expiration)"
+    if M and M.get("issue_ym"):
+        y, mo = M["issue_ym"]
+        for pos, d in dates:
+            if (d.year, d.month) == (y, mo):
+                return d, expiry, "date de délivrance (année et mois lus dans la bande MRZ)"
+        return min(dt.date(y + (mo == 12), mo % 12 + 1, 1) - dt.timedelta(days=1), today), expiry, "date de délivrance approximative : année et mois lus dans la bande MRZ, à vérifier"
+    if M and expiry and M.get("kind"):
+        d = _issue_from_expiry(expiry, M.get("birth"), M["kind"])
+        if d <= today:
+            return d, expiry, "date de délivrance déduite de l'expiration lue dans la bande MRZ, à vérifier"
+    if expiry and not M and re.search(r"(carte nationale d.identite|identity card|passeport|passport|titre de sejour|residence permit)", t):
+        others = [d for _, d in dates if d != expiry and d <= today]
+        if not others:
+            d = _issue_from_expiry(expiry, None, "passeport" if "passeport" in t or "passport" in t else "carte")
+            if d <= today:
+                return d, expiry, "date de délivrance déduite de la date d'expiration (validité de 10 ans), à vérifier"
     past = [d for _, d in dates if dt.date(1990, 1, 1) <= d <= today]
     doc_date, why = None, None
     # période « du … au … » (fiches de paie, relevés) : on garde la fin de période

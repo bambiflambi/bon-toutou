@@ -2,6 +2,15 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.7.7 — La Revue, et des pièces d'identité lues comme il faut
+- **Revue des documents déjà rangés** : une revue préparée pour toi (dans `.bontoutou/revues`, par exemple par Claude après avoir vérifié tes papiers avec toi) apparaît en haut de Documents. « Voir le détail » montre, document par document, ce qui change et pourquoi ; « Appliquer la revue » fait tout d'un coup, avec un seul « Annuler ».
+- **Copies** : plusieurs scans d'un même papier (recto, verso, copie couleur…) deviennent **un document et ses copies**. Les copies sont rangées dans un dossier « Copies » à côté de lui, visibles derrière « i », et n'encombrent plus ni Documents ni Archives. Rien n'est supprimé.
+- **Bande MRZ** (les 2 ou 3 lignes avec des « < » en bas des passeports et cartes, la même norme dans tous les pays) : Bon toutou y lit la date d'expiration et la date de naissance (écartée), vérifie les clés de contrôle, et en déduit la délivrance (passeport : 10 ans, 5 ans pour un mineur ; carte : 10 ans), toujours marquée « à vérifier ». Les anciennes cartes françaises donnent l'année et le mois de délivrance.
+- **Dates écrites sans séparateur** après un libellé (« Date d'expir. 22072034 ») : lues.
+- **Ton vrai nom, une seule écriture.** « PM Belleperche », « PAUL-MARIE BELLEPERCHE », « Belleperche Paul-Marie », « Paul Marie Joël Marius Belleperche » ou un pseudonyme confirmé : c'est toi, et tes documents sont tous rangés sous le nom écrit dans Réglages › Profil, comme titulaire comme émetteur (CV, lettres). Un proche n'est jamais confondu avec toi (« Marie Belleperche » ≠ « Paul-Marie Belleperche » : le premier prénom doit concorder).
+- **Changer ton nom** dans Réglages renomme tes documents d'un coup (annulable) ; l'ancien nom reste reconnu comme toi. Une revue peut aussi le proposer.
+- **Les autres personnes aussi** : un même proche écrit de deux façons garde l'écriture déjà la plus utilisée. « Documents › Mettre à jour » unifie ce qui est déjà rangé.
+
 ## 0.7.6 — Chercher en petites étapes
 - **Documents et Archives s'ouvrent sur les familles.** Une famille montre ses sous-familles, une sous-famille montre ses documents (avec un intertitre par émetteur). Un fil « Documents › Famille › Sous-famille » permet de remonter d'un clic ; Échap remonte d'une étape. Plus de longues listes d'un coup. Un filtre par pays apparaît quand tu en as plusieurs.
 - **On reste dans Archives.** Ouvrir un document depuis Archives (ou depuis une recherche) puis revenir ramène dans Archives, à la même recherche et au même endroit. L'onglet du haut reste sur Archives. Archives s'ouvre sur les anciens documents.

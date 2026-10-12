@@ -416,5 +416,50 @@ if _pp:
     check(_d["doc_date"] == "2014-10-05" and "2014-10-05" in _d["path"] and "délivrance" in (_r.get("msg") or ""), "Mettre à jour : date de délivrance relue, fichier renommé")
     br.undo(_r["batch"])
     check(br.db.execute("SELECT doc_date FROM docs WHERE orig_name='cni_v076.pdf'").fetchone()[0] == "1985-12-31", "correction de date annulable")
+# v0.7.7 : revue de documents déjà rangés (dates, statut, copies), un seul « Annuler »
+_ps = {}
+for _n, _l in (("pa_old.pdf", ["PASSEPORT", "ancien", "P<FRAMARTIN<<CAMILLE<<<<<<<<<<<<<<<<<<<<<<<<<<<", "19AB123456FRA0303103F2410044<<<<<<<<<<<<<<02"]),
+               ("pa_copie.pdf", ["PASSEPORT", "copie couleur", "P<FRAMARTIN<<CAMILLE<<<<<<<<<<<<<<<<<<<<<<<<<<<", "19AB123456FRA0303103F2410044<<<<<<<<<<<<<<02"]),
+               ("pa_new.pdf", ["PASSEPORT", "nouveau", "P<FRAMARTIN<<CAMILLE<<<<<<<<<<<<<<<<<<<<<<<<<<<", "24CD987654FRA0303103F3407220<<<<<<<<<<<<<<06"])):
+    pdf(os.path.join(src, _n), _l); br.add_upload(_n, open(os.path.join(src, _n), "rb").read())
+for _x in br.inbox():
+    if _x["orig"].startswith("pa_"):
+        br.set_overrides(_x["id"], {"type": "passeport", "person": "moi"}); br.validate([_x["id"]])
+_row = lambda n: br.db.execute("SELECT * FROM docs WHERE orig_name=?", (n,)).fetchone()
+check(_row("pa_old.pdf")["doc_date"] == "2019-10-05", "passeport : délivrance déduite de la bande MRZ (5 ans pour un mineur)")
+os.makedirs(os.path.join(br.fm, "revues"), exist_ok=True)
+json.dump({"format": 1, "source": "Claude", "title": "Pièces d'identité", "items": [
+    {"sha": _row("pa_new.pdf")["sha"], "date": "2024-07-23", "expiry": "2034-07-22", "status": "actuel", "note": "nouveau passeport"},
+    {"sha": _row("pa_old.pdf")["sha"], "status": "ancienne_version"},
+    {"sha": _row("pa_copie.pdf")["sha"], "status": "copie", "copy_of": _row("pa_old.pdf")["sha"]}]},
+    open(os.path.join(br.fm, "revues", "revue-test.json"), "w"))
+_rv = br.revues()
+check(_rv and _rv[0]["match"] == 3 and not _rv[0]["applied"], "revue listée avec ses 3 lignes, pas encore appliquée")
+_r = br.revue_apply("revue-test.json")
+_o, _c, _nw = _row("pa_old.pdf"), _row("pa_copie.pdf"), _row("pa_new.pdf")
+check(_r["ok"] and _nw["status"] == "actuel" and _nw["doc_date"] == "2024-07-23" and _o["status"] == "ancienne_version", "revue : nouveau passeport actuel, l'ancien en ancienne version")
+check(_c["status"] == "copie" and "/Copies/" in _c["path"] and os.path.exists(br.abs(_c["path"])) and [x["id"] for x in br.document(_o["id"])["copies"]] == [_c["id"]],
+      "copie rattachée à son document, rangée dans « Copies » à côté de lui")
+check(_c["id"] not in [d["id"] for d in br.documents()] and _c["id"] not in [d["id"] for d in br.archives()["old"] + br.archives()["done"]], "une copie n'encombre ni Documents ni Archives")
+br.undo(_r["batch"])
+check(_row("pa_copie.pdf")["status"] != "copie" and os.path.exists(br.abs(_row("pa_copie.pdf")["path"])), "revue annulée en une fois")
+# v0.7.7 : ton vrai nom, une seule écriture par personne (titulaire et émetteur)
+from bontoutou.classify import same_person
+check(same_person("PM Belleperche", "Paul-Marie Belleperche") and same_person("PAUL-MARIE BELLEPERCHE", "Paul Marie Joel Marius Belleperche")
+      and same_person("P<FRABELLEPERCHE<<PAUL<MARIE<JOEL", "Belleperche Paul-Marie") and not same_person("Marie Belleperche", "Paul-Marie Belleperche")
+      and not same_person("Eric Belleperche", "Paul-Marie Belleperche"), "même personne sous plusieurs écritures, sans confondre la famille")
+br.save_settings({"owner": "Kami"})
+_ds = [d for d in br.documents() if catalog.TYPES[d["type"]]["cat"] in br.PERSONAL_CATS][:2] or br.documents()[:2]
+br.reclassify(_ds[0]["id"], {"person": "CAMILLE ROSE MARTIN"})
+br.reclassify(_ds[1]["id"], {"emitter": "Camille Rose Martin"})
+json.dump({"format": 1, "source": "Claude", "title": "Ton nom", "profile": {"owner": "Camille-Rose Martin", "owner_aliases": ["Kami"]}, "items": []},
+          open(os.path.join(br.fm, "revues", "revue-nom.json"), "w"))
+_r = br.revue_apply("revue-nom.json")
+_a, _b = br.db.execute("SELECT * FROM docs WHERE id=?", (_ds[0]["id"],)).fetchone(), br.db.execute("SELECT * FROM docs WHERE id=?", (_ds[1]["id"],)).fetchone()
+check(br.settings["owner"] == "Camille-Rose Martin" and _a["person"] == "Camille-Rose Martin" and _b["emitter"] == "Camille-Rose-Martin"
+      and br.holder({"person": "CR Martin"}) == "Camille-Rose Martin" and br.holder({"person": "Kami"}) == "Camille-Rose Martin",
+      "revue « ton nom » : vrai nom dans le profil, titulaires et émetteurs unifiés")
+br.undo(_r["batch"])
+check(br.settings["owner"] == "Kami" and br.db.execute("SELECT person FROM docs WHERE id=?", (_ds[0]["id"],)).fetchone()[0] != "Camille-Rose Martin", "changement de nom annulable")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

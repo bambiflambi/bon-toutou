@@ -250,6 +250,10 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.plans())
             if p == "/api/plan/apply":
                 return self._json(B.plan_apply(data.get("file")))
+            if p == "/api/revues":
+                return self._json(B.revues())
+            if p == "/api/revue/apply":
+                return self._json(B.revue_apply(data.get("file")))
             if p == "/api/autres":
                 return self._json(B.autres())
             if p == "/api/known":
@@ -292,6 +296,8 @@ class H(BaseHTTPRequestHandler):
             if p == "/api/dossier/abandon":
                 return self._json(B.abandon(data["id"]))
             if p == "/api/settings":
+                if (data.get("owner") or "").strip() and data["owner"].strip() != (B.settings.get("owner") or "").strip():
+                    return self._json(B.set_owner(data["owner"]))
                 return self._json(B.save_settings(data))
             if p == "/api/rebuild":
                 return self._json(B.rebuild_index())

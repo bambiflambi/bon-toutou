@@ -42,6 +42,7 @@ async function load() {
   if (S.v === "trier") S.inbox = await api("/api/inbox");
   if (S.v === "trier" || S.v === "doc") S.known = await api("/api/known", {});
   if (S.v === "trier") S.plans = await api("/api/plans", {});
+  if (S.v === "docs") S.revues = await api("/api/revues", {});
   if (S.v === "docs") { S.docs = await api("/api/docs"); S.groups = await api("/api/emitters/groups", {}); if (!S.arch) S.arch = await api("/api/archives"); }
   if (S.v === "doc") S.doc = await api("/api/doc?id=" + S.docId);
   if (S.v === "dossiers") S.dossiers = await api("/api/dossiers");
