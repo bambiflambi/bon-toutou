@@ -2,6 +2,11 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.7.9 — Chaque papier à son titulaire
+- **Le titulaire toujours affiché**, pour toi comme pour les autres : « Passeport — Paul-Marie Belleperche », « Passeport — Éric … ». Dans Documents, Archives, la recherche et la fiche.
+- **Regroupé par titulaire** : dans une sous-famille où plusieurs personnes ont des papiers, la liste est séparée par personne, toi en premier (marqué « toi »), puis chaque proche.
+- **Dates des textes de loi ignorées** : « Constitution du 4 octobre 1958 », « loi du … », « instruction n° … du … » ne sont plus prises pour la date du document (le verso d'un certificat JDC était daté de 1958).
+
 ## 0.7.8 — Chaque version à sa place, chaque papier à son nom
 - **Fiche d'un document** : depuis Documents, tu vois ses anciennes versions marquées « dans Archives » ; depuis Archives, la version qui l'a remplacé, marquée « dans Documents ». Chaque ligne ouvre la fiche de cette version (plus de fichier ouvert par surprise).
 - **À qui est ce papier** : dans Documents, Archives, la recherche et la fiche, le nom du titulaire s'affiche à côté de l'intitulé dès que ce n'est pas toi (« Passeport — Éric … »).

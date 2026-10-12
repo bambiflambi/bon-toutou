@@ -21,7 +21,7 @@ async function navBack() {
 const fromArchives = () => S.v === "doc" && S.from && S.from.v === "archives";
 
 /* ---- À qui est ce papier : le nom s'affiche dès que ce n'est pas toi */
-const whoOf = (d) => (d && d.person && d.person !== "moi" && d.person !== (S.st.settings.owner || "") ? d.person : "");
+const whoOf = (d) => holderName(d);
 const emDisp = (d) => { const ex = docExtra(d); return ex.emitter_display || String(d.emitter || "").replace(/-/g, " "); };
 
 /* ---- Le fil d'étapes et les tuiles */
@@ -47,12 +47,19 @@ function dnCountries(kind, L) {
   if (ccs.length < 2) return "";
   return `<div class="dnpays">${[null, ...ccs].map((c) => `<button class="chip${(st.cc || null) === c ? " on" : ""}" data-dn="${kind}" data-dn-cc="${c || ""}">${c ? cc(c) + " " + esc(S.st.countries[c] || c) : "Tous les pays"} <span class="sub">${(c ? L.filter((d) => d.country === c) : L).length}</span></button>`).join("")}</div>`;
 }
-/* Liste d'une sous-famille : un intertitre par émetteur quand il y en a plusieurs. */
+/* Liste d'une sous-famille : d'abord par titulaire (toi en premier), puis un intertitre par dossier ou émetteur. */
 function dnList(kind, L) {
+  const H = [...new Set(L.map(holderName))].sort((a, b) => (b === S.st.settings.owner) - (a === S.st.settings.owner) || a.localeCompare(b));
+  if (H.length > 1)
+    return H.map((h) => { const X = L.filter((d) => holderName(d) === h);
+      return `<div class="holderhead"><span class="oi">${IC.id}</span><b>${esc(h || "Titulaire inconnu")}</b>${h === S.st.settings.owner ? ` <span class="pill acc">toi</span>` : ""}<span class="sub">${X.length} ${plural(X.length, "document")}</span></div>` + dnListOne(kind, X); }).join("");
+  return dnListOne(kind, L);
+}
+function dnListOne(kind, L) {
   const rows = (X) => (kind === "archives" ? suiviRows(X, "old") : X.map(docRow).join(""));
   const E = [...new Set(L.map((d) => d.emitter_folder || ""))].sort((a, b) => (a === "Autres") - (b === "Autres") || a.localeCompare(b));
   if (E.length < 2) return `<div class="card doclist">${rows(L)}</div>`;
-  const head = (e) => (e === "Autres" ? "Autres" : e ? e.replace(/-/g, " ") : subName(dnSubOf(L[0])));   // dossier « Autres » de la sous-famille, ou un émetteur
+  const head = (e) => (e === "Autres" || e === "Copies" ? e : e ? e.replace(/-/g, " ") : subName(dnSubOf(L[0])));   // dossier « Autres » de la sous-famille, ou un émetteur
   return `<div class="card doclist">${E.map((e) => { const Y = L.filter((d) => (d.emitter_folder || "") === e);
     return `<div class="subhead" style="text-transform:none;letter-spacing:0">${esc(head(e))} · ${Y.length}</div>${rows(Y)}`; }).join("")}</div>`;
 }

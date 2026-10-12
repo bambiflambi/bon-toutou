@@ -179,9 +179,12 @@ function tcard(p) {
 }
 
 /* ------------------------------------------------ DOCUMENTS */
+/* Titulaire, toujours affiché (toi comme les autres) : ton nom des Réglages pour tes papiers. */
+function holderName(d) { const o = (S.st && S.st.settings && S.st.settings.owner) || ""; return !d ? "" : (!d.person || d.person === "moi") ? o : d.person; }
+const isMine = (d) => holderName(d) === ((S.st.settings && S.st.settings.owner) || "");
 function docRow(d) {
   const e = d.expiry ? daysTo(d.expiry) : null;
-  return `<div class="row drow k-${esc(d.country)}" data-doc="${d.id}" role="button" tabindex="0" style="cursor:pointer"><span class="oi">${catIc(d.cat)}</span><div class="grow"><b>${esc(d.label)}</b>${d.person && d.person !== "moi" && d.person !== S.st.settings.owner ? ` <span class="whoname">— ${esc(d.person)}</span>` : ""} ${cc(d.country)}
+  return `<div class="row drow k-${esc(d.country)}" data-doc="${d.id}" role="button" tabindex="0" style="cursor:pointer"><span class="oi">${catIc(d.cat)}</span><div class="grow"><b>${esc(d.label)}</b>${holderName(d) ? ` <span class="whoname">— ${esc(holderName(d))}</span>` : ""} ${cc(d.country)}
     <div class="sub">${frd(d.doc_date)}${d.versions > 1 ? ` · ${d.versions} versions` : ""}</div></div>
     ${e !== null && e <= 365 ? `<span class="pill ${e < 0 ? "bad" : e <= 30 ? "warn" : "neutral"}">${e < 0 ? "expiré" : "expire dans " + e + " j"}</span>` : ""}${lvBadge(d.cat)}</div>`;
 }

@@ -607,3 +607,6 @@ textarea.field{width:100%}
 .rvwhy{font-style:italic;margin-top:2px}
 .whoname{font-weight:500;color:var(--text-secondary)}
 h1 .whoname{font-size:.6em}
+.holderhead{display:flex;align-items:center;gap:10px;margin:18px 0 8px}
+.holderhead:first-child{margin-top:4px}
+.holderhead .sub{margin-left:auto}

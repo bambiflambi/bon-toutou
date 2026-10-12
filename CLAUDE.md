@@ -43,6 +43,8 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **v0.7.8** : fiche : versions séparées par lieu (`vrow`, « dans Archives » / « dans Documents », clic = fiche de la version) ; `whoOf` / `.whoname` (titulaire ≠ toi affiché dans les titres : `docRow`, `suiviRows`, fiche) ; `emDisp` (émetteur affiché depuis `extra.emitter_display`) ; intertitres de `dnList` (sous-famille / Autres / émetteur). `refresh()` : `_redate` généralisé (naissance ou date du rangement remplacées par une vraie date lue), `_dup_revue` (texte identique → `.bontoutou/revues/revue-doublons-<date>.json`, une seule en attente). `classify._last_hint` : la naissance ne vaut que jusqu'à la date précédente.
 
+- **v0.7.9** : `holderName(d)` (app.js : titulaire toujours affiché, ton nom des Réglages pour toi) ; `dnList` groupe par titulaire (`.holderhead`, toi en premier) puis `dnListOne` (intertitres dossier / émetteur) ; `classify.LAW_HINTS` (dates de textes de loi cités ignorées dans `_pick_dates` et `approx_date`), années < 1900 ignorées en « mois année ».
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.

@@ -84,7 +84,7 @@ def find_dates(text):
         if d:
             out.append((m.start(), d))
     for m in re.finditer(r"(?<![\d\w])(" + mn + r")\.?\s+(\d{4})", t):  # "mars 2025" -> fin de mois
-        if m.start(1) in full:
+        if m.start(1) in full or int(m.group(2)) < 1900:
             continue
         y, mo = int(m.group(2)), MONTHS[m.group(1)]
         nxt = dt.date(y + (mo == 12), mo % 12 + 1, 1)
@@ -109,6 +109,7 @@ def _fix_years(t):
 def approx_date(text, filename, today, type_id=None):
     """Quand aucune date complète n'est écrite. Retourne (date, précision 'mois'|'annee', explication) ou (None, None, None)."""
     t = _fix_years(norm(text) + " \n " + norm(filename.replace("_", " ")))
+    t = re.sub("(" + "|".join(re.escape(h) for h in LAW_HINTS) + r")[^\n.]{0,60}", " ", t)   # années des textes de loi cités : ignorées
     ok = lambda y: 1950 <= y <= today.year
     full_years = [int(y) for y in re.findall(r"(?<![\d\w])((?:19|20)\d\d)(?![\d\w])", t) if ok(int(y))]
     mn = "|".join(sorted(MONTHS, key=len, reverse=True))
@@ -398,6 +399,8 @@ def _issue_from_expiry(expiry, birth, kind):
 
 # Dates qui ne sont jamais la date d'un document : naissance (v0.7.6 : une carte d'identité prenait la date de naissance).
 BIRTH_HINTS = ("ne le", "nee le", "ne(e) le", "naissance", "date of birth", "birth", "nacimiento", "geburtsdatum", "nascita", "geboren")
+LAW_HINTS = ("constitution", "loi n", "loi du", "decret", "ordonnance n", "ordonnance du", "instruction n", "code civil", "article l", "article r",
+             "declaration des droits", "directive", "reglement (ue)", "arrete du")
 # Date de délivrance : la date d'un titre (carte, passeport, permis, titre de séjour).
 ISSUE_HINTS = ("delivre le", "delivree le", "delivre(e) le", "date de delivrance", "delivrance", "date of issue", "issue date", "issued",
                "expedicion", "ausstellungsdatum", "rilascio", "uitgifte")
@@ -437,6 +440,8 @@ def _pick_dates(text, filename, today):
         if M["expiry"]:
             expiry = M["expiry"]
     dates = [(pos, d) for pos, d in dates if hint[pos] != "birth"]
+    # date d'un texte de loi cité (« Constitution du 4 octobre 1958 », « loi du … », « instruction n° … du … ») : jamais la date du document
+    dates = [(pos, d) for pos, d in dates if not any(h in t[max(0, pos - 60):pos] for h in LAW_HINTS)]
     # titre d'identité : date de délivrance écrite, ou date qui précède l'expiration de 5, 10 ou 15 ans pile (tableaux mal lus)
     for pos, d in dates:
         if hint[pos] == "issue" and d <= today:
