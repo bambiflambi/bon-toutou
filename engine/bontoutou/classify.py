@@ -259,6 +259,66 @@ def emitter_candidates(text, found=None):
     return res[:3]
 
 
+# ---------- Montant d'une pièce (charges, recettes) : toujours « à vérifier » ----------
+_AMT = r"(\d{1,3}(?:[ \u00a0\u202f.]\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)"
+_AMT_KEYS = ("net a payer", "total ttc", "montant total", "total a payer", "montant a payer", "solde a payer", "montant de l'appel", "total de l'appel",
+             "total", "montant", "loyer", "somme de", "cotisation", "prime", "a regler", "reste a payer")
+
+
+def _num(x):
+    x = x.replace("\u00a0", " ").replace("\u202f", " ")
+    if "," in x:
+        x = x.replace(" ", "").replace(".", "").replace(",", ".")
+    else:
+        x = x.replace(" ", "")
+        if x.count(".") > 1 or re.search(r"\.\d{3}$", x):
+            x = x.replace(".", "")
+    try:
+        return round(float(x), 2)
+    except ValueError:
+        return None
+
+
+def amount(text):
+    """Le montant principal d'une facture, quittance, appel de fonds, avis… -> (montant, explication) ou (None, None).
+    D'abord un montant en euros juste après « net à payer », « total TTC », « montant », « loyer »… ; sinon le plus grand montant en euros."""
+    t = norm(text or "")
+    found = []
+    for m in re.finditer(_AMT + r"\s?(?:€|eur\b|euros?\b)|(?:€|eur\b)\s?" + _AMT, t):
+        v = _num(m.group(1) or m.group(2))
+        if v is None or v <= 0 or v > 5_000_000:
+            continue
+        ctx = t[max(0, m.start() - 60):m.start()]
+        key = next((k for k in _AMT_KEYS if k in ctx), None)
+        found.append((v, key, m.start()))
+    if not found:
+        return None, None
+    for k in _AMT_KEYS:   # le libellé le plus parlant d'abord
+        L = [f for f in found if f[1] == k]
+        if L:
+            v = max(L, key=lambda f: f[0])[0] if k in ("total", "montant") else L[-1][0]
+            return v, f"montant lu après « {k} », à vérifier"
+    return max(found)[0], "plus grand montant en euros du document, à vérifier"
+
+
+# ---------- Nom d'un bien ou d'un logement, écrit proprement ----------
+_SMALL = {"de", "du", "des", "la", "le", "les", "et", "a", "à", "en", "sur", "sous", "aux", "au", "d", "l"}
+
+
+def title_name(s):
+    """« 2020 paris rue poussin » -> « 2020 Paris Rue Poussin » ; « saint-jean-d'angély » -> « Saint-Jean-d'Angély » ;
+    les petits mots restent en minuscule (« Maison de la Plage ») ; chiffres et sigles gardés (T2, LMNP)."""
+    toks = re.split(r"(\s+|-|')", (s or "").strip())
+    words = [k for k, w in enumerate(toks) if w and not re.fullmatch(r"\s+|-|'", w)]
+    first = next((k for k in words if not re.fullmatch(r"\d{4}", toks[k])), None)   # le 1er mot après l'année
+    for k in words:
+        w = toks[k]
+        if any(c.isdigit() for c in w) or (w.isupper() and len(w) > 1):
+            continue
+        toks[k] = w.lower() if (k != first and w.lower() in _SMALL) else w[:1].upper() + w[1:]
+    return "".join(toks)
+
+
 # ---------- Une même personne écrite de plusieurs façons ----------
 # « PM Belleperche », « PAUL-MARIE BELLEPERCHE », « Belleperche Paul-Marie », « Paul Marie Joël Marius Belleperche » : une seule personne.
 # « Marie Belleperche » ou « Éric Belleperche » : d'autres personnes (le premier prénom doit concorder).

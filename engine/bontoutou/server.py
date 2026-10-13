@@ -250,6 +250,12 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.plans())
             if p == "/api/plan/apply":
                 return self._json(B.plan_apply(data.get("file")))
+            if p == "/api/biens":
+                return self._json(B.biens())
+            if p == "/api/rental":
+                return self._json(B.rental(data.get("bien") or "", data.get("year") or ""))
+            if p == "/api/rental/build":
+                return self._json(B.rental_build(data.get("bien") or "", data.get("year") or "", data.get("amounts") or {}))
             if p == "/api/revues":
                 return self._json(B.revues())
             if p == "/api/revue/apply":

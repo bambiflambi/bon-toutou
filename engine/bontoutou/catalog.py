@@ -212,7 +212,7 @@ def load(bureau_fm=None, disabled=()):
         TYPES["autre_" + cat] = dict(label="Autre — " + name, slug="Autre", cat=cat, sub=cat + "-9", suivi="none", kw=[], fn=[],
                                      generic=True, _origin="Socle")
     for sub in real_subs:
-        TYPES["autre_" + sub.replace("-", "_")] = dict(label="Autre — " + SUB_FOLDERS_FR[sub].replace("-", " "), slug="Autre", cat=sub[:2], sub=sub,
+        TYPES["autre_" + sub.replace("-", "_")] = dict(label="Autre — " + {"02-6": "Mes logements", "02-7": "Biens loués"}.get(sub, SUB_FOLDERS_FR[sub].replace("-", " ")), slug="Autre", cat=sub[:2], sub=sub,
                                                        inner="Autres", suivi="none", kw=[], fn=[], generic=True, _origin="Socle")
     return PACKS
 

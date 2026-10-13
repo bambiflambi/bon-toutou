@@ -60,6 +60,11 @@ def now():
     return dt.datetime.now().isoformat(timespec="seconds")
 
 
+def BIEN_SUBS():
+    """Sous-familles rangées par bien ou par logement (Mes logements, Biens loués, Immobilier) : leurs « Autres » aussi."""
+    return {T["sub"] for T in TYPES.values() if T.get("bien")}
+
+
 def today():
     return dt.date.today()
 
@@ -233,7 +238,23 @@ class Bureau:
         os.makedirs(p, exist_ok=True)
         return p
 
-    def doc_dir(self, cc, type_id, emitter, archive=False):
+    @staticmethod
+    def _group(x):
+        """Le bien d'un document (« Appartement Paris 14 ») : clé `bien` d'une analyse, ou `extra.bien` d'une fiche."""
+        try:
+            keys = x.keys()
+        except Exception:
+            return None
+        if "bien" in keys and x["bien"]:
+            return x["bien"]
+        if "extra" in keys and x["extra"]:
+            try:
+                return (json.loads(x["extra"]) if isinstance(x["extra"], str) else x["extra"] or {}).get("bien")
+            except Exception:
+                return None
+        return None
+
+    def doc_dir(self, cc, type_id, emitter, archive=False, group=None):
         """Dossier d'un document : sous-dossier de sa catégorie, puis un dossier par émetteur pour les papiers
         d'emploi (fiches de paie, contrats…) : 03-2_Bulletins-paie/Saveurs-Royales/."""
         T = TYPES.get(type_id) or TYPES["autre"]
@@ -246,6 +267,13 @@ class Bureau:
                         name = d
                         break
             p = os.path.join(p, name)
+            os.makedirs(p, exist_ok=True)
+        if T.get("bien") or (group and T.get("sub") in BIEN_SUBS()):   # un bien ou un logement : son dossier, puis l'étape
+            if group:
+                p = os.path.join(p, classify.slugify(group)[:50])
+        if T.get("etape"):
+            p = os.path.join(p, T["etape"])
+        if T.get("bien") or T.get("etape"):
             os.makedirs(p, exist_ok=True)
         if T.get("inner"):   # « Autre » d'une sous-famille : un dossier Autres dedans
             p = os.path.join(p, T["inner"])
@@ -542,6 +570,9 @@ class Bureau:
                     self.db.execute(f"INSERT OR REPLACE INTO docs({', '.join(r0)}) VALUES({', '.join('?' * len(r0))})", tuple(r0.values()))
                 elif t == "inbox_new":
                     self.db.execute("DELETE FROM inbox WHERE id=?", (op["id"],))
+                elif t == "dossier_new":   # dossier reconstitué : il n'apparaît plus (sa fiche reste, marquée abandonnée)
+                    self.db.execute("UPDATE dossiers SET state='abandonne' WHERE id=?", (op["id"],))
+                    self._meta_dossier(op["id"])
                 elif t == "settings":   # réglage du profil changé par une revue (ton nom)
                     self.save_settings(op["before"])
             self.db.execute("UPDATE journal SET undone=1 WHERE batch=?", (r["batch"],))
@@ -953,7 +984,8 @@ class Bureau:
         h = self.holder(a)
         if T["cat"] in self.PERSONAL_CATS and h != "moi":
             obj += "-" + classify.slugify(h)
-        return f"{a['date']}_{a['country']}_{T['cat']}_{classify.slugify(a['emitter'])}_{obj}{ext.lower()}"
+        em = classify.slugify(a["emitter"]) if a.get("emitter") and a["emitter"] != "Inconnu" else ""
+        return f"{a['date']}_{a['country']}_{T['cat']}_{em + '_' if em else ''}{obj}{ext.lower()}"
 
     def proposal(self, row, overrides=None):
         a = json.loads(row["analysis"])
@@ -1001,7 +1033,7 @@ class Bureau:
         cur = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status='actuel'", (key,)).fetchone() if key else None
         if T.get("archive"):
             p["mode"] = "archive_direct"
-            dest = self.doc_dir(a["country"], a["type"], a["emitter"], archive=True)
+            dest = self.doc_dir(a["country"], a["type"], a["emitter"], group=self._group(a), archive=True)
             p["relation"] = "Rangé directement dans les Archives"
             if T.get("ends"):
                 ek = f"moi|{a['country']}|{T['ends']}|{a['emitter']}"
@@ -1011,15 +1043,15 @@ class Bureau:
                     p["relation"] += f" · termine le suivi « {e['label']} » (toutes ses versions passent dans Archives › Anciennes versions)"
         elif cur and a["date"] >= cur["doc_date"]:
             p["mode"] = "new_version"
-            dest = self.doc_dir(a["country"], a["type"], a["emitter"])
+            dest = self.doc_dir(a["country"], a["type"], a["emitter"], group=self._group(a))
             p["relation"] = f"Nouvelle version de « {cur['label']} » : celle du {cur['doc_date']} part dans l'historique"
         elif cur:
             p["mode"] = "old_version"
-            dest = self.doc_dir(a["country"], a["type"], a["emitter"], archive=True)
+            dest = self.doc_dir(a["country"], a["type"], a["emitter"], group=self._group(a), archive=True)
             p["relation"] = f"Version plus ancienne de « {cur['label']} » : rangée directement dans l'historique"
         else:
             p["mode"] = "new"
-            dest = self.doc_dir(a["country"], a["type"], a["emitter"])
+            dest = self.doc_dir(a["country"], a["type"], a["emitter"], group=self._group(a))
             p["relation"] = "Nouveau document suivi" if key else "Nouveau document"
         # « Je m'en sers encore ? » (tri en étapes) : toujours la décision de l'utilisateur, jamais celle de l'IA
         p["usage_hint"] = "archive" if p["mode"] in ("old_version", "archive_direct") else "utile"
@@ -1027,13 +1059,13 @@ class Bureau:
         if p["usage"] == "archive" and p["mode"] in ("new", "new_version"):
             p["mode"] = "archive_user"
             p["status"] = "ancienne_version" if cur else "termine"
-            dest = self.doc_dir(a["country"], a["type"], a["emitter"], archive=True)
+            dest = self.doc_dir(a["country"], a["type"], a["emitter"], group=self._group(a), archive=True)
             p["relation"] = "Rangé dans Archives : tu ne t'en sers plus" + (f" (la version actuelle reste « {cur['label']} »)" if cur else "")
         elif p["usage"] == "utile" and p["mode"] in ("old_version", "archive_direct"):
             p["mode"] = "new"
             p["suivi"] = None   # gardé à part dans Documents, à côté de la version actuelle : il ne la remplace pas
             p.pop("ends", None)
-            dest = self.doc_dir(a["country"], a["type"], a["emitter"])
+            dest = self.doc_dir(a["country"], a["type"], a["emitter"], group=self._group(a))
             p["relation"] = "Gardé dans Documents : tu t'en sers encore" + (f" (à côté de « {cur['label']} »)" if cur else "")
         p["dest"] = self.rel(dest)
         p["_a"] = a
@@ -1100,7 +1132,7 @@ class Bureau:
                     cur = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status='actuel'", (p["suivi"],)).fetchone()
                     old = self.abs(cur["path"])
                     if os.path.exists(old):
-                        tgt = unique_path(self.doc_dir(cur["country"], cur["type"], cur["emitter"], archive=True), os.path.basename(old))
+                        tgt = unique_path(self.doc_dir(cur["country"], cur["type"], cur["emitter"], group=self._group(cur), archive=True), os.path.basename(old))
                         self._move(old, tgt, ops)
                         self._doc_update(cur["id"], {"status": "ancienne_version", "path": self.rel(tgt)}, ops)
                     else:
@@ -1115,7 +1147,7 @@ class Bureau:
                         for d in self.db.execute("SELECT * FROM docs WHERE suivi=? AND status IN ('actuel','ancienne_version')", (p["ends"],)).fetchall():
                             fields = {"status": "termine"}
                             if d["status"] == "actuel" and os.path.exists(self.abs(d["path"])):
-                                tgt = unique_path(self.doc_dir(d["country"], d["type"], d["emitter"], archive=True), os.path.basename(d["path"]))
+                                tgt = unique_path(self.doc_dir(d["country"], d["type"], d["emitter"], group=self._group(d), archive=True), os.path.basename(d["path"]))
                                 self._move(self.abs(d["path"]), tgt, ops)
                                 fields["path"] = self.rel(tgt)
                             self._doc_update(d["id"], fields, ops)
@@ -1220,6 +1252,11 @@ class Bureau:
         d["sub_folder"] = subs[-1] if subs else (parts[-1] if parts else "")
         d["emitter_folder"] = parts[-1] if subs and parts and parts[-1] != subs[-1] else None
         d["status_label"] = STATUS_LABEL.get(d["status"], d["status"])
+        try:
+            d["bien"] = (json.loads(d["extra"]) or {}).get("bien") if d.get("extra") else None
+        except Exception:
+            d["bien"] = None
+        d["etape"] = (TYPES.get(d["type"]) or {}).get("etape")
         if d["suivi"]:
             d["versions"] = self.db.execute("SELECT COUNT(*) FROM docs WHERE suivi=?", (d["suivi"],)).fetchone()[0]
         else:
@@ -1268,7 +1305,12 @@ class Bureau:
                 return {"ok": False, "msg": "Document introuvable"}
             a = {"type": d["type"], "country": d["country"], "emitter": d["emitter"], "date": d["doc_date"], "expiry": d["expiry"], "person": d["person"], "detail": d["detail"]}
             ex = json.loads(d["extra"] or "{}") if "extra" in d.keys() else {}
-            a.update({k: v for k, v in ex.items() if k in ("lot", "emitter_display", "origin")})
+            a.update({k: v for k, v in ex.items() if k in ("lot", "emitter_display", "origin", "bien")})
+            if "bien" in fields:
+                if fields["bien"]:
+                    ex["bien"] = a["bien"] = classify.title_name(str(fields["bien"]))[:60]
+                else:
+                    ex.pop("bien", None); a.pop("bien", None)
             if fields.get("emitter") and classify.slugify(fields["emitter"]) != d["emitter"]:
                 ex["emitter_display"] = a["emitter_display"] = fields["emitter"].replace("-", " ").strip()
             if fields.get("date") and fields["date"] != d["doc_date"]:
@@ -1295,12 +1337,12 @@ class Bureau:
                     if other["doc_date"] <= a["date"]:
                         o = self.abs(other["path"])
                         if os.path.exists(o):
-                            tgt = unique_path(self.doc_dir(other["country"], other["type"], other["emitter"], archive=True), os.path.basename(o))
+                            tgt = unique_path(self.doc_dir(other["country"], other["type"], other["emitter"], group=self._group(other), archive=True), os.path.basename(o))
                             self._move(o, tgt, ops)
                             self._doc_update(other["id"], {"status": "ancienne_version", "path": self.rel(tgt)}, ops)
                     else:
                         status = "ancienne_version"
-            folder = self.doc_dir(a["country"], a["type"], a["emitter"], archive=status != "actuel")
+            folder = self.doc_dir(a["country"], a["type"], a["emitter"], group=self._group(a), archive=status != "actuel")
             src = self.abs(d["path"])
             ext = os.path.splitext(d["path"])[1] or ".pdf"
             dst = unique_path(folder, self.make_name(a, ext)) if os.path.abspath(os.path.join(folder, self.make_name(a, ext))) != src else src
@@ -1322,6 +1364,10 @@ class Bureau:
             changes = self._redetect(ops)
             redated = self._redate(ops)
             renamed = self._canon_people(ops)
+            unk = 0   # « Inconnu » ne s'écrit plus dans le nom des fichiers (v0.8.1)
+            for d in self.db.execute("SELECT id FROM docs WHERE status!='copie' AND path LIKE '%\\_Inconnu\\_%' ESCAPE '\\'").fetchall():
+                if self.reclassify(d["id"], {}, ops).get("ok"):
+                    unk += 1
             closed = self.close_old_employers(ops)
             dups = self._dup_revue()
             if not ops:
@@ -1330,6 +1376,7 @@ class Bureau:
             parts = ([f"{len(changes)} émetteur{'s' if len(changes) > 1 else ''} retrouvé{'s' if len(changes) > 1 else ''}"] if changes else []) + \
                     ([f"{len(redated)} date{'s' if len(redated) > 1 else ''} de délivrance corrigée{'s' if len(redated) > 1 else ''}"] if redated else []) + \
                     ([f"{len(renamed)} nom{'s' if len(renamed) > 1 else ''} de titulaire ou d'émetteur unifié{'s' if len(renamed) > 1 else ''}"] if renamed else []) + \
+                    ([f"{unk} fichier{'s' if unk > 1 else ''} renommé{'s' if unk > 1 else ''} sans « Inconnu »"] if unk else []) + \
                     ([f"{len(closed)} ancien{'s' if len(closed) > 1 else ''} employeur{'s' if len(closed) > 1 else ''} dans Anciennes versions"] if closed else [])
             b = self._journal("Mise à jour : " + ", ".join(parts), ops)
             if dups:
@@ -1471,7 +1518,7 @@ class Bureau:
                 if d["status"] == want:
                     continue
                 src = self.abs(d["path"])
-                folder = self.doc_dir(d["country"], d["type"], d["emitter"], archive=want != "actuel")
+                folder = self.doc_dir(d["country"], d["type"], d["emitter"], group=self._group(d), archive=want != "actuel")
                 fields = {"status": want}
                 if os.path.exists(src):
                     dst = unique_path(folder, os.path.basename(src))
@@ -1532,7 +1579,7 @@ class Bureau:
         for r in rows:
             fields = {"status": "termine"}
             if r["status"] == "actuel" and os.path.exists(self.abs(r["path"])):
-                tgt = unique_path(self.doc_dir(r["country"], r["type"], r["emitter"], archive=True), os.path.basename(r["path"]))
+                tgt = unique_path(self.doc_dir(r["country"], r["type"], r["emitter"], group=self._group(r), archive=True), os.path.basename(r["path"]))
                 self._move(self.abs(r["path"]), tgt, ops)
                 fields["path"] = self.rel(tgt)
             self._doc_update(r["id"], fields, ops)
@@ -1756,7 +1803,7 @@ class Bureau:
         return {"ok": True, "n": n, "unknown": unknown}
 
     # ------------------------------------------------------------ revue des documents rangés (v0.7.7)
-    REVUE_FIELDS = ("type", "country", "emitter", "date", "expiry", "person", "detail")
+    REVUE_FIELDS = ("type", "country", "emitter", "date", "expiry", "person", "detail", "bien")
     REVUE_STATUS = ("actuel", "ancienne_version", "termine", "copie")
 
     def _revues_dir(self):
@@ -1779,9 +1826,47 @@ class Bureau:
                     lines.append({"label": r["label"], "status": r["status"], "date": r["doc_date"], "why": str(x.get("note") or "")[:240],
                                   "to": {k: x[k] for k in self.REVUE_FIELDS + ("status",) if x.get(k) not in (None, "")}})
             prof = {k: v for k, v in (rv.get("profile") or {}).items() if k in ("owner", "owner_aliases") and v} if isinstance(rv.get("profile"), dict) else {}
-            out.append({"file": f, "source": rv.get("source") or "?", "title": rv.get("title") or f, "n": len(items), "match": len(lines) + (1 if prof else 0),
-                        "applied": rv.get("applied"), "lines": lines, "profile": prof})
+            dz = [{"label": z.get("label") or "Dossier", "recipient": z.get("recipient") or "", "sent_at": z.get("sent_at"), "note": z.get("note") or "",
+                   "n": sum(1 for pc in z.get("pieces") or [] for sh in pc.get("shas") or [] if sh in by_sha)} for z in rv.get("dossiers") or [] if isinstance(z, dict)]
+            out.append({"file": f, "source": rv.get("source") or "?", "title": rv.get("title") or f, "n": len(items), "match": len(lines) + (1 if prof else 0) + sum(z["n"] for z in dz),
+                        "applied": rv.get("applied"), "lines": lines, "profile": prof, "dossiers": dz})
         return out
+
+    def _reconstitute(self, dz, doc, ops):
+        tpl = dz.get("template") if dz.get("template") in TEMPLATES else "louer_logement"
+        cc = dz.get("country") if dz.get("country") in COUNTRIES else (self.settings["countries"] or ["FR"])[0]
+        sent = str(dz.get("sent_at") or today().isoformat())[:10]
+        label = str(dz.get("label") or TEMPLATES[tpl]["label"])[:80]
+        rcp = str(dz.get("recipient") or "Destinataire")[:80]
+        did = uuid.uuid4().hex[:10]
+        folder = unique_path(self.sent_dir(cc), f"{sent}_{classify.slugify(label)[:40]}_{classify.slugify(rcp)[:30]}")
+        man = {"dossier": label, "destinataire": rcp, "pays": cc, "cree_le": sent, "finalise_le": sent, "envoye_le": sent,
+               "reconstitue": True, "note": str(dz.get("note") or "")[:240], "pieces": []}
+        count = 0
+        for i, pc in enumerate(dz.get("pieces") or []):
+            files = []
+            for j, sha in enumerate(pc.get("shas") or []):
+                d = doc(sha)
+                if not d or not os.path.exists(self.abs(d["path"])):
+                    continue
+                fn = f"{i + 1:02d}_{classify.slugify(pc.get('label') or 'Piece')[:40]}{'-' + str(j + 1) if len(pc.get('shas') or []) > 1 else ''}__{os.path.basename(d['path'])}"
+                dst = os.path.join(folder, fn)
+                self._move(self.abs(d["path"]), dst, ops)
+                ex = json.loads(d["extra"] or "{}") if d["extra"] else {}
+                ex["dossier"] = did
+                self._doc_update(d["id"], {"status": "copie", "suivi": None, "path": self.rel(dst), "extra": json.dumps(ex, ensure_ascii=False)}, ops)
+                files.append({"doc_id": d["id"], "fichier": fn, "source": d["path"], "version_du": d["doc_date"], "sha256": d["sha"]})
+                count += 1
+            if files:
+                man["pieces"].append({"label": str(pc.get("label") or "Pièce")[:80], "files": files})
+        if not count:
+            return 0
+        self._write_proof(folder, man)
+        self.db.execute("INSERT INTO dossiers(id,template,recipient,country,created_at,state,assign,folder,zip,manifest,finalized_at,sent_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (did, tpl, rcp, cc, sent, "envoye", "{}", self.rel(folder), None, json.dumps(man), sent, sent))
+        ops.append({"t": "dossier_new", "id": did})
+        self._meta_dossier(did)
+        return count
 
     def revue_apply(self, fname):
         """Applique une revue : champs corrigés (fichier renommé et déplacé), statut (actuel, ancienne version, terminé) et copies
@@ -1831,7 +1916,7 @@ class Bureau:
                 d = doc(x["sha"])
                 if not d or d["status"] == st:
                     continue
-                folder = self.doc_dir(d["country"], d["type"], d["emitter"], archive=st != "actuel")
+                folder = self.doc_dir(d["country"], d["type"], d["emitter"], group=self._group(d), archive=st != "actuel")
                 fields = {"status": st}
                 s0 = self.abs(d["path"])
                 if os.path.exists(s0) and os.path.dirname(s0) != os.path.abspath(folder):
@@ -1857,6 +1942,10 @@ class Bureau:
                     fields["path"] = self.rel(dst)
                 self._doc_update(d["id"], fields, ops)
                 n += 1
+            # 5) dossiers reconstitués : des pièces déjà envoyées (copies filigranées…) regroupées en un dossier envoyé, avec sa preuve
+            for dz in rv.get("dossiers") or []:
+                if isinstance(dz, dict):
+                    n += self._reconstitute(dz, doc, ops)
             if prof:
                 n += len(self._canon_people(ops))
             if not ops:
@@ -1866,6 +1955,97 @@ class Bureau:
         write_json(path, rv)
         self.diag("revue", fichier=os.path.basename(path), source=src, corrections=n, ignorees=skipped)
         return {"ok": True, "n": n, "skipped": skipped, "batch": b}
+
+    # ------------------------------------------------------------ revenus locatifs d'un bien, pour une année (v0.8.3)
+    RENTAL_SECTIONS = (("recettes", "Recettes", ("immo_quittance",)),
+                       ("charges", "Charges", ("immo_appel_fonds", "immo_charges", "immo_travaux", "immo_gestion")),
+                       ("financement", "Financement", ("immo_pret",)),
+                       ("comptabilite", "Comptabilité", ("immo_compta",)),
+                       ("location", "Pièces de la location", ("immo_bail", "immo_locataire", "immo_etat_lieux")))
+
+    def biens(self):
+        """Tes biens (Logement › Biens loués et Patrimoine › Immobilier) avec les années où ils ont des papiers."""
+        out = {}
+        for r in self.db.execute("SELECT type, doc_date, extra FROM docs WHERE status!='copie' AND extra LIKE '%\"bien\"%'").fetchall():
+            T = TYPES.get(r["type"]) or {}
+            if T.get("sub") not in ("02-7", "10-1"):
+                continue
+            b = self._group(r)
+            if b:
+                o = out.setdefault(b, {"bien": b, "years": set(), "n": 0})
+                o["n"] += 1
+                if (r["doc_date"] or "")[:4] > "1900":
+                    o["years"].add(r["doc_date"][:4])
+        return [{**o, "years": sorted(o["years"], reverse=True)} for o in sorted(out.values(), key=lambda x: x["bien"])]
+
+    def rental(self, bien, year):
+        """Les pièces d'un bien pour une année, rangées en Recettes / Charges / Financement / Comptabilité / Location,
+        avec le montant lu dans chacune (à vérifier). Le financement (prêt, assurance emprunteur) est pris quelle que soit l'année :
+        un tableau d'amortissement couvre plusieurs années. La comptabilité de l'année d'avant est jointe."""
+        year = str(year)[:4]
+        rows = [r for r in self.db.execute("SELECT * FROM docs WHERE status!='copie' ORDER BY doc_date").fetchall() if self._group(r) == bien]
+        secs = []
+        for key, label, types in self.RENTAL_SECTIONS:
+            L = []
+            for r in rows:
+                if r["type"] not in types:
+                    continue
+                y = (r["doc_date"] or "")[:4]
+                if key == "financement" or (key == "comptabilite" and y in (year, str(int(year) - 1))) or (key == "location" and y <= year) or y == year:
+                    v, why = classify.amount(self.text_of(r["sha"])[0]) if key in ("recettes", "charges", "financement") else (None, None)
+                    ex = json.loads(r["extra"] or "{}") if r["extra"] else {}
+                    L.append({"id": r["id"], "date": r["doc_date"], "label": r["label"], "type": r["type"], "emitter": ex.get("emitter_display") or (r["emitter"] or "").replace("-", " "),
+                              "path": r["path"], "amount": v, "why": why})
+            secs.append({"key": key, "label": label, "docs": L, "total": round(sum(d["amount"] or 0 for d in L), 2) if key in ("recettes", "charges") else None})
+        return {"bien": bien, "year": year, "sections": secs, "n": sum(len(x["docs"]) for x in secs)}
+
+    def rental_build(self, bien, year, amounts=None):
+        """Crée le dossier « Revenus locatifs — <bien> — <année> » dans Démarches : une copie de chaque pièce, rangée par section,
+        et recapitulatif.csv (ouvrable dans Excel / Numbers) avec les montants que tu as vérifiés. Tes originaux ne bougent pas."""
+        import csv
+        R = self.rental(bien, year)
+        if not R["n"]:
+            return {"ok": False, "msg": "Aucune pièce pour ce bien cette année"}
+        amounts = amounts or {}
+        cc = (self.settings.get("countries") or ["FR"])[0]
+        rows = self.db.execute("SELECT country FROM docs WHERE id=?", (R["sections"][0]["docs"][0]["id"] if R["sections"][0]["docs"] else next(d["id"] for s in R["sections"] for d in s["docs"]),)).fetchone()
+        if rows:
+            cc = rows["country"]
+        folder = unique_path(self.demarches_dir(cc), f"{today().isoformat()}_Revenus-locatifs_{classify.slugify(bien)[:40]}_{R['year']}")
+        os.makedirs(folder)
+        lines, n = [], 0
+        for i, sec in enumerate(R["sections"]):
+            if not sec["docs"]:
+                continue
+            sub = os.path.join(folder, f"{i + 1}_{classify.slugify(sec['label'])}")
+            os.makedirs(sub, exist_ok=True)
+            for d in sec["docs"]:
+                src = self.abs(d["path"])
+                if os.path.exists(src):
+                    shutil.copy2(src, os.path.join(sub, os.path.basename(src)))
+                    n += 1
+                v = amounts.get(d["id"], d["amount"])
+                lines.append([sec["label"], d["date"], d["label"], d["emitter"], ("%.2f" % float(v)).replace(".", ",") if v not in (None, "") else "",
+                              "" if d["id"] in amounts else ("à vérifier" if d["amount"] is not None else "montant à saisir"), os.path.basename(d["path"])])
+        tot = {}
+        for l in lines:
+            if l[4]:
+                tot[l[0]] = tot.get(l[0], 0) + float(l[4].replace(",", "."))
+        with open(os.path.join(folder, "recapitulatif.csv"), "w", encoding="utf-8-sig", newline="") as f:
+            w = csv.writer(f, delimiter=";")
+            w.writerow([f"Revenus locatifs — {bien} — {R['year']}", "", "", "", "", "", ""])
+            w.writerow(["Section", "Date", "Pièce", "Émetteur", "Montant (€)", "Vérification", "Fichier"])
+            w.writerows(lines)
+            w.writerow([])
+            for k in ("Recettes", "Charges"):
+                if k in tot:
+                    w.writerow([f"Total {k.lower()}", "", "", "", ("%.2f" % tot[k]).replace(".", ","), "", ""])
+            if "Recettes" in tot or "Charges" in tot:
+                w.writerow(["Recettes − charges", "", "", "", ("%.2f" % (tot.get("Recettes", 0) - tot.get("Charges", 0))).replace(".", ","), "", ""])
+            w.writerow([])
+            w.writerow(["Montants lus automatiquement dans chaque pièce : à vérifier. Préparé par Bon toutou pour toi ou ton comptable ; ce n'est pas un conseil fiscal.", "", "", "", "", "", ""])
+        self._append_journal({"label": f"Dossier « Revenus locatifs — {bien} — {R['year']} » préparé ({n} pièces copiées)"})
+        return {"ok": True, "folder": self.rel(folder), "n": n, "csv": self.rel(os.path.join(folder, "recapitulatif.csv"))}
 
     # ------------------------------------------------------------ recommencer de zéro / revenir à un rangement précédent
     def _rangements_dir(self):
@@ -1984,7 +2164,7 @@ class Bureau:
             for r in rows:
                 fields = {"status": "termine"}
                 if r["status"] == "actuel" and os.path.exists(self.abs(r["path"])):
-                    tgt = unique_path(self.doc_dir(r["country"], r["type"], r["emitter"], archive=True), os.path.basename(r["path"]))
+                    tgt = unique_path(self.doc_dir(r["country"], r["type"], r["emitter"], group=self._group(r), archive=True), os.path.basename(r["path"]))
                     self._move(self.abs(r["path"]), tgt, ops)
                     fields["path"] = self.rel(tgt)
                 self._doc_update(r["id"], fields, ops)

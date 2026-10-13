@@ -2,6 +2,39 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.8.3 — Préparer les revenus locatifs d'une année
+- **Dossiers › Revenus locatifs d'un bien** : choisis un bien et une année, Bon toutou va chercher dans le dossier du bien :
+  - les **recettes** (quittances émises) ;
+  - les **charges** (copropriété, énergie, assurance propriétaire, taxe foncière, travaux, gestion) ;
+  - le **financement** (prêt, tableau d'amortissement, assurance emprunteur, toutes années) ;
+  - la **comptabilité** de l'année et de l'année d'avant ;
+  - les pièces de la location (baux, locataires, états des lieux).
+- **Montants lus dans chaque pièce**, toujours marqués « à vérifier » : tu les corriges directement dans la liste. Totaux recettes, charges et différence.
+- **« Créer le dossier »** : un dossier propre dans Démarches (1_Recettes, 2_Charges, 3_Financement…), une copie de chaque pièce, et `recapitulatif.csv` (ouvrable dans Excel ou Numbers) avec tes montants vérifiés. Tes originaux ne bougent pas.
+- Ce n'est pas un conseil fiscal : c'est ton dossier, prêt pour toi ou ton comptable.
+
+## 0.8.2 — Chaque papier dans le dossier qu'il concerne
+- **Règle simple** : un papier va là où on le cherchera. S'il concerne un bien (le prêt pour l'acheter, l'assurance de ce prêt, la taxe foncière, les comptes annuels de la location), il va dans le dossier du bien, **quel que soit l'expéditeur** (banque, notaire, comptable, syndic). L'expéditeur reste écrit dans le nom du fichier et sert à la recherche. S'il te concerne toi en général (compte courant, impôt sur le revenu, inscription de ton entreprise), il reste dans sa famille.
+- **Nouvelle étape « Financement »** dans Patrimoine › Immobilier : prêt, tableau d'amortissement, assurance emprunteur. Les étapes d'un bien : Achat, Financement, Copropriété, Charges et travaux, Comptabilité, Vente.
+- **Noms avec des majuscules** : « 2020 Paris Rue Poussin », « Saint-Jean-d'Angély », « Maison de la Plage » (petits mots en minuscule, sigles gardés).
+- Les biens et logements s'affichent dans l'ordre de la vie : le plus ancien d'abord.
+- Les « Autres » de Mes logements et Biens loués se rangent aussi dans le dossier du logement ou du bien.
+
+## 0.8.1 — Logement : là où j'habite, et ce que je loue
+- **Logement se sépare en deux** :
+  - **Mes logements** (là où tu habites ou as habité, locataire ou chez toi) : un dossier par logement, nommé par année d'arrivée (« 2020 Paris rue Poussin », « 2025 La Rochelle »), puis Bail, Quittances, Énergie et internet, Assurance, États des lieux, Justificatifs.
+  - **Biens loués** (ce que tu loues à d'autres) : un dossier par bien, puis Baux, Locataires, Quittances émises, États des lieux, Gestion locative, et un dossier Modèles.
+- **Patrimoine › Immobilier** garde la propriété du bien : Achat, Copropriété, Charges et travaux, Comptabilité, Vente.
+- **Suivi dans le temps** : chaque bien ou logement affiche une ligne (« acheté en 2022 · vendu en 2025 », « loué de 2023 à 2025 », « depuis 2025 »). Les dossiers commencent par l'année : le Finder les range dans l'ordre chronologique.
+- **« Inconnu » ne s'écrit plus dans le nom des fichiers** : un émetteur non trouvé est simplement omis. « Mettre à jour » renomme les fichiers déjà rangés.
+- **Numéros de version** : le 2e chiffre change à chaque grand chantier (0.8 = Revues et Logement), le 3e à chaque petite mise à jour (0.8.1, 0.8.2…).
+
+## 0.8.0 — Un dossier par bien, des dossiers envoyés reconstitués
+- **Patrimoine › Immobilier : un dossier par bien** (appartement, maison, projet), puis par étape : Achat, Copropriété, Location (baux, locataires, quittances émises, états des lieux, gestion), Charges et travaux, Comptabilité, Vente. Plus un dossier Modèles (bail, état des lieux, grille de vétusté) pour tous tes biens. La même structure vaut pour n'importe quel bien, dans n'importe quel pays.
+- Dans l'app, la sous-famille Immobilier montre un bloc par bien, puis ses étapes.
+- **Dossier envoyé reconstitué** : une revue peut regrouper des pièces déjà envoyées (par exemple un dossier de location en copies filigranées) en un vrai dossier dans Archives › Dossiers envoyés, avec sa preuve (PREUVE.txt). Les pièces ne sont plus listées ailleurs. Un seul « Annuler ».
+- 13 nouveaux types dans Immobilier (achat, copropriété, appel de fonds, bail signé avec un locataire, dossier d'un locataire, quittance émise, état des lieux, gestion locative, charges, travaux, comptabilité, vente, modèle).
+
 ## 0.7.9 — Chaque papier à son titulaire
 - **Le titulaire toujours affiché**, pour toi comme pour les autres : « Passeport — Paul-Marie Belleperche », « Passeport — Éric … ». Dans Documents, Archives, la recherche et la fiche.
 - **Regroupé par titulaire** : dans une sous-famille où plusieurs personnes ont des papiers, la liste est séparée par personne, toi en premier (marqué « toi »), puis chaque proche.

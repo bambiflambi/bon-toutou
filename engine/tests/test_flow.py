@@ -472,5 +472,61 @@ _r = br.refresh()
 _dr = [r for r in br.revues() if r["file"].startswith("revue-doublons-") and not r["applied"]]
 check(_dr and any(l["to"].get("status") == "copie" for l in _dr[0]["lines"]), "Mettre à jour : doublons repérés, revue préparée (rien déplacé)")
 check(br.db.execute("SELECT doc_date FROM docs WHERE orig_name='scol_a.pdf'").fetchone()[0] == "2019-09-05", "date de naissance prise pour la date du document : corrigée")
+# v0.8.0 : un dossier par bien (Patrimoine › Immobilier › <bien> › <étape>) et dossier envoyé reconstitué
+_bs = {}
+for _n, _l in (("acte_vente.pdf", ["ACTE DE VENTE", "appartement", "vendeur"]), ("quit_loc.pdf", ["QUITTANCE", "loyer de mars 2024", "locataire"]),
+               ("cand_1.pdf", ["DOSSIER LOCATAIRE", "piece 1 filigrane"]), ("cand_2.pdf", ["DOSSIER LOCATAIRE", "piece 2 filigrane"])):
+    pdf(os.path.join(src, _n), _l); br.add_upload(_n, open(os.path.join(src, _n), "rb").read())
+for _x in br.inbox():
+    if _x["orig"] in ("acte_vente.pdf", "quit_loc.pdf", "cand_1.pdf", "cand_2.pdf"):
+        br.set_overrides(_x["id"], {"type": "autre", "date": "2024-03-31"}); br.validate([_x["id"]])
+_sh = lambda n: br.db.execute("SELECT sha FROM docs WHERE orig_name=?", (n,)).fetchone()[0]
+json.dump({"format": 1, "source": "Claude", "title": "Logement", "items": [
+    {"sha": _sh("acte_vente.pdf"), "type": "immo_vente", "bien": "Appartement Paris 14", "status": "actuel"},
+    {"sha": _sh("quit_loc.pdf"), "type": "immo_quittance", "bien": "Appartement Paris 14", "status": "termine"}],
+    "dossiers": [{"template": "louer_logement", "label": "Location La Rochelle", "recipient": "Agence", "country": "FR", "sent_at": "2025-01-10",
+                  "pieces": [{"label": "Pièce d'identité", "shas": [_sh("cand_1.pdf")]}, {"label": "Fiches de paie", "shas": [_sh("cand_2.pdf")]}]}]},
+    open(os.path.join(br.fm, "revues", "revue-logement.json"), "w"))
+_rv = [r for r in br.revues() if r["file"] == "revue-logement.json"][0]
+check(_rv["dossiers"][0]["n"] == 2 and _rv["match"] == 4, "revue Logement : biens et dossier reconstitué annoncés")
+_r = br.revue_apply("revue-logement.json")
+_v, _q = br.db.execute("SELECT * FROM docs WHERE orig_name='acte_vente.pdf'").fetchone(), br.db.execute("SELECT * FROM docs WHERE orig_name='quit_loc.pdf'").fetchone()
+check("/10-1_" in _v["path"] and "/Appartement-Paris-14/6_Vente/" in _v["path"] and _v["status"] == "actuel"
+      and "99_ARCHIVES" in _q["path"] and "/02-7_" in _q["path"] and "/Appartement-Paris-14/3_Quittances-emises/" in _q["path"],
+      "un dossier par bien puis par étape : la propriété dans Patrimoine (Vente dans Documents), la location dans Logement › Biens loués (Archives)")
+_ln = br.make_name({"type": "immo_vente", "date": "2025-01-01", "country": "FR", "emitter": "Inconnu"}, ".pdf")
+check(classify.title_name("2020 paris rue poussin") == "2020 Paris Rue Poussin" and classify.title_name("saint-jean-d'angély") == "Saint-Jean-d'Angély",
+      "noms de biens et de logements écrits avec des majuscules")
+check("Inconnu" not in _ln and _ln.startswith("2025-01-01_FR_10_"), "« Inconnu » ne s'écrit plus dans le nom des fichiers")
+_s = [x for x in br.archives()["sent"] if x["label"] and x["recipient"] == "Agence"]
+check(_s and _s[0]["count"] == 2 and os.path.exists(os.path.join(br.abs(_s[0]["folder"]), "PREUVE.txt"))
+      and br.db.execute("SELECT status FROM docs WHERE orig_name='cand_1.pdf'").fetchone()[0] == "copie", "dossier envoyé reconstitué : pièces regroupées, preuve écrite")
+br.undo(_r["batch"])
+check(not [x for x in br.archives()["sent"] if x["recipient"] == "Agence"] and "6_Vente" not in br.db.execute("SELECT path FROM docs WHERE orig_name='acte_vente.pdf'").fetchone()[0],
+      "revue Logement annulée en une fois")
+# v0.8.3 : dossier « Revenus locatifs » d'un bien pour une année, montants lus (à vérifier), récapitulatif CSV
+for _n, _l in (("q_jan.pdf", ["QUITTANCE DE LOYER", "Janvier 2024", "Loyer 850,00 EUR", "Total 900,00 EUR"]),
+               ("q_fev.pdf", ["QUITTANCE DE LOYER", "Fevrier 2024", "Total 900,00 EUR"]),
+               ("af_t1.pdf", ["APPEL DE FONDS", "Montant de l'appel : 312,40 EUR", "15/01/2024"]),
+               ("tf_24.pdf", ["TAXE FONCIERE 2024", "Montant a payer 640 EUR", "01/09/2024"])):
+    pdf(os.path.join(src, _n), _l); br.add_upload(_n, open(os.path.join(src, _n), "rb").read())
+_ty = {"q_jan.pdf": ("immo_quittance", "2024-01-31"), "q_fev.pdf": ("immo_quittance", "2024-02-29"), "af_t1.pdf": ("immo_appel_fonds", "2024-01-15"), "tf_24.pdf": ("immo_charges", "2024-09-01")}
+for _x in br.inbox():
+    if _x["orig"] in _ty:
+        br.set_overrides(_x["id"], {"type": _ty[_x["orig"]][0], "date": _ty[_x["orig"]][1]}); br.validate([_x["id"]])
+for _n in _ty:
+    _d = br.db.execute("SELECT id FROM docs WHERE orig_name=?", (_n,)).fetchone()
+    br.reclassify(_d["id"], {"bien": "2022 appartement test"})
+_b = br.biens()
+check(any(x["bien"] == "2022 Appartement Test" and "2024" in x["years"] for x in _b), "biens listés avec leurs années (nom écrit avec des majuscules)")
+_rp = br.rental("2022 Appartement Test", 2024)
+_sec = {x["key"]: x for x in _rp["sections"]}
+check(len(_sec["recettes"]["docs"]) == 2 and _sec["recettes"]["total"] == 1800.0 and _sec["charges"]["total"] == 952.4,
+      "revenus locatifs 2024 : recettes 1 800 €, charges 952,40 € (montants lus, à vérifier)")
+_bd = br.rental_build("2022 Appartement Test", 2024, {_sec["charges"]["docs"][0]["id"]: 300})
+_csv = open(br.abs(_bd["csv"]), encoding="utf-8-sig").read()
+check(_bd["ok"] and _bd["n"] == 4 and "Total recettes;;;;1800,00" in _csv and "300,00" in _csv and os.path.isdir(os.path.join(br.abs(_bd["folder"]), "1_Recettes")),
+      "dossier préparé : pièces copiées par section, récapitulatif avec le montant corrigé")
+check(all(os.path.exists(br.abs(br.db.execute("SELECT path FROM docs WHERE orig_name=?", (_n,)).fetchone()[0])) for _n in _ty), "les originaux restent à leur place")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

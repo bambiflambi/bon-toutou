@@ -47,8 +47,27 @@ function dnCountries(kind, L) {
   if (ccs.length < 2) return "";
   return `<div class="dnpays">${[null, ...ccs].map((c) => `<button class="chip${(st.cc || null) === c ? " on" : ""}" data-dn="${kind}" data-dn-cc="${c || ""}">${c ? cc(c) + " " + esc(S.st.countries[c] || c) : "Tous les pays"} <span class="sub">${(c ? L.filter((d) => d.country === c) : L).length}</span></button>`).join("")}</div>`;
 }
+/* Le suivi dans le temps d'un bien ou d'un logement, en une ligne : acheté / vendu, loué de … à …, habité de … à … */
+function bienInfo(X) {
+  const yr = (L) => L.map((d) => String(d.doc_date || "").slice(0, 4)).filter((y) => y > "1900").sort();
+  const of = (t) => yr(X.filter((d) => d.type === t)), all = yr(X), sub = X[0] && X[0].sub;
+  if (sub === "10-1") { const a = of("immo_achat"), v = of("immo_vente");
+    return [a.length ? "acheté en " + a[a.length - 1] : "", v.length ? "vendu en " + v[v.length - 1] : "à toi aujourd'hui"].filter(Boolean).join(" · "); }
+  if (!all.length) return "";
+  const live = X.some((d) => d.status === "actuel");
+  if (sub === "02-7") return all[0] === all[all.length - 1] ? "loué en " + all[0] : `loué de ${all[0]} à ${live ? "aujourd'hui" : all[all.length - 1]}`;
+  if (sub === "02-6") return live ? `depuis ${all[0]}` : (all[0] === all[all.length - 1] ? "en " + all[0] : `de ${all[0]} à ${all[all.length - 1]}`);
+  return "";
+}
+
 /* Liste d'une sous-famille : d'abord par titulaire (toi en premier), puis un intertitre par dossier ou émetteur. */
 function dnList(kind, L) {
+  if (L.some((d) => d.bien)) {   // Patrimoine › Immobilier : un bloc par bien, puis ses étapes (Achat, Location, Vente…)
+    const first = (bn) => L.filter((d) => (d.bien || "") === bn).map((d) => d.doc_date || "9999").sort()[0];   // ordre de la vie : le plus ancien d'abord
+    const Bs = [...new Set(L.map((d) => d.bien || ""))].sort((a, b) => !a - !b || (/^\d{4}/.test(a) && /^\d{4}/.test(b) ? a.slice(0, 4).localeCompare(b.slice(0, 4)) || first(a).localeCompare(first(b)) : a.localeCompare(b)));
+    return Bs.map((bn) => { const X = L.filter((d) => (d.bien || "") === bn);
+      return `<div class="holderhead"><span class="oi">${IC.house}</span><b>${esc(String(bn || "Sans lieu précis").replace(/^\d{4}[_ ]/, ""))}</b>${bienInfo(X) ? ` <span class="pill neutral">${esc(bienInfo(X))}</span>` : ""}<span class="sub">${X.length} ${plural(X.length, "document")}</span></div>` + dnListOne(kind, X); }).join("");
+  }
   const H = [...new Set(L.map(holderName))].sort((a, b) => (b === S.st.settings.owner) - (a === S.st.settings.owner) || a.localeCompare(b));
   if (H.length > 1)
     return H.map((h) => { const X = L.filter((d) => holderName(d) === h);
@@ -59,7 +78,7 @@ function dnListOne(kind, L) {
   const rows = (X) => (kind === "archives" ? suiviRows(X, "old") : X.map(docRow).join(""));
   const E = [...new Set(L.map((d) => d.emitter_folder || ""))].sort((a, b) => (a === "Autres") - (b === "Autres") || a.localeCompare(b));
   if (E.length < 2) return `<div class="card doclist">${rows(L)}</div>`;
-  const head = (e) => (e === "Autres" || e === "Copies" ? e : e ? e.replace(/-/g, " ") : subName(dnSubOf(L[0])));   // dossier « Autres » de la sous-famille, ou un émetteur
+  const head = (e) => (e === "Autres" || e === "Copies" ? e : /^\d_/.test(e) ? e.slice(2).replace(/-/g, " ") : e ? e.replace(/-/g, " ") : subName(dnSubOf(L[0])));   // dossier « Autres » de la sous-famille, ou un émetteur
   return `<div class="card doclist">${E.map((e) => { const Y = L.filter((d) => (d.emitter_folder || "") === e);
     return `<div class="subhead" style="text-transform:none;letter-spacing:0">${esc(head(e))} · ${Y.length}</div>${rows(Y)}`; }).join("")}</div>`;
 }
