@@ -23,7 +23,7 @@ function tpSubs(cat) {
   tpTypes().forEach(([k, t]) => { if (t.cat === cat) (subs[t.sub] = subs[t.sub] || []).push(k); });
   return Object.keys(subs).sort().map((s) => [s, subs[s]]);
 }
-const SUBL = { "02-6": "Mes logements", "02-7": "Biens loués", "01-1": "Pièces d'identité", "01-2": "État civil", "01-4": "Titres de séjour et visas", "02-1": "Bail ou titre de propriété", "02-3": "Énergie, eau, internet",
+const SUBL = { "01-5": "Service national", "02-2": "Quittances et avis d'échéance", "02-4": "Travaux et équipement", "02-5": "Justificatifs de domicile", "02-6": "Copropriété", "02-7": "Gestion locative", "04-4": "Taxes locales", "05-3": "Crédits", "07-6": "Emprunteur", "10-5": "Comptabilité locative", "01-1": "Pièces d'identité", "01-2": "État civil", "01-4": "Titres de séjour et visas", "02-1": "Baux et états des lieux", "02-3": "Énergie, eau, internet",
   "02-5": "Justificatifs d'adresse", "03-2": "Bulletins de paie", "03-3": "Activité indépendante", "03-4": "Chômage et retraite", "04-1": "Déclarations",
   "05-1": "Comptes et relevés", "05-3": "Crédits", "06-1": "Sécu et mutuelle", "06-3": "Dossier médical", "07-2": "Véhicule", "07-3": "Responsabilité civile",
   "07-4": "Prévoyance et vie", "08-1": "Achat et vente", "08-3": "Entretien et contrôles", "09-1": "Union, mariage, PACS", "09-3": "Parents à charge",

@@ -53,6 +53,8 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **v0.8.3** : `classify.amount(text)` (montant principal en euros après « net à payer », « total TTC », « montant de l'appel »… sinon le plus grand ; toujours « à vérifier ») ; `Bureau.biens()` (biens de 02-7 et 10-1 avec leurs années), `rental(bien, year)` (sections `RENTAL_SECTIONS` : recettes, charges, financement toutes années, comptabilité N et N-1, location), `rental_build(bien, year, amounts)` (copies dans `20_DEMARCHES/<date>_Revenus-locatifs_<bien>_<année>/<n>_<Section>/` + `recapitulatif.csv` UTF-8 BOM « ; »). Routes `/api/biens`, `/api/rental`, `/api/rental/build`. UI `static/revenus.js` (carte dans Dossiers).
 
+- **v0.9.0 (structure, voir le doc projet « bon_toutou_structure_principes »)** : `doc_dir` = sous-famille [/Autres] / organisme (pas de dossier si organisme inconnu ou = toi) ; plus de `bien`/`etape` dans les types (les `immo_*` / `log_*` de la v0.8 sont redirigés, ceux qui n'ont plus de sens sont `generic` + `legacy`). Étiquettes `extra.lieu` (ex-`bien`, nettoyé de l'année) et `extra.role` (`ROLES`), champs `lieu` / `role` de `reclassify` et des revues ; `make_name` ajoute `_<Lieu>` ; `_doc_pub` renvoie `lieu`, `role`, `role_label` ; `known()["lieux"]`. `sub_dir` ignore les anciens dossiers `LEGACY_SUBS`. `_tidy` (tout le bureau à sa place, copies à côté de leur document, sans écrire au journal ce qui ne bouge pas) dans `refresh()` et les revues `tidy: true` ; `_prune_legacy` retire les dossiers vides de l'ancienne organisation ; revue `supersedes`, `intro`. `reclassify` ne renomme pas un fichier déjà au bon nom numéroté (`-2`, `-3`).
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.
@@ -66,7 +68,7 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 1. **Ne jamais supprimer un fichier de l'utilisateur.** Déplacer, copier, archiver seulement. Tout déplacement passe par `_move()` pour être journalisé et annulable.
 2. **Aucun appel réseau hors de `sortie.py`.** Le moteur passe par `Bureau.sortir()` (niveau de la catégorie + accord + journal). Jamais d'import réseau ailleurs.
 3. **Python 3.9 compatible, zéro dépendance obligatoire** (le Python par défaut de macOS). `pypdf` et tesseract sont des bonus détectés à l'exécution.
-4. Le dossier Finder reste lisible sans l'app. Le nommage suit `AAAA-MM-JJ_PAYS_CAT_Emetteur_Objet.ext`.
+4. Le dossier Finder reste lisible sans l'app. Rangement `PAYS/Famille/Sous-famille/Organisme/`, nommage `AAAA-MM-JJ_PAYS_CAT_Organisme_Objet[_Lieu].ext`.
 5. Interface en français. Dire « document suivi » (pas « document maître »). Confiance en mots, jamais en pourcentage. Toujours un « Pourquoi ? ».
 6. Avant chaque livraison : `cd engine && for t in flow sortie regles ia app mail; do python3 -m tests.test_$t; done`.
 7. Licence AGPL-3.0. Aucune télémétrie, jamais.

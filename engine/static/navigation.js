@@ -62,7 +62,7 @@ function bienInfo(X) {
 
 /* Liste d'une sous-famille : d'abord par titulaire (toi en premier), puis un intertitre par dossier ou émetteur. */
 function dnList(kind, L) {
-  if (L.some((d) => d.bien)) {   // Patrimoine › Immobilier : un bloc par bien, puis ses étapes (Achat, Location, Vente…)
+  if (false) {   // v0.9 : plus de dossiers par bien ; le lieu est une étiquette (vues Lieux à venir)
     const first = (bn) => L.filter((d) => (d.bien || "") === bn).map((d) => d.doc_date || "9999").sort()[0];   // ordre de la vie : le plus ancien d'abord
     const Bs = [...new Set(L.map((d) => d.bien || ""))].sort((a, b) => !a - !b || (/^\d{4}/.test(a) && /^\d{4}/.test(b) ? a.slice(0, 4).localeCompare(b.slice(0, 4)) || first(a).localeCompare(first(b)) : a.localeCompare(b)));
     return Bs.map((bn) => { const X = L.filter((d) => (d.bien || "") === bn);

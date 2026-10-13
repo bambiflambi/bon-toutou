@@ -185,7 +185,7 @@ const isMine = (d) => holderName(d) === ((S.st.settings && S.st.settings.owner) 
 function docRow(d) {
   const e = d.expiry ? daysTo(d.expiry) : null;
   return `<div class="row drow k-${esc(d.country)}" data-doc="${d.id}" role="button" tabindex="0" style="cursor:pointer"><span class="oi">${catIc(d.cat)}</span><div class="grow"><b>${esc(d.label)}</b>${holderName(d) ? ` <span class="whoname">— ${esc(holderName(d))}</span>` : ""} ${cc(d.country)}
-    <div class="sub">${frd(d.doc_date)}${d.versions > 1 ? ` · ${d.versions} versions` : ""}</div></div>
+    <div class="sub">${frd(d.doc_date)}${d.lieu ? " · " + esc(d.lieu) : ""}${d.versions > 1 ? ` · ${d.versions} versions` : ""}</div></div>
     ${e !== null && e <= 365 ? `<span class="pill ${e < 0 ? "bad" : e <= 30 ? "warn" : "neutral"}">${e < 0 ? "expiré" : "expire dans " + e + " j"}</span>` : ""}${lvBadge(d.cat)}</div>`;
 }
 function subBlock(D, c) {
@@ -233,7 +233,7 @@ function docView() {
   <div class="ttl" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px"><span class="oi">${catIc(d.cat)}</span><h1 style="margin:0">${esc(d.label)}</h1>${cc(d.country)}${lvBadge(d.cat)}</div>
   <p class="sub" style="margin:0 0 14px"><span class="pill acc">Document suivi</span> ${d.detail ? esc(S.st.types[d.type].label) + " · " : ""}${esc(d.cat_label)} · utilisé dans ${d.used_in.length} ${plural(d.used_in.length, "dossier")}, jamais copié</p>
   <div class="card box"><dl class="kv"><dt>Fichier</dt><dd class="fname">${esc(d.path)}</dd><dt>Date</dt><dd>${frd(d.doc_date)}</dd>
-    ${d.expiry ? `<dt>Expire</dt><dd>${frd(d.expiry)} ${d.expired ? '<span class="pill bad">expiré</span>' : e <= 120 ? `<span class="pill ${e <= 30 ? "warn" : "neutral"}">dans ${e} jours</span>` : ""}</dd>` : ""}<dt>Titulaire</dt><dd>${esc(d.person === "moi" ? (S.st.settings.owner || "toi") : d.person)}</dd><dt>Émetteur</dt><dd>${esc(d.emitter)}</dd>
+    ${d.expiry ? `<dt>Expire</dt><dd>${frd(d.expiry)} ${d.expired ? '<span class="pill bad">expiré</span>' : e <= 120 ? `<span class="pill ${e <= 30 ? "warn" : "neutral"}">dans ${e} jours</span>` : ""}</dd>` : ""}<dt>Titulaire</dt><dd>${esc(d.person === "moi" ? (S.st.settings.owner || "toi") : d.person)}</dd><dt>Émetteur</dt><dd>${esc(d.emitter)}</dd>${d.lieu ? `<dt>Lieu</dt><dd>${esc(d.lieu)}</dd>` : ""}${d.role_label ? `<dt>Rôle</dt><dd>${esc(d.role_label)}</dd>` : ""}
     <dt>Sorties</dt><dd>Jamais sorti de ton ordinateur</dd><dt>Confidentialité</dt><dd>${esc(LVL[lvOf(d.cat)][2])} · <button class="linkbtn" style="padding:0" data-go="reglages" data-sv="priv">changer</button></dd><dt>Reçu sous le nom</dt><dd class="fname">${esc(d.orig_name)}</dd></dl>
     <div class="acts" style="margin-top:12px"><button class="ghost small" data-open="${esc(d.path)}">Ouvrir</button><button class="ghost small" data-act="reveal" data-p="${esc(d.path)}">Montrer dans le Finder</button><button class="ghost small" data-act="fixopen">Corriger le classement</button></div>
     ${S.fix ? `<div class="edit" style="margin-top:14px">
@@ -242,6 +242,8 @@ function docView() {
       <label>Intitulé exact<input class="field" id="fx_detail" value="${esc(d.detail || "")}" placeholder="ex. ASSR2, Attestation de présence"></label>
       <label>Titulaire<input class="field" list="holders" id="fx_person" value="${esc(d.person === "moi" ? "" : d.person)}" placeholder="${esc(S.st.settings.owner || "toi")}"></label>
       <label>Émetteur<input class="field" id="fx_emitter" value="${esc(d.emitter)}"></label>
+      <label>Lieu<input class="field" id="fx_lieu" data-ac="lieux" autocomplete="off" value="${esc(d.lieu || "")}" placeholder="Ville - Rue (ex. Paris - Rue Poussin)"></label>
+      <label>Rôle<select class="field" id="fx_role"><option value="">—</option>${[["locataire", "Locataire"], ["proprietaire_occupant", "Propriétaire occupant"], ["bailleur", "Propriétaire bailleur"], ["heberge", "Hébergé"]].map(([k, v]) => `<option value="${k}" ${d.role === k ? "selected" : ""}>${v}</option>`).join("")}</select></label>
       <label>Date du document<input class="field" type="date" id="fx_date" value="${esc(d.doc_date)}"></label>
       <label>Expire le<input class="field" type="date" id="fx_expiry" value="${esc(d.expiry || "")}"></label></div>
       <div class="acts" style="margin-top:10px"><button class="cta small" data-act="fixsave">Enregistrer</button><button class="linkbtn" data-act="fixcancel">annuler</button><span class="sub">Le fichier est renommé et déplacé au bon endroit. Annulable.</span></div>` : ""}</div>
@@ -413,7 +415,7 @@ document.addEventListener("click", async (e) => {
   if (act === "fixsave") { const f = (k) => $("#fx_" + k).value; const before = S.doc;
     const ch = {}; [["type", "type"], ["emitter", "emitter"], ["detail", "detail"], ["country", "country"]].forEach(([k, c]) => { const v = f(k).trim(); if (v && v !== String(before[c] || "")) ch[k] = v; });
     S.docOffer = Object.keys(ch).length ? { doc: before.id, overrides: ch, type: f("type") } : null;
-    const r = await api("/api/reclassify", { id: S.doc.id, fields: { type: f("type"), country: f("country"), emitter: f("emitter"), date: f("date"), expiry: f("expiry"), person: f("person"), detail: f("detail") } }); S.fix = false; await load(); toast(r.ok ? "Corrigé · fichier renommé et déplacé" : (r.msg || "Erreur"), r.batch); }
+    const r = await api("/api/reclassify", { id: S.doc.id, fields: { type: f("type"), country: f("country"), emitter: f("emitter"), date: f("date"), expiry: f("expiry"), person: f("person"), detail: f("detail"), ...($("#fx_lieu") ? { lieu: f("lieu"), role: f("role") } : {}) } }); S.fix = false; await load(); toast(r.ok ? "Corrigé · fichier renommé et déplacé" : (r.msg || "Erreur"), r.batch); }
   if (act === "terminate") { const r = await api("/api/terminate", { id: S.doc.id }); S.confirm = null; await load(); toast("Suivi terminé · tout est dans Archives › Anciennes versions", r.batch); }
   if (act === "rebuild") { const r = await api("/api/rebuild", {}); S.confirm = null; await load(); toast(`Index reconstruit : ${r.docs} fichiers`); }
   if (act === "newdos") { const r = await api("/api/dossier/create", { template: S.newTpl, recipient: $("#rcp").value, country: $("#dcc").value }); S.newTpl = null; openDos(r.id); }

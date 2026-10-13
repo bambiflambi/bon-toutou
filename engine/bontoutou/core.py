@@ -60,6 +60,9 @@ def now():
     return dt.datetime.now().isoformat(timespec="seconds")
 
 
+ROLES = {"locataire": "Locataire", "proprietaire_occupant": "Propriétaire occupant", "bailleur": "Propriétaire bailleur", "heberge": "Hébergé"}
+
+
 def BIEN_SUBS():
     """Sous-familles rangées par bien ou par logement (Mes logements, Biens loués, Immobilier) : leurs « Autres » aussi."""
     return {T["sub"] for T in TYPES.values() if T.get("bien")}
@@ -225,8 +228,17 @@ class Bureau:
     def cat_dir(self, cc, cat):
         return self._child(self.country_dir(cc), cat + "_", CAT_FOLDERS_FR[cat])
 
+    LEGACY_SUBS = ("02-6_Mes-logements", "02-7_Biens-loues")   # sous-familles de la v0.8 : jamais réutilisées
+
     def sub_dir(self, cc, cat, sub):
-        return self._child(self.cat_dir(cc, cat), sub + "_", sub + "_" + SUB_FOLDERS_FR.get(sub, "Divers"))
+        parent, want = self.cat_dir(cc, cat), sub + "_" + SUB_FOLDERS_FR.get(sub, "Divers")
+        os.makedirs(parent, exist_ok=True)
+        for n in sorted(os.listdir(parent)):
+            if n.startswith(sub + "_") and n not in self.LEGACY_SUBS and os.path.isdir(os.path.join(parent, n)):
+                return os.path.join(parent, n)
+        p = os.path.join(parent, want)
+        os.makedirs(p, exist_ok=True)
+        return p
 
     def archive_root(self, cc):
         return self._child(self.country_dir(cc), "99_ARCHIVE", "99_ARCHIVES")
@@ -245,38 +257,35 @@ class Bureau:
             keys = x.keys()
         except Exception:
             return None
-        if "bien" in keys and x["bien"]:
-            return x["bien"]
+        for k in ("lieu", "bien"):
+            if k in keys and x[k]:
+                return x[k]
         if "extra" in keys and x["extra"]:
             try:
-                return (json.loads(x["extra"]) if isinstance(x["extra"], str) else x["extra"] or {}).get("bien")
+                ex = json.loads(x["extra"]) if isinstance(x["extra"], str) else x["extra"] or {}
+                return ex.get("lieu") or ex.get("bien")
             except Exception:
                 return None
         return None
 
     def doc_dir(self, cc, type_id, emitter, archive=False, group=None):
-        """Dossier d'un document : sous-dossier de sa catégorie, puis un dossier par émetteur pour les papiers
-        d'emploi (fiches de paie, contrats…) : 03-2_Bulletins-paie/Saveurs-Royales/."""
+        """Dossier d'un document (v0.9) : PAYS / Famille / Sous-famille [/ Autres] / Organisme.
+        Un dossier par organisme dans chaque sous-famille (LCL, EDF, ton employeur…) ; organisme inconnu ou toi-même :
+        le papier reste à la racine de la sous-famille. Le lieu (Paris - Rue de Plaisance…) n'est pas un dossier : il est dans
+        la fiche et dans le nom du fichier. `group` est gardé pour la compatibilité, il n'est plus utilisé."""
         T = TYPES.get(type_id) or TYPES["autre"]
         p = self.archive_sub(cc, T["cat"], T["sub"]) if archive else self.sub_dir(cc, T["cat"], T["sub"])
-        if T.get("par_emetteur") and emitter and emitter != "Inconnu":
+        if T.get("inner"):   # « Autre » d'une sous-famille : un dossier Autres dedans
+            p = os.path.join(p, T["inner"])
+            os.makedirs(p, exist_ok=True)
+        if emitter and emitter != "Inconnu" and not (self.settings.get("owner") and self._is_owner(emitter)):
             name = classify.slugify(emitter)[:40]
             if not os.path.isdir(os.path.join(p, name)):
                 for d in sorted(os.listdir(p)):  # dossier déjà là sous un autre nom (le tien) : on le réutilise
-                    if os.path.isdir(os.path.join(p, d)) and not d.startswith(".") and classify.same_emitter(d, emitter):
+                    if os.path.isdir(os.path.join(p, d)) and not d.startswith(".") and d not in ("Copies", "Autres") and classify.same_emitter(d, emitter):
                         name = d
                         break
             p = os.path.join(p, name)
-            os.makedirs(p, exist_ok=True)
-        if T.get("bien") or (group and T.get("sub") in BIEN_SUBS()):   # un bien ou un logement : son dossier, puis l'étape
-            if group:
-                p = os.path.join(p, classify.slugify(group)[:50])
-        if T.get("etape"):
-            p = os.path.join(p, T["etape"])
-        if T.get("bien") or T.get("etape"):
-            os.makedirs(p, exist_ok=True)
-        if T.get("inner"):   # « Autre » d'une sous-famille : un dossier Autres dedans
-            p = os.path.join(p, T["inner"])
             os.makedirs(p, exist_ok=True)
         return p
 
@@ -985,6 +994,9 @@ class Bureau:
         if T["cat"] in self.PERSONAL_CATS and h != "moi":
             obj += "-" + classify.slugify(h)
         em = classify.slugify(a["emitter"]) if a.get("emitter") and a["emitter"] != "Inconnu" else ""
+        lieu = a.get("lieu") or a.get("bien")
+        if lieu:   # le lieu se lit dans le Finder : …_EDF_Facture_Paris-Rue-de-Plaisance.pdf
+            obj += "_" + classify.slugify(re.sub(r"^\d{4}\s+", "", lieu))[:50]
         return f"{a['date']}_{a['country']}_{T['cat']}_{em + '_' if em else ''}{obj}{ext.lower()}"
 
     def proposal(self, row, overrides=None):
@@ -1253,10 +1265,13 @@ class Bureau:
         d["emitter_folder"] = parts[-1] if subs and parts and parts[-1] != subs[-1] else None
         d["status_label"] = STATUS_LABEL.get(d["status"], d["status"])
         try:
-            d["bien"] = (json.loads(d["extra"]) or {}).get("bien") if d.get("extra") else None
+            ex = (json.loads(d["extra"]) or {}) if d.get("extra") else {}
         except Exception:
-            d["bien"] = None
-        d["etape"] = (TYPES.get(d["type"]) or {}).get("etape")
+            ex = {}
+        d["lieu"] = ex.get("lieu") or (re.sub(r"^\d{4}\s+", "", ex["bien"]) if ex.get("bien") else None)
+        d["role"] = ex.get("role")
+        d["role_label"] = ROLES.get(ex.get("role") or "")
+        d["bien"] = d["lieu"]
         if d["suivi"]:
             d["versions"] = self.db.execute("SELECT COUNT(*) FROM docs WHERE suivi=?", (d["suivi"],)).fetchone()[0]
         else:
@@ -1305,12 +1320,22 @@ class Bureau:
                 return {"ok": False, "msg": "Document introuvable"}
             a = {"type": d["type"], "country": d["country"], "emitter": d["emitter"], "date": d["doc_date"], "expiry": d["expiry"], "person": d["person"], "detail": d["detail"]}
             ex = json.loads(d["extra"] or "{}") if "extra" in d.keys() else {}
-            a.update({k: v for k, v in ex.items() if k in ("lot", "emitter_display", "origin", "bien")})
-            if "bien" in fields:
-                if fields["bien"]:
-                    ex["bien"] = a["bien"] = classify.title_name(str(fields["bien"]))[:60]
+            a.update({k: v for k, v in ex.items() if k in ("lot", "emitter_display", "origin", "lieu", "role")})
+            if ex.get("bien") and not ex.get("lieu"):   # v0.8 : le « bien » devient le lieu
+                a["lieu"] = ex["lieu"] = re.sub(r"^\d{4}\s+", "", ex["bien"])
+            if "bien" in fields and "lieu" not in fields:
+                fields = {**fields, "lieu": fields["bien"]}
+            if "lieu" in fields:
+                ex.pop("bien", None); a.pop("bien", None)
+                if fields["lieu"]:
+                    ex["lieu"] = a["lieu"] = classify.title_name(str(fields["lieu"]))[:60]
                 else:
-                    ex.pop("bien", None); a.pop("bien", None)
+                    ex.pop("lieu", None); a.pop("lieu", None)
+            if "role" in fields:
+                if fields["role"] in ROLES:
+                    ex["role"] = a["role"] = fields["role"]
+                else:
+                    ex.pop("role", None); a.pop("role", None)
             if fields.get("emitter") and classify.slugify(fields["emitter"]) != d["emitter"]:
                 ex["emitter_display"] = a["emitter_display"] = fields["emitter"].replace("-", " ").strip()
             if fields.get("date") and fields["date"] != d["doc_date"]:
@@ -1345,7 +1370,12 @@ class Bureau:
             folder = self.doc_dir(a["country"], a["type"], a["emitter"], group=self._group(a), archive=status != "actuel")
             src = self.abs(d["path"])
             ext = os.path.splitext(d["path"])[1] or ".pdf"
-            dst = unique_path(folder, self.make_name(a, ext)) if os.path.abspath(os.path.join(folder, self.make_name(a, ext))) != src else src
+            want = self.make_name(a, ext)
+            stem, wext = os.path.splitext(want)
+            if os.path.abspath(os.path.dirname(src)) == os.path.abspath(folder) and re.fullmatch(re.escape(stem) + r"(-\d+)?" + re.escape(wext), os.path.basename(src)):
+                dst = src   # déjà au bon nom (ou au bon nom numéroté parce qu'un autre papier le porte) : on ne bouge pas
+            else:
+                dst = unique_path(folder, want)
             if dst != src and os.path.exists(src):
                 self._move(src, dst, ops)
             self._doc_update(did, {"type": a["type"], "label": self.display_label(a), "country": a["country"], "cat": T["cat"],
@@ -1364,6 +1394,7 @@ class Bureau:
             changes = self._redetect(ops)
             redated = self._redate(ops)
             renamed = self._canon_people(ops)
+            moved = self._tidy(ops)   # v0.9 : chaque document dans le dossier de son organisme, copies à côté
             unk = 0   # « Inconnu » ne s'écrit plus dans le nom des fichiers (v0.8.1)
             for d in self.db.execute("SELECT id FROM docs WHERE status!='copie' AND path LIKE '%\\_Inconnu\\_%' ESCAPE '\\'").fetchall():
                 if self.reclassify(d["id"], {}, ops).get("ok"):
@@ -1377,6 +1408,7 @@ class Bureau:
                     ([f"{len(redated)} date{'s' if len(redated) > 1 else ''} de délivrance corrigée{'s' if len(redated) > 1 else ''}"] if redated else []) + \
                     ([f"{len(renamed)} nom{'s' if len(renamed) > 1 else ''} de titulaire ou d'émetteur unifié{'s' if len(renamed) > 1 else ''}"] if renamed else []) + \
                     ([f"{unk} fichier{'s' if unk > 1 else ''} renommé{'s' if unk > 1 else ''} sans « Inconnu »"] if unk else []) + \
+                    ([f"{moved} fichier{'s' if moved > 1 else ''} rangé{'s' if moved > 1 else ''} dans le dossier de son organisme"] if moved else []) + \
                     ([f"{len(closed)} ancien{'s' if len(closed) > 1 else ''} employeur{'s' if len(closed) > 1 else ''} dans Anciennes versions"] if closed else [])
             b = self._journal("Mise à jour : " + ", ".join(parts), ops)
             if dups:
@@ -1428,6 +1460,52 @@ class Bureau:
             ch = self._canon_people(ops)
             b = self._journal(f"Ton nom : {name}" + (f" ({len(ch)} document{'s' if len(ch) > 1 else ''} renommé{'s' if len(ch) > 1 else ''})" if ch else ""), ops)
         return {"ok": True, "n": len(ch), "batch": b}
+
+    def _tidy(self, ops, skip=()):
+        """Chaque document à sa place (v0.9 : un dossier par organisme, le lieu dans le nom) ; les copies à côté de leur document.
+        Ne touche pas aux pièces d'un dossier envoyé. Retourne le nombre de fichiers déplacés ou renommés."""
+        n = 0
+        for d in self.db.execute("SELECT * FROM docs WHERE status!='copie'").fetchall():
+            if d["id"] in skip:
+                continue
+            k = len(ops)
+            if self.reclassify(d["id"], {}, ops).get("ok"):
+                after = self.db.execute("SELECT * FROM docs WHERE id=?", (d["id"],)).fetchone()
+                if all(d[c] == after[c] for c in d.keys()):
+                    del ops[k:]          # déjà à sa place : rien à noter dans le journal
+                elif after["path"] != d["path"]:
+                    n += 1
+        for c in self.db.execute("SELECT * FROM docs WHERE status='copie'").fetchall():
+            ex = json.loads(c["extra"] or "{}") if c["extra"] else {}
+            m = self.db.execute("SELECT path FROM docs WHERE id=?", (ex.get("copy_of"),)).fetchone() if ex.get("copy_of") else None
+            if not m:
+                continue
+            want = os.path.join(os.path.dirname(self.abs(m["path"])), "Copies")
+            src = self.abs(c["path"])
+            if os.path.exists(src) and os.path.dirname(src) != want:
+                dst = unique_path(want, os.path.basename(src))
+                self._move(src, dst, ops)
+                self._doc_update(c["id"], {"path": self.rel(dst)}, ops)
+                n += 1
+        self._prune_legacy()
+        return n
+
+    def _prune_legacy(self):
+        """Les dossiers vides laissés par l'ancienne organisation (Mes logements, Biens loués…) sont retirés : ils sont vides."""
+        for root, dirs, files in os.walk(self.root, topdown=False):
+            if "/.bontoutou" in root or os.path.basename(root).startswith("."):
+                continue
+            rel = os.path.relpath(root, self.root)
+            if any(x in rel for x in self.LEGACY_SUBS) or "/10-1_Immobilier/" in "/" + rel + "/":
+                try:
+                    real = [f for f in os.listdir(root) if f != ".DS_Store"]
+                    if not real:
+                        ds = os.path.join(root, ".DS_Store")
+                        if os.path.exists(ds) and os.path.getsize(ds) < 64 * 1024:
+                            os.remove(ds)   # fichier caché du Finder, pas un document
+                        os.rmdir(root)
+                except OSError:
+                    pass
 
     def _canon_people(self, ops):
         """Une même personne écrite de plusieurs façons (titulaire ou émetteur) : une seule écriture partout, fichiers renommés."""
@@ -1699,9 +1777,11 @@ class Bureau:
         """Ce que tu as déjà écrit (émetteurs, titulaires, intitulés), du plus fréquent au plus rare : proposé dès les
         premières lettres tapées, pour ne jamais réécrire deux fois le même nom."""
         from collections import Counter
-        em, det, per, sug = Counter(), Counter(), Counter(), Counter()
+        em, det, per, sug, lie = Counter(), Counter(), Counter(), Counter(), Counter()
         for r in self.db.execute("SELECT emitter, detail, person, extra FROM docs").fetchall():
             ex = json.loads(r["extra"] or "{}") if r["extra"] else {}
+            if ex.get("lieu") or ex.get("bien"):
+                lie[ex.get("lieu") or re.sub(r"^\d{4}\s+", "", ex["bien"])] += 1
             if ex.get("suggestion"):
                 sug[ex["suggestion"]] += 1
             e = ex.get("emitter_display") or (r["emitter"] or "").replace("-", " ")
@@ -1730,7 +1810,7 @@ class Bureau:
             for k, n in c.most_common():
                 best.setdefault(classify.slugify(k).lower(), k)
             return list(best.values())[:400]
-        return {"emitters": uniq(em), "details": uniq(det), "persons": uniq(per), "suggestions": uniq(sug)}
+        return {"emitters": uniq(em), "details": uniq(det), "persons": uniq(per), "suggestions": uniq(sug), "lieux": uniq(lie)}
 
     def autres(self):
         """Tous les documents rangés dans un « Autres » (famille, sous-famille ou Autres familles), avec la famille suggérée :
@@ -1803,7 +1883,7 @@ class Bureau:
         return {"ok": True, "n": n, "unknown": unknown}
 
     # ------------------------------------------------------------ revue des documents rangés (v0.7.7)
-    REVUE_FIELDS = ("type", "country", "emitter", "date", "expiry", "person", "detail", "bien")
+    REVUE_FIELDS = ("type", "country", "emitter", "date", "expiry", "person", "detail", "bien", "lieu", "role")
     REVUE_STATUS = ("actuel", "ancienne_version", "termine", "copie")
 
     def _revues_dir(self):
@@ -1828,8 +1908,8 @@ class Bureau:
             prof = {k: v for k, v in (rv.get("profile") or {}).items() if k in ("owner", "owner_aliases") and v} if isinstance(rv.get("profile"), dict) else {}
             dz = [{"label": z.get("label") or "Dossier", "recipient": z.get("recipient") or "", "sent_at": z.get("sent_at"), "note": z.get("note") or "",
                    "n": sum(1 for pc in z.get("pieces") or [] for sh in pc.get("shas") or [] if sh in by_sha)} for z in rv.get("dossiers") or [] if isinstance(z, dict)]
-            out.append({"file": f, "source": rv.get("source") or "?", "title": rv.get("title") or f, "n": len(items), "match": len(lines) + (1 if prof else 0) + sum(z["n"] for z in dz),
-                        "applied": rv.get("applied"), "lines": lines, "profile": prof, "dossiers": dz})
+            out.append({"file": f, "source": rv.get("source") or "?", "title": rv.get("title") or f, "n": len(items), "match": len(lines) + (1 if prof else 0) + sum(z["n"] for z in dz) + (1 if rv.get("tidy") else 0),
+                        "applied": rv.get("applied"), "lines": lines, "profile": prof, "dossiers": dz, "tidy": bool(rv.get("tidy")), "intro": str(rv.get("intro") or "")[:600]})
         return out
 
     def _reconstitute(self, dz, doc, ops):
@@ -1942,34 +2022,39 @@ class Bureau:
                     fields["path"] = self.rel(dst)
                 self._doc_update(d["id"], fields, ops)
                 n += 1
+            # 4b) tout le bureau à sa place (migration de structure) : un dossier par organisme, le lieu dans le nom
+            if rv.get("tidy"):
+                n += self._tidy(ops)
             # 5) dossiers reconstitués : des pièces déjà envoyées (copies filigranées…) regroupées en un dossier envoyé, avec sa preuve
             for dz in rv.get("dossiers") or []:
                 if isinstance(dz, dict):
                     n += self._reconstitute(dz, doc, ops)
             if prof:
                 n += len(self._canon_people(ops))
-            if not ops:
-                return {"ok": True, "n": 0, "skipped": skipped}
-            b = self._journal(f"Revue ({src}) : {n} correction{'s' if n > 1 else ''}", ops)
+            b = self._journal(f"Revue ({src}) : {n} correction{'s' if n > 1 else ''}", ops) if ops else None
         rv["applied"] = now()
         write_json(path, rv)
+        for f in rv.get("supersedes") or []:   # revues remplacées par celle-ci : elles ne s'affichent plus
+            q = os.path.join(self._revues_dir(), os.path.basename(str(f)))
+            o = read_json(q, None)
+            if isinstance(o, dict) and not o.get("applied"):
+                o["applied"] = "remplacée"
+                write_json(q, o)
         self.diag("revue", fichier=os.path.basename(path), source=src, corrections=n, ignorees=skipped)
         return {"ok": True, "n": n, "skipped": skipped, "batch": b}
 
     # ------------------------------------------------------------ revenus locatifs d'un bien, pour une année (v0.8.3)
-    RENTAL_SECTIONS = (("recettes", "Recettes", ("immo_quittance",)),
-                       ("charges", "Charges", ("immo_appel_fonds", "immo_charges", "immo_travaux", "immo_gestion")),
-                       ("financement", "Financement", ("immo_pret",)),
+    RENTAL_SECTIONS = (("recettes", "Recettes", ("quittance_loyer", "immo_quittance")),
+                       ("charges", "Charges", ("immo_appel_fonds", "immo_copro", "facture_energie", "taxe_fonciere", "assurance_habitation",
+                                               "immo_travaux", "immo_gestion", "immo_charges")),
+                       ("financement", "Financement", ("immo_pret", "assurance_emprunteur")),
                        ("comptabilite", "Comptabilité", ("immo_compta",)),
-                       ("location", "Pièces de la location", ("immo_bail", "immo_locataire", "immo_etat_lieux")))
+                       ("location", "Pièces de la location", ("bail", "immo_bail", "immo_locataire", "immo_etat_lieux")))
 
     def biens(self):
-        """Tes biens (Logement › Biens loués et Patrimoine › Immobilier) avec les années où ils ont des papiers."""
+        """Tes lieux (étiquette « Lieu ») avec les années où ils ont des papiers : biens loués, logements où tu as habité."""
         out = {}
-        for r in self.db.execute("SELECT type, doc_date, extra FROM docs WHERE status!='copie' AND extra LIKE '%\"bien\"%'").fetchall():
-            T = TYPES.get(r["type"]) or {}
-            if T.get("sub") not in ("02-7", "10-1"):
-                continue
+        for r in self.db.execute("SELECT type, doc_date, extra FROM docs WHERE status!='copie' AND (extra LIKE '%\"lieu\"%' OR extra LIKE '%\"bien\"%')").fetchall():
             b = self._group(r)
             if b:
                 o = out.setdefault(b, {"bien": b, "years": set(), "n": 0})
@@ -1983,7 +2068,11 @@ class Bureau:
         avec le montant lu dans chacune (à vérifier). Le financement (prêt, assurance emprunteur) est pris quelle que soit l'année :
         un tableau d'amortissement couvre plusieurs années. La comptabilité de l'année d'avant est jointe."""
         year = str(year)[:4]
-        rows = [r for r in self.db.execute("SELECT * FROM docs WHERE status!='copie' ORDER BY doc_date").fetchall() if self._group(r) == bien]
+        canon = lambda x: re.sub(r"^\d{4}\s+", "", x or "")
+        rows = [r for r in self.db.execute("SELECT * FROM docs WHERE status!='copie' ORDER BY doc_date").fetchall() if canon(self._group(r)) == canon(bien)]
+        # recettes et pièces de location : seulement côté bailleur ; charges d'occupant (ton assurance, ton énergie) exclues
+        role = lambda r: (json.loads(r["extra"] or "{}") if r["extra"] else {}).get("role")
+        rows = [r for r in rows if not (r["type"] in ("quittance_loyer", "bail", "facture_energie", "assurance_habitation") and role(r) not in ("bailleur", None))]
         secs = []
         for key, label, types in self.RENTAL_SECTIONS:
             L = []

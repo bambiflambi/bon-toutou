@@ -376,7 +376,7 @@ _ib = br.inbox()
 if _ib:
     _x = _ib[0]
     _p = br.set_overrides(_x["id"], {"type": "autre_03_1", "suggest": "Formation professionnelle", "usage": "utile"})
-    check(_p["dest"].replace(os.sep, "/").endswith("03-1_Contrats/Autres"), "Autre dans une sous-famille : dossier Autres dedans")
+    check("03-1_Contrats/Autres" in _p["dest"].replace(os.sep, "/"), "Autre dans une sous-famille : dossier Autres dedans")
     _r = br.validate([_x["id"]])
     _a = [d for d in br.autres() if d["type"] == "autre_03_1"]
     check(_r["ok"] and _a and _a[0]["suggestion"] == "Formation professionnelle", "« Autres » à étudier : retrouvé avec la famille imaginée")
@@ -491,9 +491,9 @@ _rv = [r for r in br.revues() if r["file"] == "revue-logement.json"][0]
 check(_rv["dossiers"][0]["n"] == 2 and _rv["match"] == 4, "revue Logement : biens et dossier reconstitué annoncés")
 _r = br.revue_apply("revue-logement.json")
 _v, _q = br.db.execute("SELECT * FROM docs WHERE orig_name='acte_vente.pdf'").fetchone(), br.db.execute("SELECT * FROM docs WHERE orig_name='quit_loc.pdf'").fetchone()
-check("/10-1_" in _v["path"] and "/Appartement-Paris-14/6_Vente/" in _v["path"] and _v["status"] == "actuel"
-      and "99_ARCHIVES" in _q["path"] and "/02-7_" in _q["path"] and "/Appartement-Paris-14/3_Quittances-emises/" in _q["path"],
-      "un dossier par bien puis par étape : la propriété dans Patrimoine (Vente dans Documents), la location dans Logement › Biens loués (Archives)")
+check("/10-1_" in _v["path"] and "Appartement-Paris-14" in os.path.basename(_v["path"]) and _v["status"] == "actuel"
+      and "99_ARCHIVES" in _q["path"] and "/02-2_" in _q["path"] and "Appartement-Paris-14" in os.path.basename(_q["path"]),
+      "v0.9 : rangé par nature (vente dans Patrimoine, quittance dans Logement › Quittances), le lieu dans le nom du fichier")
 _ln = br.make_name({"type": "immo_vente", "date": "2025-01-01", "country": "FR", "emitter": "Inconnu"}, ".pdf")
 check(classify.title_name("2020 paris rue poussin") == "2020 Paris Rue Poussin" and classify.title_name("saint-jean-d'angély") == "Saint-Jean-d'Angély",
       "noms de biens et de logements écrits avec des majuscules")
@@ -502,7 +502,7 @@ _s = [x for x in br.archives()["sent"] if x["label"] and x["recipient"] == "Agen
 check(_s and _s[0]["count"] == 2 and os.path.exists(os.path.join(br.abs(_s[0]["folder"]), "PREUVE.txt"))
       and br.db.execute("SELECT status FROM docs WHERE orig_name='cand_1.pdf'").fetchone()[0] == "copie", "dossier envoyé reconstitué : pièces regroupées, preuve écrite")
 br.undo(_r["batch"])
-check(not [x for x in br.archives()["sent"] if x["recipient"] == "Agence"] and "6_Vente" not in br.db.execute("SELECT path FROM docs WHERE orig_name='acte_vente.pdf'").fetchone()[0],
+check(not [x for x in br.archives()["sent"] if x["recipient"] == "Agence"] and "Paris-14" not in br.db.execute("SELECT path FROM docs WHERE orig_name='acte_vente.pdf'").fetchone()[0],
       "revue Logement annulée en une fois")
 # v0.8.3 : dossier « Revenus locatifs » d'un bien pour une année, montants lus (à vérifier), récapitulatif CSV
 for _n, _l in (("q_jan.pdf", ["QUITTANCE DE LOYER", "Janvier 2024", "Loyer 850,00 EUR", "Total 900,00 EUR"]),
@@ -528,5 +528,30 @@ _csv = open(br.abs(_bd["csv"]), encoding="utf-8-sig").read()
 check(_bd["ok"] and _bd["n"] == 4 and "Total recettes;;;;1800,00" in _csv and "300,00" in _csv and os.path.isdir(os.path.join(br.abs(_bd["folder"]), "1_Recettes")),
       "dossier préparé : pièces copiées par section, récapitulatif avec le montant corrigé")
 check(all(os.path.exists(br.abs(br.db.execute("SELECT path FROM docs WHERE orig_name=?", (_n,)).fetchone()[0])) for _n in _ty), "les originaux restent à leur place")
+# v0.9.0 : un dossier par organisme, le lieu et le rôle dans la fiche, le lieu dans le nom, migration « tidy »
+for _n, _l in (("edf_att.pdf", ["EDF", "ATTESTATION DE TITULAIRE DE CONTRAT", "12/01/2024"]), ("pret_lcl.pdf", ["LCL", "OFFRE DE PRET IMMOBILIER", "tableau d'amortissement", "28/06/2022"])):
+    pdf(os.path.join(src, _n), _l); br.add_upload(_n, open(os.path.join(src, _n), "rb").read())
+for _x in br.inbox():
+    if _x["orig"] in ("edf_att.pdf", "pret_lcl.pdf"):
+        br.set_overrides(_x["id"], {"type": "justificatif_domicile" if _x["orig"] == "edf_att.pdf" else "immo_pret", "emitter": "EDF" if _x["orig"] == "edf_att.pdf" else "LCL"}); br.validate([_x["id"]])
+_e = br.db.execute("SELECT * FROM docs WHERE orig_name='edf_att.pdf'").fetchone()
+_r = br.reclassify(_e["id"], {"lieu": "paris - rue de plaisance", "role": "proprietaire_occupant"})
+_e = br.db.execute("SELECT * FROM docs WHERE orig_name='edf_att.pdf'").fetchone()
+_pub = br._doc_pub(_e)
+check("/02-5_" in _e["path"] and "/EDF/" in _e["path"] and _e["path"].endswith("_Paris-Rue-de-Plaisance.pdf") and _pub["lieu"] == "Paris - Rue de Plaisance"
+      and _pub["role_label"] == "Propriétaire occupant", "justificatif EDF : Logement › Justificatifs › EDF, lieu et rôle dans la fiche, lieu dans le nom")
+_p = br.db.execute("SELECT path FROM docs WHERE orig_name='pret_lcl.pdf'").fetchone()[0]
+check("/05-3_" in _p and "/LCL/" in _p, "crédit immobilier : Banque › Crédits › LCL")
+check("Paris - Rue de Plaisance" in br.known()["lieux"], "lieux déjà écrits proposés en autocomplétion")
+_lg = os.path.join(br.country_dir("FR"), os.path.basename(br.cat_dir("FR", "02")), "02-6_Mes-logements")
+os.makedirs(_lg, exist_ok=True)
+check(os.path.basename(br.sub_dir("FR", "02", "02-6")) == "02-6_Copropriete", "l'ancien dossier « Mes logements » n'est jamais réutilisé pour la Copropriété")
+json.dump({"format": 1, "source": "Claude", "title": "Migration", "tidy": True, "supersedes": ["revue-x.json"], "items": []}, open(os.path.join(br.fm, "revues", "revue-migration.json"), "w"))
+json.dump({"format": 1, "source": "Claude", "title": "X", "items": []}, open(os.path.join(br.fm, "revues", "revue-x.json"), "w"))
+_r = br.revue_apply("revue-migration.json")
+check(_r["ok"] and not os.path.isdir(_lg) and json.load(open(os.path.join(br.fm, "revues", "revue-x.json"))).get("applied") == "remplacée",
+      "migration : tout le bureau rangé, dossiers vides de l'ancienne organisation retirés, ancienne revue remplacée")
+_r2 = br.refresh()
+check(not _r2.get("batch") or "organisme" not in (_r2.get("msg") or ""), "Mettre à jour juste après : rien à déplacer")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

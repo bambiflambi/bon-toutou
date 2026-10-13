@@ -2,6 +2,18 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.9.0 — Une base propre : chaque papier rangé selon ce qu'il est
+- **Nouvelle règle de rangement** : `Pays / Famille / Sous-famille / Organisme / AAAA-MM-JJ_…_Lieu.ext`.
+  - **Un dossier par organisme** dans chaque sous-famille (LCL, EDF, ton employeur…), comme les fiches de paie par employeur. Organisme inconnu ou toi-même : à la racine de la sous-famille, jamais de dossier « Inconnu ».
+  - **Le lieu devient une étiquette** (« Paris - Rue de Plaisance », « Paris - Rue Poussin »…), écrite dans la fiche et à la fin du nom du fichier. Plus de dossiers par bien ou par logement.
+  - **Le rôle** : locataire, propriétaire occupant, propriétaire bailleur, hébergé.
+- **Nouvelles sous-familles** : Identité › Service national ; Logement › Baux et états des lieux, Quittances et avis d'échéance (reçus ou émis), Copropriété, Gestion locative ; Impôts › Taxes locales ; Banque › Crédits ; Assurances › Emprunteur ; Patrimoine › Comptabilité locative. « Mes logements » et « Biens loués » (v0.8.1) disparaissent.
+- **Nouveaux types** : taxe foncière, assurance emprunteur, service national.
+- **Corriger le classement** : champs Lieu (avec les lieux déjà écrits proposés) et Rôle. La fiche affiche Lieu et Rôle ; les listes montrent le lieu sous chaque document.
+- **Revue · Migration** : remet tout ton bureau dans la nouvelle structure en une fois (un seul « Annuler »), retire les dossiers vides de l'ancienne organisation, et remplace la revue Logement.
+- **Mettre à jour** garde le bureau rangé : un fichier mal placé rejoint le dossier de son organisme ; un fichier déjà bien nommé ne bouge plus.
+- Les revenus locatifs (Dossiers) suivent les lieux et les rôles.
+
 ## 0.8.3 — Préparer les revenus locatifs d'une année
 - **Dossiers › Revenus locatifs d'un bien** : choisis un bien et une année, Bon toutou va chercher dans le dossier du bien :
   - les **recettes** (quittances émises) ;

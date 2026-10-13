@@ -46,11 +46,11 @@
     "01-2": "Etat-civil",
     "01-3": "Permis",
     "01-4": "Titres-sejour-visas",
-    "02-1": "Bail-ou-titre",
-    "02-2": "Quittances",
+    "02-1": "Baux-etats-des-lieux",
+    "02-2": "Quittances-avis-echeance",
     "02-3": "Energie-eau-internet",
-    "02-4": "Travaux",
-    "02-5": "Justificatifs-adresse",
+    "02-4": "Travaux-equipement",
+    "02-5": "Justificatifs-domicile",
     "03-1": "Contrats",
     "03-2": "Bulletins-paie",
     "03-3": "Activite-independante",
@@ -102,8 +102,12 @@
     "12-4": "Inscriptions-conventions",
     "13-4": "Formulaires",
     "16-1": "A-etudier",
-    "02-6": "Mes-logements",
-    "02-7": "Biens-loues"
+    "02-6": "Copropriete",
+    "02-7": "Gestion-locative",
+    "01-5": "Service-national",
+    "04-4": "Taxes-locales",
+    "07-6": "Emprunteur",
+    "10-5": "Comptabilite-locative"
   },
   "expiry_hints": [
     "date d'expiration",
@@ -1062,13 +1066,11 @@
       ]
     },
     "immo_achat": {
-      "label": "Achat du bien (compromis, acte)",
+      "label": "Achat d'un bien (compromis, acte)",
       "slug": "Achat",
       "cat": "10",
       "sub": "10-1",
       "suivi": "none",
-      "bien": true,
-      "etape": "1_Achat",
       "kw": [
         "compromis de vente",
         "promesse de vente",
@@ -1080,11 +1082,9 @@
     "immo_copro": {
       "label": "Copropriété (règlement, AG, syndic)",
       "slug": "Copropriete",
-      "cat": "10",
-      "sub": "10-1",
+      "cat": "02",
+      "sub": "02-6",
       "suivi": "none",
-      "bien": true,
-      "etape": "3_Copropriete",
       "kw": [
         "assemblee generale des coproprietaires",
         "reglement de copropriete",
@@ -1095,11 +1095,9 @@
     "immo_appel_fonds": {
       "label": "Appel de fonds de copropriété",
       "slug": "Appel-de-fonds",
-      "cat": "10",
-      "sub": "10-1",
+      "cat": "02",
+      "sub": "02-6",
       "suivi": "none",
-      "bien": true,
-      "etape": "3_Copropriete",
       "kw": [
         "appel de fonds"
       ],
@@ -1110,12 +1108,12 @@
       "label": "Bail signé avec un locataire",
       "slug": "Bail-locataire",
       "cat": "02",
-      "sub": "02-7",
+      "sub": "02-1",
       "suivi": "none",
-      "bien": true,
-      "etape": "1_Baux",
       "kw": [],
-      "fn": []
+      "fn": [],
+      "generic": true,
+      "legacy": true
     },
     "immo_locataire": {
       "label": "Dossier d'un locataire (pièces, caution)",
@@ -1123,8 +1121,6 @@
       "cat": "02",
       "sub": "02-7",
       "suivi": "none",
-      "bien": true,
-      "etape": "2_Locataires",
       "kw": [
         "acte de cautionnement"
       ],
@@ -1134,22 +1130,20 @@
       "label": "Quittance / avis d'échéance émis",
       "slug": "Quittance-emise",
       "cat": "02",
-      "sub": "02-7",
+      "sub": "02-2",
       "suivi": "none",
-      "bien": true,
-      "etape": "3_Quittances-emises",
       "kw": [],
       "fn": [],
-      "period": "month"
+      "period": "month",
+      "generic": true,
+      "legacy": true
     },
     "immo_etat_lieux": {
       "label": "État des lieux / inventaire",
       "slug": "Etat-des-lieux",
       "cat": "02",
-      "sub": "02-7",
+      "sub": "02-1",
       "suivi": "none",
-      "bien": true,
-      "etape": "4_Etats-des-lieux",
       "kw": [
         "etat des lieux",
         "inventaire du mobilier"
@@ -1162,30 +1156,26 @@
       "cat": "02",
       "sub": "02-7",
       "suivi": "none",
-      "bien": true,
-      "etape": "5_Gestion-locative",
       "kw": [],
       "fn": []
     },
     "immo_charges": {
       "label": "Charges du bien (énergie, taxe foncière, assurance propriétaire)",
       "slug": "Charges",
-      "cat": "10",
-      "sub": "10-1",
+      "cat": "02",
+      "sub": "02-3",
       "suivi": "none",
-      "bien": true,
-      "etape": "4_Charges-travaux",
       "kw": [],
-      "fn": []
+      "fn": [],
+      "generic": true,
+      "legacy": true
     },
     "immo_travaux": {
       "label": "Travaux, équipement, diagnostics",
       "slug": "Travaux",
-      "cat": "10",
-      "sub": "10-1",
+      "cat": "02",
+      "sub": "02-4",
       "suivi": "none",
-      "bien": true,
-      "etape": "4_Charges-travaux",
       "kw": [
         "dossier de diagnostic technique",
         "diagnostic de performance energetique"
@@ -1193,13 +1183,11 @@
       "fn": []
     },
     "immo_compta": {
-      "label": "Comptabilité et fiscalité du bien (LMNP, comptes annuels)",
+      "label": "Comptabilité locative (LMNP, comptes annuels)",
       "slug": "Comptabilite",
       "cat": "10",
-      "sub": "10-1",
+      "sub": "10-5",
       "suivi": "none",
-      "bien": true,
-      "etape": "5_Comptabilite",
       "kw": [
         "location meublee non professionnelle",
         "lmnp"
@@ -1207,13 +1195,11 @@
       "fn": []
     },
     "immo_vente": {
-      "label": "Vente du bien (compromis, acte)",
+      "label": "Vente d'un bien (compromis, acte)",
       "slug": "Vente",
       "cat": "10",
       "sub": "10-1",
       "suivi": "none",
-      "bien": true,
-      "etape": "6_Vente",
       "kw": [],
       "fn": []
     },
@@ -1223,8 +1209,6 @@
       "cat": "02",
       "sub": "02-7",
       "suivi": "none",
-      "bien": false,
-      "etape": "0_Modeles",
       "kw": [],
       "fn": []
     },
@@ -1232,83 +1216,131 @@
       "label": "Bail du logement où j'habite",
       "slug": "Bail",
       "cat": "02",
-      "sub": "02-6",
+      "sub": "02-1",
       "suivi": "none",
-      "bien": true,
-      "etape": "1_Bail",
       "kw": [],
-      "fn": []
+      "fn": [],
+      "generic": true,
+      "legacy": true
     },
     "log_quittance": {
       "label": "Quittance de loyer reçue",
       "slug": "Quittance",
       "cat": "02",
-      "sub": "02-6",
+      "sub": "02-2",
       "suivi": "none",
-      "bien": true,
-      "etape": "2_Quittances",
       "kw": [],
       "fn": [],
-      "period": "month"
+      "period": "month",
+      "generic": true,
+      "legacy": true
     },
     "log_energie": {
       "label": "Énergie, eau, internet du logement",
       "slug": "Energie",
       "cat": "02",
-      "sub": "02-6",
+      "sub": "02-3",
       "suivi": "none",
-      "bien": true,
-      "etape": "3_Energie-internet",
       "kw": [],
-      "fn": []
+      "fn": [],
+      "generic": true,
+      "legacy": true
     },
     "log_assurance": {
       "label": "Assurance habitation du logement",
       "slug": "Assurance-habitation",
-      "cat": "02",
-      "sub": "02-6",
+      "cat": "07",
+      "sub": "07-1",
       "suivi": "none",
-      "bien": true,
-      "etape": "4_Assurance",
       "kw": [],
-      "fn": []
+      "fn": [],
+      "generic": true,
+      "legacy": true
     },
     "log_etat_lieux": {
       "label": "État des lieux (entrée, sortie)",
       "slug": "Etat-des-lieux",
       "cat": "02",
-      "sub": "02-6",
+      "sub": "02-1",
       "suivi": "none",
-      "bien": true,
-      "etape": "5_Etats-des-lieux",
       "kw": [],
-      "fn": []
+      "fn": [],
+      "generic": true,
+      "legacy": true
     },
     "log_justif": {
       "label": "Justificatif de domicile, attestation d'hébergement",
       "slug": "Justificatif-domicile",
       "cat": "02",
-      "sub": "02-6",
+      "sub": "02-5",
       "suivi": "none",
-      "bien": true,
-      "etape": "6_Justificatifs",
       "kw": [],
-      "fn": []
+      "fn": [],
+      "generic": true,
+      "legacy": true
     },
     "immo_pret": {
-      "label": "Financement du bien (prêt, assurance emprunteur)",
+      "label": "Crédit immobilier (offre, tableau d'amortissement)",
       "slug": "Financement",
-      "cat": "10",
-      "sub": "10-1",
+      "cat": "05",
+      "sub": "05-3",
       "suivi": "none",
-      "bien": true,
-      "etape": "2_Financement",
       "kw": [
-        "offre de pret immobilier",
+        "offre de pret",
         "tableau d'amortissement",
-        "assurance emprunteur"
+        "pret immobilier"
       ],
       "fn": []
+    },
+    "assurance_emprunteur": {
+      "label": "Assurance emprunteur",
+      "slug": "Assurance-emprunteur",
+      "cat": "07",
+      "sub": "07-6",
+      "suivi": "emitter",
+      "kw": [
+        "assurance emprunteur",
+        "garantie emprunteur",
+        "certificat d'adhesion",
+        "convention aeras"
+      ],
+      "fn": [
+        "emprunteur"
+      ]
+    },
+    "taxe_fonciere": {
+      "label": "Taxe foncière",
+      "slug": "Taxe-fonciere",
+      "cat": "04",
+      "sub": "04-4",
+      "suivi": "none",
+      "period": "year",
+      "kw": [
+        "taxe fonciere",
+        "taxes foncieres",
+        "avis de taxe fonciere"
+      ],
+      "fn": [
+        "taxe fonciere",
+        "taxes foncieres",
+        "tf "
+      ]
+    },
+    "service_national": {
+      "label": "Service national (recensement, JDC)",
+      "slug": "Service-national",
+      "cat": "01",
+      "sub": "01-5",
+      "suivi": "none",
+      "kw": [
+        "journee defense et citoyennete",
+        "attestation de recensement",
+        "service national"
+      ],
+      "fn": [
+        "jdc",
+        "recensement"
+      ]
     }
   },
   "contribution": {
