@@ -50,7 +50,7 @@ DEVICE_KEYS = ("theme", "analyse_version", "use_ollama", "ollama_model", "ai_mod
 # Niveaux de confidentialité par défaut (catégorie -> local | autorisation | externe). Un document non trié est « local ».
 DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "09": "local", "10": "local", "13": "local",
                    "02": "autorisation", "03": "autorisation", "07": "autorisation", "12": "autorisation", "14": "autorisation",
-                   "08": "externe", "11": "externe", "15": "externe"}
+                   "08": "externe", "11": "externe", "15": "externe", "17": "local"}
 
 STATUS_LABEL = {"actuel": "Version actuelle", "ancienne_version": "Ancienne version", "termine": "Terminé", "copie": "Copie"}
 NAME_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})_([A-Z]{2,3})_(\d{2})_([^_]+)_(.+)\.[A-Za-z0-9]+$")
@@ -228,7 +228,7 @@ class Bureau:
     def cat_dir(self, cc, cat):
         return self._child(self.country_dir(cc), cat + "_", CAT_FOLDERS_FR[cat])
 
-    LEGACY_SUBS = ("02-6_Mes-logements", "02-7_Biens-loues")   # sous-familles de la v0.8 : jamais réutilisées
+    LEGACY_SUBS = ("02-6_Mes-logements", "02-7_Biens-loues", "10-5_Comptabilite-locative")   # sous-familles de la v0.8 : jamais réutilisées
 
     def sub_dir(self, cc, cat, sub):
         parent, want = self.cat_dir(cc, cat), sub + "_" + SUB_FOLDERS_FR.get(sub, "Divers")
@@ -1288,6 +1288,10 @@ class Bureau:
         if not d:
             return None
         out = self._doc_pub(d)
+        try:
+            out["size"] = os.path.getsize(self.abs(d["path"]))   # v0.9.1 : la fiche dit le format et le poids du fichier
+        except OSError:
+            out["size"] = None
         out["copies"] = [{"id": c["id"], "path": c["path"], "orig_name": c["orig_name"], "doc_date": c["doc_date"]}
                          for c in self.db.execute("SELECT * FROM docs WHERE status='copie' AND extra LIKE ?", ('%"copy_of": "' + did + '"%',)).fetchall()]
         if d["suivi"]:

@@ -9,7 +9,7 @@ const M = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "
 const frd = (d) => (d ? `${+d.slice(8, 10)} ${M[+d.slice(5, 7) - 1]} ${d.slice(0, 4)}` : "—");
 const cc = (c) => `<span class="ccchip k-${esc(c)}">${esc(c)}</span>`;
 const CONF = { haute: "Confiance élevée", moyenne: "Confiance moyenne", basse: "À vérifier" };
-const CATIC = { "01": "id", "02": "house", "03": "work", "04": "tax", "05": "bank", "06": "shield", "07": "umbrella", "08": "car", "09": "kids", "10": "building", "11": "name", "12": "cap", "13": "scale", "14": "spark", "15": "star" };
+const CATIC = { "01": "id", "02": "house", "03": "work", "04": "tax", "05": "bank", "06": "shield", "07": "umbrella", "08": "car", "09": "kids", "10": "building", "11": "name", "12": "cap", "13": "scale", "14": "spark", "15": "star", "17": "briefcase" };
 const catIc = (c) => IC[CATIC[c] || "folder"];
 const LVL = { local: ["red", "Local uniquement", "Ne quitte jamais ton ordinateur"], autorisation: ["orange", "Sur autorisation", "Analysé à l'extérieur seulement si tu l'autorises, document par document"], externe: ["green", "Externe autorisé", "Peu sensible : pourrait être analysé à l'extérieur"] };
 const LVI = { red: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>', orange: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>', green: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>' };

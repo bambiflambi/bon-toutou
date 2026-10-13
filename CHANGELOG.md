@@ -2,6 +2,17 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.9.1 — Des cases partout, deux portes pour le logement
+- **La règle des cases**, dans Documents comme dans Archives : à chaque étage qui a au moins deux groupes, des cases ; un clic ouvre une nouvelle page. Un étage à un seul groupe est sauté. Plus jamais de listes empilées sous des intertitres.
+  - Ordre des étages : sous-famille → titulaire (toi en premier) → lieu → organisme → nature du document → année.
+  - Organisme et nature à partir de 7 documents, années au-delà de 12 : la liste finale reste courte, la plus récente en haut.
+  - Le fil (Documents › Logement › …) remonte d'un clic ; Échap remonte d'une étape.
+- **Logement s'ouvre sur deux portes** : « Là où j'habite » (locataire, propriétaire occupant, hébergé) et « Ce que je mets en location » (propriétaire bailleur). Un papier sans rôle suit son lieu.
+- **Patrimoine › Immobilier** se range par lieu : tous les papiers d'un même bien ensemble.
+- **Nouvelle famille 17 « Activités & entreprises »** : Création et statuts (SIRENE, Kbis, statuts, pouvoirs), Comptabilité (bilans, plaquettes, comptes annuels — elle quitte Patrimoine), Déclarations et impôts pro (CFE, TVA, liasse), Banque pro.
+- **Flèches ← →** en haut, comme dans un navigateur (aussi ⌘[ et ⌘], ou les boutons latéraux de la souris).
+- **Fiche d'un document** : le format en clair (PDF, Image, Excel, Word…) et le poids du fichier, et un **aperçu** comme dans Trier (PDF page par page, images ; pour Excel et Word, un bouton Ouvrir). Le format apparaît aussi sous chaque document dans les listes.
+
 ## 0.9.0 — Une base propre : chaque papier rangé selon ce qu'il est
 - **Nouvelle règle de rangement** : `Pays / Famille / Sous-famille / Organisme / AAAA-MM-JJ_…_Lieu.ext`.
   - **Un dossier par organisme** dans chaque sous-famille (LCL, EDF, ton employeur…), comme les fiches de paie par employeur. Organisme inconnu ou toi-même : à la racine de la sous-famille, jamais de dossier « Inconnu ».

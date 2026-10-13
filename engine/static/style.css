@@ -610,3 +610,16 @@ h1 .whoname{font-size:.6em}
 .holderhead{display:flex;align-items:center;gap:10px;margin:18px 0 8px}
 .holderhead:first-child{margin-top:4px}
 .holderhead .sub{margin-left:auto}
+/* v0.9.1 : flèches, format, aperçu dans la fiche */
+.histnav{display:flex;gap:2px;margin-left:10px}
+.histnav .iconbtn{width:30px;height:30px;font-size:15px;line-height:1}
+.histnav .iconbtn:disabled{opacity:.35;cursor:default}
+.fmtpill{font-weight:600}
+.docprev{display:flex;flex-direction:column;overflow:hidden;padding:0;min-height:300px}
+.docprev .cpdf{min-height:560px}
+.docprev .cimg{max-height:680px}
+.docthumb{padding:36px 16px;text-align:center}
+.docthumb .fmtbig{width:56px;height:56px}
+.docthumb .fmtbig svg{width:40px;height:40px}
+@media (max-width:720px){.histnav{margin-left:4px}}
+.cpnav[hidden]{display:none!important}

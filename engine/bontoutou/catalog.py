@@ -212,8 +212,11 @@ def load(bureau_fm=None, disabled=()):
         TYPES["autre_" + cat] = dict(label="Autre — " + name, slug="Autre", cat=cat, sub=cat + "-9", suivi="none", kw=[], fn=[],
                                      generic=True, _origin="Socle")
     for sub in real_subs:
-        TYPES["autre_" + sub.replace("-", "_")] = dict(label="Autre — " + {"02-6": "Copropriété", "02-7": "Gestion locative", "01-5": "Service national", "04-4": "Taxes locales", "10-5": "Comptabilité locative"}.get(sub, SUB_FOLDERS_FR[sub].replace("-", " ")), slug="Autre", cat=sub[:2], sub=sub,
+        TYPES["autre_" + sub.replace("-", "_")] = dict(label="Autre — " + {"02-6": "Copropriété", "02-7": "Gestion locative", "01-5": "Service national", "04-4": "Taxes locales", "17-1": "Création et statuts", "17-2": "Comptabilité", "17-3": "Déclarations et impôts pro", "17-4": "Banque pro"}.get(sub, SUB_FOLDERS_FR[sub].replace("-", " ")), slug="Autre", cat=sub[:2], sub=sub,
                                                        inner="Autres", suivi="none", kw=[], fn=[], generic=True, _origin="Socle")
+    # v0.9.1 : la comptabilité quitte Patrimoine (10-5) pour « Activités & entreprises » (17-2) ; les anciens « Autres » suivent.
+    if "autre_10_5" not in TYPES and "autre_17_2" in TYPES:
+        TYPES["autre_10_5"] = dict(TYPES["autre_17_2"], legacy=True)
     return PACKS
 
 

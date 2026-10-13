@@ -553,5 +553,10 @@ check(_r["ok"] and not os.path.isdir(_lg) and json.load(open(os.path.join(br.fm,
       "migration : tout le bureau rangé, dossiers vides de l'ancienne organisation retirés, ancienne revue remplacée")
 _r2 = br.refresh()
 check(not _r2.get("batch") or "organisme" not in (_r2.get("msg") or ""), "Mettre à jour juste après : rien à déplacer")
+# v0.9.1 : famille 17 Activités & entreprises, la comptabilité quitte Patrimoine ; poids du fichier dans la fiche
+check(catalog.TYPES["immo_compta"]["sub"] == "17-2" and catalog.TYPES["entreprise_statuts"]["cat"] == "17" and catalog.TYPES["autre_10_5"]["sub"] == "17-2",
+      "famille 17 : comptabilité et statuts, anciens « Autres » de 10-5 redirigés")
+_d0 = br.documents()[0]
+check(isinstance(br.document(_d0["id"]).get("size"), int), "fiche : poids du fichier")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

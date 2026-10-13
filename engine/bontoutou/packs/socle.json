@@ -21,7 +21,8 @@
     "13": "Juridique",
     "14": "Aides",
     "15": "Carrière",
-    "16": "Autres familles"
+    "16": "Autres familles",
+    "17": "Activités & entreprises"
   },
   "cat_folders": {
     "01": "01_IDENTITE",
@@ -39,7 +40,8 @@
     "13": "13_JURIDIQUE",
     "14": "14_AIDES",
     "15": "15_CARRIERE",
-    "16": "16_AUTRES"
+    "16": "16_AUTRES",
+    "17": "17_ACTIVITES-ENTREPRISES"
   },
   "sub_folders": {
     "01-1": "Pieces-identite",
@@ -107,7 +109,10 @@
     "01-5": "Service-national",
     "04-4": "Taxes-locales",
     "07-6": "Emprunteur",
-    "10-5": "Comptabilite-locative"
+    "17-1": "Creation-statuts",
+    "17-2": "Comptabilite",
+    "17-3": "Declarations-impots-pro",
+    "17-4": "Banque-pro"
   },
   "expiry_hints": [
     "date d'expiration",
@@ -1183,14 +1188,17 @@
       "fn": []
     },
     "immo_compta": {
-      "label": "Comptabilité locative (LMNP, comptes annuels)",
+      "label": "Comptabilité (bilan, plaquette, comptes annuels)",
       "slug": "Comptabilite",
-      "cat": "10",
-      "sub": "10-5",
+      "cat": "17",
+      "sub": "17-2",
       "suivi": "none",
       "kw": [
         "location meublee non professionnelle",
-        "lmnp"
+        "lmnp",
+        "comptes annuels",
+        "plaquette",
+        "bilan comptable"
       ],
       "fn": []
     },
@@ -1341,6 +1349,54 @@
         "jdc",
         "recensement"
       ]
+    },
+    "entreprise_statuts": {
+      "label": "Création et statuts (SIRENE, Kbis, statuts)",
+      "slug": "Statuts",
+      "cat": "17",
+      "sub": "17-1",
+      "suivi": "none",
+      "kw": [
+        "repertoire sirene",
+        "avis de situation au repertoire",
+        "extrait kbis",
+        "extrait d'immatriculation",
+        "statuts constitutifs"
+      ],
+      "fn": []
+    },
+    "entreprise_pouvoir": {
+      "label": "Pouvoir ou mandat (comptable, formalités)",
+      "slug": "Pouvoir",
+      "cat": "17",
+      "sub": "17-1",
+      "suivi": "none",
+      "kw": [],
+      "fn": []
+    },
+    "entreprise_impots": {
+      "label": "Impôts de l'activité (CFE, TVA, liasse fiscale)",
+      "slug": "Impots-pro",
+      "cat": "17",
+      "sub": "17-3",
+      "suivi": "none",
+      "kw": [
+        "cotisation fonciere des entreprises",
+        "liasse fiscale",
+        "declaration de tva"
+      ],
+      "fn": []
+    },
+    "entreprise_banque": {
+      "label": "Compte bancaire professionnel",
+      "slug": "Banque-pro",
+      "cat": "17",
+      "sub": "17-4",
+      "suivi": "none",
+      "kw": [
+        "compte professionnel"
+      ],
+      "fn": []
     }
   },
   "contribution": {
