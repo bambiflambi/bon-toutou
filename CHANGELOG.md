@@ -2,6 +2,18 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.9.3 — Retrouver tout, avoir l'essentiel prêt
+- **Essentiels** en haut de Documents : passeport, carte d'identité, acte de naissance, justificatif de domicile, RIB, relevés, avis d'impôt, attestation santé, casier judiciaire, CV, diplôme… et, selon ce que tu as, paie, bail, quittances, véhicule, visa, entreprise.
+  - Un voyant par pièce : **prêt**, **bientôt**, **à renouveler** (trop ancien ou expiré), **à ajouter**.
+  - **Renouveler / Obtenir** ouvre le site de l'organisme (Ameli, impots.gouv, ANTS, casier judiciaire, Info-retraite…) dans ton navigateur, ou te dit à qui le demander.
+- **Aujourd'hui** te rappelle ce qu'il faut aller chercher : un justificatif devenu trop vieux, l'avis d'impôt publié fin juillet…
+- **Recherche dans tout** : le texte de chaque document (même un numéro de contrat), les synonymes (IBAN trouve le RIB, électricité trouve EDF), les intitulés, les organismes, les collections. L'extrait cité masque les mots de passe et les longs numéros.
+- **Fiche complétée** (bouton « Compléter la fiche », rien n'est renommé ni déplacé) : période couverte, date d'émission, forme (original, copie, apostillé, légalisé, traduit et langue), genre de bien (logement, véhicule, compte, entreprise). « Lieu » devient **Bien concerné**.
+- **Ce qu'il prouve** dans chaque fiche : « justificatif de domicile jusqu'au… », « pièce d'identité », « 3 derniers bulletins »…, en vert ou en rouge selon la date.
+- **Mes collections** : ajoute un document à « Préparer mon déménagement » ou à n'importe quel nom ; elles s'affichent sous les Essentiels. Les fichiers ne bougent pas.
+- **Mon profil** (menu Plus) : tes numéros retrouvés dans tes documents (IBAN, numéro fiscal, sécurité sociale, passeport, carte d'identité, CAF, France Travail, SIREN, IRD), masqués par défaut, chacun relié au document où il est écrit ; et ce que tu veux compléter toi-même. Calculé sur ton ordinateur, jamais envoyé à une IA.
+- **Doublons élargis** dans la revue « Doublons » : même type, même date, même organisme et même taille ; même numéro dans la bande MRZ ; même nom de fichier une fois retirés « copie », « (2) », « filigrane », « signed ». Toujours à vérifier avant d'appliquer, rien n'est supprimé.
+
 ## 0.9.2 — De la place pour chaque papier, ici et ailleurs
 - **Nouvelle famille 18 « Immigration & séjours »**, rangée sous chaque pays : visas et titres de séjour, autorisations de voyage (ESTA, eTA, NZeTA…), demandes et décisions (refus compris, biométrie, taxes), parrainages et invitations (COE, CoS…), résidence sur place (enregistrement d'adresse, attestation de résidence). Les titres de séjour rangés dans Identité y rejoignent leur pays au prochain « Mettre à jour ».
 - **Nouvelles sous-familles** : Santé › Santé voyage · Famille › Vie commune et tiers · École & formation › Reconnaissance à l'étranger · Juridique › Casiers judiciaires · Activités & entreprises › Clients et factures.

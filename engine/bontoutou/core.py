@@ -22,7 +22,7 @@ import threading
 import uuid
 import zipfile
 
-from . import catalog, classify, ia, mail, reader, sortie, trousseau
+from . import catalog, classify, ia, mail, reader, retrouver, sortie, trousseau
 from .catalog import CAT_FOLDERS_FR, CATEGORIES, COUNTRIES, SUB_FOLDERS_FR, TEMPLATES, TYPES
 
 SCHEMA = """
@@ -45,7 +45,7 @@ DOC_FIELDS = ("id", "suivi", "type", "label", "person", "country", "cat", "sub",
               "orig_name", "sha", "status", "added_at", "note", "detail", "extra")
 DOSSIER_FIELDS = ("id", "template", "recipient", "country", "created_at", "state", "assign", "folder", "zip", "manifest",
                   "finalized_at", "sent_at")
-PROFILE_KEYS = ("owner", "propositions", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders", "owner_aliases")          # suivent l'utilisateur sur tous ses appareils
+PROFILE_KEYS = ("owner", "propositions", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders", "owner_aliases", "fiche")          # suivent l'utilisateur sur tous ses appareils
 DEVICE_KEYS = ("theme", "analyse_version", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
 # Niveaux de confidentialité par défaut (catégorie -> local | autorisation | externe). Un document non trié est « local ».
 DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "09": "local", "10": "local", "13": "local",
@@ -178,7 +178,7 @@ class Bureau:
                          "privacy": dict(DEFAULT_PRIVACY), "disabled_packs": [],
                          "holders": [], "guide": {"etape": 0, "fini": False, "masque": False},
                          "mail": "", "mail_host": "", "mail_port": 993, "mail_auto": False, "mail_days": 90, "mail_saved": False,
-                         "respect_folders": True, "diagnostic": False, "owner_aliases": [], "orgs_done": [], "notify": [], "plus_done": [], "trusted": "", "theme": "champagne"}
+                         "respect_folders": True, "diagnostic": False, "owner_aliases": [], "fiche": {}, "orgs_done": [], "notify": [], "plus_done": [], "trusted": "", "theme": "champagne"}
         for pth in (self.profile_path, self.device_settings_path):
             d = read_json(pth, {}) or {}
             if int(d.get("format", 1) or 1) > FORMAT:
@@ -1272,12 +1272,63 @@ class Bureau:
         d["role"] = ex.get("role")
         d["role_label"] = ROLES.get(ex.get("role") or "")
         d["bien"] = d["lieu"]
+        # v0.9.3 : la fiche complète (période, date d'émission, forme, bien concerné, collections)
+        d["period"] = retrouver.period_of(d, ex)
+        d["period_label"] = retrouver.period_label(d["period"])
+        d["issued"] = retrouver.issued_of(d, ex)
+        d["forme"] = ex.get("forme") or None
+        d["forme_label"] = retrouver.FORMES.get(ex.get("forme") or "", "")
+        d["langue"] = ex.get("langue") or None
+        d["bien_kind"] = ex.get("bien_kind") or ("logement" if d["lieu"] else None)
+        d["collections"] = ex.get("collections") or []
         if d["suivi"]:
             d["versions"] = self.db.execute("SELECT COUNT(*) FROM docs WHERE suivi=?", (d["suivi"],)).fetchone()[0]
         else:
             d["versions"] = 1
         d["expired"] = bool(d["expiry"] and d["expiry"] < today().isoformat())
         return d
+
+    META_FIELDS = ("period", "issued", "forme", "langue", "bien_kind")
+
+    def doc_meta(self, did, fields):
+        """Compléter la fiche (période, date d'émission, forme, langue, genre de bien, collections) : rien n'est renommé
+        ni déplacé. Une seule annulation."""
+        with self.lock:
+            d = self.db.execute("SELECT * FROM docs WHERE id=?", (did,)).fetchone()
+            if not d:
+                return {"ok": False, "msg": "Document introuvable"}
+            ex = json.loads(d["extra"] or "{}") if d["extra"] else {}
+            for k in self.META_FIELDS:
+                if k in fields:
+                    v = (str(fields[k]).strip() if fields[k] is not None else "")[:40]
+                    if k == "forme" and v not in retrouver.FORMES:
+                        v = ""
+                    if k == "bien_kind" and v not in retrouver.BIEN_KINDS:
+                        v = ""
+                    if k == "issued" and v and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+                        v = ""
+                    if v:
+                        ex[k] = v
+                    else:
+                        ex.pop(k, None)
+            cols = list(ex.get("collections") or [])
+            for c in fields.get("collections_add") or []:
+                c = re.sub(r"\s+", " ", str(c)).strip()[:60]
+                if c and c not in cols:
+                    cols.append(c)
+            for c in fields.get("collections_remove") or []:
+                cols = [x for x in cols if x != c]
+            if cols:
+                ex["collections"] = cols
+            else:
+                ex.pop("collections", None)
+            new = json.dumps(ex, ensure_ascii=False) if ex else None
+            if new == d["extra"]:
+                return {"ok": True, "batch": None}
+            ops = []
+            self._doc_update(did, {"extra": new}, ops)
+            b = self._journal(f"Fiche complétée : {d['label']}", ops)
+            return {"ok": True, "batch": b}
 
     def documents(self):
         rows = self.db.execute("SELECT * FROM docs WHERE status='actuel' ORDER BY country, cat, sub, doc_date DESC").fetchall()
@@ -1292,6 +1343,8 @@ class Bureau:
             out["size"] = os.path.getsize(self.abs(d["path"]))   # v0.9.1 : la fiche dit le format et le poids du fichier
         except OSError:
             out["size"] = None
+        out["usages"] = retrouver.usages_of(d)
+        out["renew"] = retrouver.renew_of(d["type"], (json.loads(d["extra"] or "{}") if d["extra"] else {}).get("emitter_display") or "")
         out["copies"] = [{"id": c["id"], "path": c["path"], "orig_name": c["orig_name"], "doc_date": c["doc_date"]}
                          for c in self.db.execute("SELECT * FROM docs WHERE status='copie' AND extra LIKE ?", ('%"copy_of": "' + did + '"%',)).fetchall()]
         if d["suivi"]:
@@ -1595,6 +1648,14 @@ class Bureau:
             for c in L[1:]:
                 items.append({"sha": c["sha"], "status": "copie", "copy_of": main["sha"],
                               "note": f"Même texte que « {main['orig_name']} » : rattaché comme copie, rien n'est supprimé."})
+        # v0.9.3 : doublons élargis (même taille, même MRZ, même nom une fois retirés « copie », « (2) », « filigrane »…)
+        taken = {it["sha"] for it in items} | {it["copy_of"] for it in items}
+        for main, c, why in retrouver.extra_duplicates(self, taken):
+            if c["sha"] in taken:
+                continue
+            taken.add(c["sha"])
+            items.append({"sha": c["sha"], "status": "copie", "copy_of": main["sha"],
+                          "note": f"Probablement le même papier que « {main['orig_name']} » ({why}). Vérifie avant d'appliquer : rattaché comme copie, rien n'est supprimé."})
         if not items:
             return 0
         d = self._revues_dir()

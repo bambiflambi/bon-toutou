@@ -182,7 +182,7 @@ def load(bureau_fm=None, disabled=()):
     CONTRIBUTION.clear()
     names = [n[:-5] for n in os.listdir(OFFICIAL_DIR) if n.endswith(".json")]
     for pid in [x for x in OFFICIAL_ORDER if x in names] + sorted(x for x in names if x not in OFFICIAL_ORDER):
-        if pid == "modeles":  # liste des modèles d'IA : lue par ia.py, pas un pack de rangement
+        if pid in ("modeles", "usages"):  # modèles d'IA (ia.py) ; usages, fraîcheur et synonymes (retrouver.py) : pas des packs de rangement
             continue
         p = _read(os.path.join(OFFICIAL_DIR, pid + ".json"))
         if p and p.get("id", pid) not in disabled:

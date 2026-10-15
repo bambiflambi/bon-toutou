@@ -558,5 +558,22 @@ check(catalog.TYPES["immo_compta"]["sub"] == "17-2" and catalog.TYPES["entrepris
       "famille 17 : comptabilité et statuts, anciens « Autres » de 10-5 redirigés")
 _d0 = br.documents()[0]
 check(isinstance(br.document(_d0["id"]).get("size"), int), "fiche : poids du fichier")
+# v0.9.3 : retrouver (recherche texte + synonymes), fiche complétée, Essentiels, profil, doublons élargis
+from bontoutou import retrouver as _R
+_rib = [d for d in b.documents() if d["type"] == "rib"]
+check(bool(_rib) and any(x["id"] == _rib[0]["id"] for x in _R.search(b, "iban")), "recherche : « iban » retrouve le RIB (synonyme)")
+_any = br.documents()[0]
+_m = br.doc_meta(_any["id"], {"forme": "traduit", "langue": "anglais", "period": "2026-09", "collections_add": ["Préparer mon déménagement"]})
+_dd = br.document(_any["id"])
+check(_m["ok"] and _dd["forme"] == "traduit" and _dd["collections"] == ["Préparer mon déménagement"] and _dd["path"] == _any["path"],
+      "fiche complétée (forme, période, collection) sans déplacer le fichier")
+check(_R.collections(br) and _R.collections(br)[0]["name"] == "Préparer mon déménagement", "collections listées")
+br.undo(_m["batch"]); check(br.document(_any["id"])["collections"] == [], "fiche complétée : annulable")
+_E = _R.essentials(br)
+check(any(e["id"] == "passeport" for e in _E) and all(e["state"] in ("ok", "soon", "old", "missing") for e in _E), "Essentiels calculés avec un voyant")
+check(_R._mrz_ids("P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<\nL898902C36UTO7408122F1204159ZE184226B<<<<<10") == [("passeport", "L898902C3", "UTO")]
+      and _R._mrz_ids("SOLDE DE TOUT COMPTE ONTRATLE3") == [], "MRZ : numéro lu seulement dans une vraie bande (clés de contrôle)")
+check(_R._mod97_iban("FR76 3000 6000 0112 3456 7890 189") and not _R._mod97_iban("FR76 3000 6000 0112 3456 7890 188"), "IBAN : clé vérifiée")
+check("••••" in _R.mask("Mot de passe : abc123XYZ") and "abc123" not in _R.mask("Mot de passe : abc123XYZ"), "extraits de recherche : mots de passe masqués")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

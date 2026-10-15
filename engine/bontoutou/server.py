@@ -13,7 +13,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import __version__
-from . import maj
+from . import maj, retrouver
 from .core import Bureau, data_home, read_json, write_json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -102,6 +102,12 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.documents())
             if p == "/api/doc":
                 return self._json(B.document(q["id"]))
+            if p == "/api/search":   # v0.9.3 : texte lu + synonymes + étiquettes
+                return self._json(retrouver.search(B, q.get("q", ""), q.get("scope", "docs")))
+            if p == "/api/essentiels":
+                return self._json({"essentiels": retrouver.essentials(B), "rappels": retrouver.reminders(B), "collections": retrouver.collections(B)})
+            if p == "/api/profil":
+                return self._json(retrouver.profile(B))
             if p == "/api/dossiers":
                 return self._json(B.dossiers())
             if p == "/api/dossier":
@@ -228,6 +234,8 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.ignore(data["id"]))
             if p == "/api/undo":
                 return self._json(B.undo(data.get("batch")))
+            if p == "/api/doc/meta":
+                return self._json(B.doc_meta(data["id"], data.get("fields", {})))
             if p == "/api/reclassify":
                 return self._json(B.reclassify(data["id"], data.get("fields", {})))
             if p == "/api/emitters/groups":

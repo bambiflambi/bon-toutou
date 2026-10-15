@@ -1,0 +1,1069 @@
+{
+ "format": 1,
+ "id": "usages",
+ "name": "Usages, fraîcheur, renouvellement et synonymes",
+ "official": true,
+ "description": "Pour chaque type : à quoi il sert et pendant combien de jours (fraîcheur), où le renouveler et à quel rythme, et les mots qui doivent le retrouver dans la recherche. Données seulement.",
+ "renouveler": {
+  "attestation_secu": {
+   "organisme": "Ameli",
+   "url": "https://www.ameli.fr",
+   "rythme": "demande",
+   "note": "Téléchargeable à tout moment, datée du jour."
+  },
+  "avis_impot": {
+   "organisme": "impots.gouv.fr",
+   "url": "https://www.impots.gouv.fr",
+   "rythme": "annuel",
+   "mois": 8,
+   "note": "Publié chaque année fin juillet."
+  },
+  "declaration_revenus": {
+   "organisme": "impots.gouv.fr",
+   "url": "https://www.impots.gouv.fr",
+   "rythme": "annuel",
+   "mois": 6,
+   "note": "Déclaration au printemps ; accusé de réception à garder."
+  },
+  "casier_judiciaire": {
+   "organisme": "Casier judiciaire national",
+   "url": "https://casier-judiciaire.justice.gouv.fr",
+   "rythme": "demande",
+   "note": "Bulletin n°3 gratuit, en 1 à 24 h avec FranceConnect. Pour une apostille, demande l'original papier."
+  },
+  "acte_naissance": {
+   "organisme": "Mairie de naissance (ou Nantes si né à l'étranger)",
+   "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1427",
+   "rythme": "delai",
+   "jours_delai": 30,
+   "note": "Quelques jours par courrier ; environ 30 jours au Service central d'état civil de Nantes."
+  },
+  "acte_mariage": {
+   "organisme": "Mairie du mariage",
+   "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1431",
+   "rythme": "delai",
+   "jours_delai": 15,
+   "note": "À commander frais : souvent exigé de moins de 3 ou 6 mois."
+  },
+  "passeport": {
+   "organisme": "ANTS · mairie",
+   "url": "https://ants.gouv.fr",
+   "rythme": "delai",
+   "jours_delai": 60,
+   "note": "Pré-demande en ligne puis rendez-vous en mairie : compte plusieurs semaines."
+  },
+  "carte_identite": {
+   "organisme": "ANTS · mairie",
+   "url": "https://ants.gouv.fr",
+   "rythme": "delai",
+   "jours_delai": 60,
+   "note": "Pré-demande en ligne puis rendez-vous en mairie."
+  },
+  "permis_international": {
+   "organisme": "ANTS",
+   "url": "https://ants.gouv.fr",
+   "rythme": "delai",
+   "jours_delai": 30,
+   "note": "Uniquement tant que tu résides en France. Valable 3 ans."
+  },
+  "permis_conduire": {
+   "organisme": "ANTS",
+   "url": "https://ants.gouv.fr",
+   "rythme": "delai",
+   "jours_delai": 30
+  },
+  "carte_grise": {
+   "organisme": "ANTS",
+   "url": "https://ants.gouv.fr",
+   "rythme": "delai",
+   "jours_delai": 15
+  },
+  "non_gage": {
+   "organisme": "HistoVec · ANTS",
+   "url": "https://histovec.interieur.gouv.fr",
+   "rythme": "demande",
+   "note": "Gratuit, valable 15 jours."
+  },
+  "releve_carriere": {
+   "organisme": "Info-retraite",
+   "url": "https://www.info-retraite.fr",
+   "rythme": "demande"
+  },
+  "attestation_france_travail": {
+   "organisme": "France Travail",
+   "url": "https://www.francetravail.fr",
+   "rythme": "demande"
+  },
+  "allocation_caf": {
+   "organisme": "CAF",
+   "url": "https://www.caf.fr",
+   "rythme": "demande"
+  },
+  "attestation_vigilance": {
+   "organisme": "Urssaf",
+   "url": "https://www.urssaf.fr",
+   "rythme": "demande",
+   "note": "À renouveler tous les 6 mois."
+  },
+  "entreprise_statuts": {
+   "organisme": "INSEE (avis SIRENE)",
+   "url": "https://avis-situation-sirene.insee.fr",
+   "rythme": "demande"
+  },
+  "ceam": {
+   "organisme": "Ameli",
+   "url": "https://www.ameli.fr",
+   "rythme": "delai",
+   "jours_delai": 15,
+   "note": "Valable 2 ans ; demande-la 15 jours avant de partir."
+  },
+  "releve_information_auto": {
+   "organisme": "Ton assureur auto",
+   "rythme": "delai",
+   "jours_delai": 15,
+   "note": "L'assureur a 15 jours pour te l'envoyer."
+  },
+  "facture_energie": {
+   "organisme": "Ton espace client énergie",
+   "rythme": "mensuel"
+  },
+  "attestation_energie": {
+   "organisme": "Ton espace client énergie",
+   "rythme": "demande"
+  },
+  "justificatif_domicile": {
+   "organisme": "Ton espace client (énergie, internet, assurance)",
+   "rythme": "demande"
+  },
+  "quittance_loyer": {
+   "organisme": "Ton bailleur ou ton agence",
+   "rythme": "mensuel"
+  },
+  "rib": {
+   "organisme": "Ta banque",
+   "rythme": "demande"
+  },
+  "releve_bancaire": {
+   "organisme": "Ta banque",
+   "rythme": "mensuel"
+  },
+  "attestation_bancaire": {
+   "organisme": "Ta banque",
+   "rythme": "demande"
+  },
+  "bulletin_paie": {
+   "organisme": "Ton employeur",
+   "rythme": "mensuel"
+  },
+  "assurance_habitation": {
+   "organisme": "Ton assureur habitation",
+   "rythme": "annuel",
+   "note": "Attestation téléchargeable dans ton espace client."
+  },
+  "assurance_vehicule": {
+   "organisme": "Ton assureur auto",
+   "rythme": "annuel"
+  },
+  "assurance_sante_internationale": {
+   "organisme": "Ton assureur santé (CFE…)",
+   "url": "https://www.cfe.fr",
+   "rythme": "annuel"
+  },
+  "certificat_scolarite": {
+   "organisme": "Ton établissement",
+   "rythme": "annuel"
+  },
+  "residence_fiscale": {
+   "organisme": "Ton centre des impôts",
+   "url": "https://www.impots.gouv.fr",
+   "rythme": "delai",
+   "jours_delai": 30
+  },
+  "certificat_vie": {
+   "organisme": "Info-retraite (Mon certificat de vie)",
+   "url": "https://www.info-retraite.fr",
+   "rythme": "annuel"
+  }
+ },
+ "usages": {
+  "passeport": [
+   [
+    "Pièce d'identité",
+    null,
+    null
+   ],
+   [
+    "Voyager (valable 6 mois après le retour)",
+    null,
+    null
+   ]
+  ],
+  "carte_identite": [
+   [
+    "Pièce d'identité",
+    null,
+    null
+   ],
+   [
+    "Voyager en Europe",
+    null,
+    null
+   ]
+  ],
+  "acte_naissance": [
+   [
+    "État civil (mariage, PACS, carte d'identité, nationalité)",
+    90,
+    null
+   ]
+  ],
+  "livret_famille": [
+   [
+    "État civil de la famille",
+    null,
+    null
+   ]
+  ],
+  "facture_energie": [
+   [
+    "Justificatif de domicile",
+    90,
+    null
+   ]
+  ],
+  "attestation_energie": [
+   [
+    "Justificatif de domicile",
+    90,
+    null
+   ]
+  ],
+  "justificatif_domicile": [
+   [
+    "Justificatif de domicile",
+    90,
+    null
+   ]
+  ],
+  "quittance_loyer": [
+   [
+    "Justificatif de domicile",
+    90,
+    null
+   ],
+   [
+    "Preuve de loyer payé (3 dernières)",
+    100,
+    3
+   ]
+  ],
+  "assurance_habitation": [
+   [
+    "Justificatif de domicile",
+    90,
+    null
+   ],
+   [
+    "Assurance du logement",
+    365,
+    null
+   ]
+  ],
+  "avis_impot": [
+   [
+    "Justificatif de revenus (dernier avis)",
+    500,
+    null
+   ],
+   [
+    "Justificatif de domicile (moins d'un an)",
+    365,
+    null
+   ]
+  ],
+  "bulletin_paie": [
+   [
+    "Justificatif de revenus (3 derniers)",
+    100,
+    3
+   ]
+  ],
+  "releve_bancaire": [
+   [
+    "Preuve de fonds (3 derniers relevés)",
+    100,
+    3
+   ]
+  ],
+  "rib": [
+   [
+    "Coordonnées bancaires",
+    null,
+    null
+   ]
+  ],
+  "contrat_travail": [
+   [
+    "Justificatif d'emploi",
+    null,
+    null
+   ]
+  ],
+  "attestation_secu": [
+   [
+    "Couverture santé",
+    90,
+    null
+   ]
+  ],
+  "casier_judiciaire": [
+   [
+    "Casier judiciaire (visa, emploi, nationalité)",
+    90,
+    null
+   ]
+  ],
+  "permis_conduire": [
+   [
+    "Conduire",
+    null,
+    null
+   ],
+   [
+    "Pièce d'identité (en France)",
+    null,
+    null
+   ]
+  ],
+  "permis_international": [
+   [
+    "Conduire à l'étranger",
+    null,
+    null
+   ]
+  ],
+  "carte_grise": [
+   [
+    "Immatriculation du véhicule",
+    null,
+    null
+   ]
+  ],
+  "assurance_vehicule": [
+   [
+    "Assurance du véhicule",
+    365,
+    null
+   ]
+  ],
+  "non_gage": [
+   [
+    "Vendre un véhicule",
+    15,
+    null
+   ]
+  ],
+  "controle_vehicule": [
+   [
+    "Vendre un véhicule (contrôle de moins de 6 mois)",
+    180,
+    null
+   ]
+  ],
+  "attestation_vigilance": [
+   [
+    "Marchés et clients pro",
+    180,
+    null
+   ]
+  ],
+  "entreprise_statuts": [
+   [
+    "Justificatif d'entreprise (moins de 3 mois)",
+    90,
+    null
+   ]
+  ],
+  "certificat_scolarite": [
+   [
+    "Justificatif d'études",
+    365,
+    null
+   ]
+  ],
+  "visa": [
+   [
+    "Droit au séjour",
+    null,
+    null
+   ]
+  ],
+  "titre_sejour": [
+   [
+    "Droit au séjour",
+    null,
+    null
+   ]
+  ],
+  "autorisation_voyage": [
+   [
+    "Entrer dans le pays",
+    null,
+    null
+   ]
+  ],
+  "assurance_sante_internationale": [
+   [
+    "Assurance santé (visa)",
+    null,
+    null
+   ]
+  ],
+  "acte_mariage": [
+   [
+    "État civil du couple",
+    180,
+    null
+   ]
+  ],
+  "residence_fiscale": [
+   [
+    "Résidence fiscale (banque, impôts étrangers)",
+    365,
+    null
+   ]
+  ],
+  "releve_information_auto": [
+   [
+    "Changer d'assureur auto",
+    90,
+    null
+   ]
+  ],
+  "bail": [
+   [
+    "Justificatif de logement",
+    null,
+    null
+   ]
+  ],
+  "cv": [
+   [
+    "Candidature",
+    365,
+    null
+   ]
+  ],
+  "diplome": [
+   [
+    "Justificatif de diplôme",
+    null,
+    null
+   ]
+  ]
+ },
+ "essentiels": [
+  {
+   "id": "passeport",
+   "label": "Passeport",
+   "types": [
+    "passeport"
+   ],
+   "always": true,
+   "usage": null,
+   "serie": null,
+   "ic": "globe"
+  },
+  {
+   "id": "cni",
+   "label": "Carte d'identité",
+   "types": [
+    "carte_identite"
+   ],
+   "always": true,
+   "usage": null,
+   "serie": null,
+   "ic": "id"
+  },
+  {
+   "id": "naissance",
+   "label": "Acte de naissance",
+   "types": [
+    "acte_naissance"
+   ],
+   "always": true,
+   "usage": "État civil (mariage, PACS, carte d'identité, nationalité)",
+   "serie": null,
+   "ic": "name"
+  },
+  {
+   "id": "domicile",
+   "label": "Justificatif de domicile",
+   "types": [
+    "facture_energie",
+    "attestation_energie",
+    "justificatif_domicile",
+    "quittance_loyer",
+    "assurance_habitation",
+    "avis_impot"
+   ],
+   "always": true,
+   "usage": "Justificatif de domicile",
+   "serie": null,
+   "ic": "house"
+  },
+  {
+   "id": "rib",
+   "label": "RIB",
+   "types": [
+    "rib"
+   ],
+   "always": true,
+   "usage": null,
+   "serie": null,
+   "ic": "bank"
+  },
+  {
+   "id": "releves",
+   "label": "3 derniers relevés bancaires",
+   "types": [
+    "releve_bancaire"
+   ],
+   "always": true,
+   "usage": "Preuve de fonds (3 derniers relevés)",
+   "serie": 3,
+   "ic": "bank"
+  },
+  {
+   "id": "impot",
+   "label": "Dernier avis d'impôt",
+   "types": [
+    "avis_impot"
+   ],
+   "always": true,
+   "usage": "Justificatif de revenus (dernier avis)",
+   "serie": null,
+   "ic": "tax"
+  },
+  {
+   "id": "sante",
+   "label": "Attestation de droits santé",
+   "types": [
+    "attestation_secu"
+   ],
+   "always": true,
+   "usage": "Couverture santé",
+   "serie": null,
+   "ic": "shield"
+  },
+  {
+   "id": "casier",
+   "label": "Casier judiciaire",
+   "types": [
+    "casier_judiciaire"
+   ],
+   "always": true,
+   "usage": "Casier judiciaire (visa, emploi, nationalité)",
+   "serie": null,
+   "ic": "scale"
+  },
+  {
+   "id": "cv",
+   "label": "CV",
+   "types": [
+    "cv"
+   ],
+   "always": true,
+   "usage": "Candidature",
+   "serie": null,
+   "ic": "star"
+  },
+  {
+   "id": "diplome",
+   "label": "Diplôme",
+   "types": [
+    "diplome"
+   ],
+   "always": true,
+   "usage": null,
+   "serie": null,
+   "ic": "cap"
+  },
+  {
+   "id": "paie",
+   "label": "3 derniers bulletins de paie",
+   "types": [
+    "bulletin_paie"
+   ],
+   "always": false,
+   "usage": "Justificatif de revenus (3 derniers)",
+   "serie": 3,
+   "ic": "work"
+  },
+  {
+   "id": "contrat",
+   "label": "Contrat de travail",
+   "types": [
+    "contrat_travail"
+   ],
+   "always": false,
+   "usage": null,
+   "serie": null,
+   "ic": "work"
+  },
+  {
+   "id": "bail",
+   "label": "Bail en cours",
+   "types": [
+    "bail"
+   ],
+   "always": false,
+   "usage": null,
+   "serie": null,
+   "ic": "key"
+  },
+  {
+   "id": "quittance",
+   "label": "Dernières quittances",
+   "types": [
+    "quittance_loyer"
+   ],
+   "always": false,
+   "usage": "Preuve de loyer payé (3 dernières)",
+   "serie": 3,
+   "ic": "house"
+  },
+  {
+   "id": "habitation",
+   "label": "Assurance habitation",
+   "types": [
+    "assurance_habitation"
+   ],
+   "always": false,
+   "usage": "Assurance du logement",
+   "serie": null,
+   "ic": "umbrella"
+  },
+  {
+   "id": "permis",
+   "label": "Permis de conduire",
+   "types": [
+    "permis_conduire"
+   ],
+   "always": false,
+   "usage": null,
+   "serie": null,
+   "ic": "car"
+  },
+  {
+   "id": "pci",
+   "label": "Permis international",
+   "types": [
+    "permis_international"
+   ],
+   "always": false,
+   "usage": null,
+   "serie": null,
+   "ic": "car"
+  },
+  {
+   "id": "carte_grise",
+   "label": "Carte grise",
+   "types": [
+    "carte_grise"
+   ],
+   "always": false,
+   "usage": null,
+   "serie": null,
+   "ic": "car"
+  },
+  {
+   "id": "assurance_auto",
+   "label": "Assurance du véhicule",
+   "types": [
+    "assurance_vehicule"
+   ],
+   "always": false,
+   "usage": "Assurance du véhicule",
+   "serie": null,
+   "ic": "umbrella"
+  },
+  {
+   "id": "sejour",
+   "label": "Visa / titre de séjour",
+   "types": [
+    "visa",
+    "titre_sejour"
+   ],
+   "always": false,
+   "usage": null,
+   "serie": null,
+   "ic": "globe"
+  },
+  {
+   "id": "sante_int",
+   "label": "Assurance santé internationale",
+   "types": [
+    "assurance_sante_internationale",
+    "assurance_voyage"
+   ],
+   "always": false,
+   "usage": null,
+   "serie": null,
+   "ic": "shield"
+  },
+  {
+   "id": "entreprise",
+   "label": "Avis SIRENE / Kbis",
+   "types": [
+    "entreprise_statuts"
+   ],
+   "always": false,
+   "usage": "Justificatif d'entreprise (moins de 3 mois)",
+   "serie": null,
+   "ic": "briefcase"
+  },
+  {
+   "id": "vigilance",
+   "label": "Attestation de vigilance",
+   "types": [
+    "attestation_vigilance"
+   ],
+   "always": false,
+   "usage": "Marchés et clients pro",
+   "serie": null,
+   "ic": "briefcase"
+  }
+ ],
+ "synonymes": {
+  "rib": [
+   "rib",
+   "iban",
+   "bic",
+   "coordonnees bancaires",
+   "releve d'identite bancaire"
+  ],
+  "releve_bancaire": [
+   "releve",
+   "releve de compte",
+   "extrait de compte",
+   "bank statement",
+   "releves bancaires"
+  ],
+  "attestation_bancaire": [
+   "attestation de solde",
+   "bank certificate",
+   "attestation de compte"
+  ],
+  "passeport": [
+   "passeport",
+   "passport",
+   "titre de voyage"
+  ],
+  "carte_identite": [
+   "cni",
+   "carte d'identite",
+   "carte nationale d'identite",
+   "id card",
+   "piece d'identite"
+  ],
+  "permis_conduire": [
+   "permis",
+   "permis de conduire",
+   "driving licence",
+   "driver license"
+  ],
+  "permis_international": [
+   "pci",
+   "permis international",
+   "international driving permit",
+   "idp"
+  ],
+  "acte_naissance": [
+   "acte de naissance",
+   "extrait de naissance",
+   "birth certificate",
+   "etat civil"
+  ],
+  "acte_mariage": [
+   "acte de mariage",
+   "marriage certificate",
+   "mariage"
+  ],
+  "pacs": [
+   "pacs",
+   "pacte civil de solidarite",
+   "partenariat"
+  ],
+  "livret_famille": [
+   "livret de famille",
+   "family book"
+  ],
+  "facture_energie": [
+   "electricite",
+   "gaz",
+   "eau",
+   "internet",
+   "box",
+   "facture",
+   "energie",
+   "edf",
+   "engie",
+   "free",
+   "orange",
+   "sfr",
+   "bouygues",
+   "justificatif de domicile"
+  ],
+  "attestation_energie": [
+   "attestation edf",
+   "attestation de contrat",
+   "justificatif de domicile"
+  ],
+  "justificatif_domicile": [
+   "justificatif de domicile",
+   "proof of address",
+   "attestation de domicile",
+   "adresse"
+  ],
+  "attestation_hebergement": [
+   "hebergement",
+   "heberge",
+   "attestation d'hebergement",
+   "justificatif de domicile"
+  ],
+  "quittance_loyer": [
+   "quittance",
+   "loyer",
+   "rent receipt",
+   "avis d'echeance"
+  ],
+  "bail": [
+   "bail",
+   "contrat de location",
+   "lease",
+   "tenancy agreement",
+   "location"
+  ],
+  "assurance_habitation": [
+   "assurance habitation",
+   "home insurance",
+   "attestation d'assurance",
+   "multirisque habitation"
+  ],
+  "avis_impot": [
+   "impots",
+   "impot sur le revenu",
+   "avis d'imposition",
+   "avis de non-imposition",
+   "revenu fiscal de reference",
+   "rfr",
+   "tax"
+  ],
+  "declaration_revenus": [
+   "declaration",
+   "2042",
+   "declaration de revenus",
+   "tax return"
+  ],
+  "taxe_fonciere": [
+   "taxe fonciere",
+   "impots locaux",
+   "property tax"
+  ],
+  "bulletin_paie": [
+   "fiche de paie",
+   "bulletin de salaire",
+   "salaire",
+   "payslip",
+   "paie"
+  ],
+  "contrat_travail": [
+   "contrat de travail",
+   "cdi",
+   "cdd",
+   "employment contract",
+   "embauche"
+  ],
+  "attestation_employeur": [
+   "attestation employeur",
+   "chomage",
+   "france travail",
+   "pole emploi"
+  ],
+  "attestation_secu": [
+   "carte vitale",
+   "securite sociale",
+   "ameli",
+   "cpam",
+   "attestation de droits",
+   "mutuelle",
+   "assurance maladie"
+  ],
+  "casier_judiciaire": [
+   "casier",
+   "casier judiciaire",
+   "bulletin n3",
+   "b3",
+   "police certificate",
+   "criminal record",
+   "extrait de casier"
+  ],
+  "carte_grise": [
+   "carte grise",
+   "certificat d'immatriculation",
+   "immatriculation",
+   "rego",
+   "vehicle registration"
+  ],
+  "assurance_vehicule": [
+   "assurance auto",
+   "assurance voiture",
+   "car insurance",
+   "attestation d'assurance"
+  ],
+  "controle_technique": [
+   "controle technique",
+   "ct",
+   "wof",
+   "warrant of fitness"
+  ],
+  "controle_vehicule": [
+   "controle technique",
+   "ct",
+   "wof",
+   "warrant of fitness"
+  ],
+  "non_gage": [
+   "non-gage",
+   "non gage",
+   "situation administrative",
+   "histovec"
+  ],
+  "visa": [
+   "visa",
+   "titre de sejour",
+   "residence permit",
+   "working holiday",
+   "pvt",
+   "whv",
+   "immigration"
+  ],
+  "titre_sejour": [
+   "titre de sejour",
+   "carte de resident",
+   "residence card",
+   "permis de sejour",
+   "immigration"
+  ],
+  "autorisation_voyage": [
+   "esta",
+   "eta",
+   "eta",
+   "nzeta",
+   "etias",
+   "autorisation de voyage"
+  ],
+  "diplome": [
+   "diplome",
+   "diploma",
+   "degree",
+   "bac",
+   "licence",
+   "master"
+  ],
+  "cv": [
+   "cv",
+   "curriculum",
+   "resume"
+  ],
+  "entreprise_statuts": [
+   "sirene",
+   "siren",
+   "siret",
+   "kbis",
+   "statuts",
+   "insee",
+   "entreprise"
+  ],
+  "immo_compta": [
+   "comptabilite",
+   "bilan",
+   "plaquette",
+   "comptes annuels",
+   "lmnp",
+   "liasse"
+  ],
+  "immo_achat": [
+   "achat",
+   "acte d'achat",
+   "compromis",
+   "notaire",
+   "acte authentique"
+  ],
+  "immo_vente": [
+   "vente",
+   "acte de vente",
+   "promesse de vente",
+   "notaire"
+  ],
+  "immo_copro": [
+   "copropriete",
+   "syndic",
+   "assemblee generale",
+   "ag",
+   "reglement de copropriete"
+  ],
+  "immo_appel_fonds": [
+   "appel de fonds",
+   "charges de copropriete",
+   "syndic"
+  ],
+  "immo_pret": [
+   "pret",
+   "credit",
+   "emprunt",
+   "tableau d'amortissement",
+   "offre de pret"
+  ],
+  "assurance_emprunteur": [
+   "assurance emprunteur",
+   "assurance de pret",
+   "adi"
+  ],
+  "certificat_scolarite": [
+   "certificat de scolarite",
+   "attestation de scolarite",
+   "inscription"
+  ],
+  "residence_fiscale": [
+   "residence fiscale",
+   "tax residence",
+   "formulaire 5000"
+  ],
+  "vaccination_internationale": [
+   "vaccin",
+   "vaccination",
+   "fievre jaune",
+   "carnet jaune"
+  ],
+  "assurance_sante_internationale": [
+   "cfe",
+   "assurance sante",
+   "assurance voyage",
+   "expat",
+   "rapatriement"
+  ],
+  "attestation_vigilance": [
+   "vigilance",
+   "urssaf"
+  ],
+  "facture": [
+   "facture",
+   "achat",
+   "ticket",
+   "garantie",
+   "invoice"
+  ]
+ }
+}
