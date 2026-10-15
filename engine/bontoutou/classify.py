@@ -110,6 +110,8 @@ def approx_date(text, filename, today, type_id=None):
     """Quand aucune date complète n'est écrite. Retourne (date, précision 'mois'|'annee', explication) ou (None, None, None)."""
     t = _fix_years(norm(text) + " \n " + norm(filename.replace("_", " ")))
     t = re.sub("(" + "|".join(re.escape(h) for h in LAW_HINTS) + r")[^\n.]{0,60}", " ", t)   # années des textes de loi cités : ignorées
+    t = re.sub(r"(?<![a-z])(?:nee?|ne\(e\))\s+(?:a\s[^.;:\n]{1,45}?,?\s*)?le\s[^.;\n]{0,30}", " ", t)   # « né à Troyes (10000), le 10 mars 2003 » : naissance ignorée
+    t = re.sub(r"(?:date (?:et lieu )?de naissance|date of birth)[^\n]{0,30}", " ", t)
     ok = lambda y: 1950 <= y <= today.year
     full_years = [int(y) for y in re.findall(r"(?<![\d\w])((?:19|20)\d\d)(?![\d\w])", t) if ok(int(y))]
     mn = "|".join(sorted(MONTHS, key=len, reverse=True))
@@ -470,7 +472,10 @@ def _hint_in(ctx):
     best, kind = -1, None
     for k, H in (("birth", BIRTH_HINTS), ("issue", ISSUE_HINTS), ("expiry", EXPIRY_HINTS)):
         for h in H:
-            i = ctx.rfind(h)
+            m = None
+            for m in re.finditer(r"(?<![a-z])" + re.escape(h), ctx):   # « signé le » ne contient pas « né le »
+                pass
+            i = m.start() if m else -1
             if i > best:
                 best, kind = i, k
     return kind
@@ -480,7 +485,10 @@ def _last_hint(ctx):
     """Le libellé le plus proche avant une date : 'birth', 'issue', 'expiry' ou None.
     La naissance ne vaut que jusqu'à la date précédente (« Né le 10/03/2003 · Le 05/09/2019 » : la 2e n'est pas une naissance) ;
     délivrance et expiration valent aussi pour les tableaux (libellés en ligne, valeurs dessous)."""
-    k = _hint_in(re.split(r"\d{4}", ctx)[-1])
+    seg = re.split(r"(?<!\d)\d{4}(?!\d)", ctx)[-1]   # une année coupe le contexte ; un code postal (10000) ne le coupe pas
+    if re.search(r"\bn(?:e|ee|e\(e\))\s+a\s[^.;:]{1,45}?,?\s*le\s*$", seg):   # « Né à Troyes (10000), le … » : une naissance
+        return "birth"
+    k = _hint_in(seg)
     if k:
         return k
     k = _hint_in(ctx)

@@ -22,7 +22,8 @@
     "14": "Aides",
     "15": "Carrière",
     "16": "Autres familles",
-    "17": "Activités & entreprises"
+    "17": "Activités & entreprises",
+    "18": "Immigration & séjours"
   },
   "cat_folders": {
     "01": "01_IDENTITE",
@@ -41,13 +42,13 @@
     "14": "14_AIDES",
     "15": "15_CARRIERE",
     "16": "16_AUTRES",
-    "17": "17_ACTIVITES-ENTREPRISES"
+    "17": "17_ACTIVITES-ENTREPRISES",
+    "18": "18_IMMIGRATION"
   },
   "sub_folders": {
     "01-1": "Pieces-identite",
     "01-2": "Etat-civil",
     "01-3": "Permis",
-    "01-4": "Titres-sejour-visas",
     "02-1": "Baux-etats-des-lieux",
     "02-2": "Quittances-avis-echeance",
     "02-3": "Energie-eau-internet",
@@ -112,7 +113,17 @@
     "17-1": "Creation-statuts",
     "17-2": "Comptabilite",
     "17-3": "Declarations-impots-pro",
-    "17-4": "Banque-pro"
+    "17-4": "Banque-pro",
+    "06-4": "Sante-voyage",
+    "09-4": "Vie-commune-tiers",
+    "12-5": "Reconnaissance-etranger",
+    "13-5": "Casiers-judiciaires",
+    "17-5": "Clients-factures",
+    "18-1": "Visas-titres-sejour",
+    "18-2": "Autorisations-voyage",
+    "18-3": "Demandes-decisions",
+    "18-4": "Parrainages-invitations",
+    "18-5": "Residence-sur-place"
   },
   "expiry_hints": [
     "date d'expiration",
@@ -216,8 +227,8 @@
     "visa": {
       "label": "Visa / titre de séjour",
       "slug": "Visa",
-      "cat": "01",
-      "sub": "01-4",
+      "cat": "18",
+      "sub": "18-1",
       "suivi": "type",
       "expiry": true,
       "kw": [
@@ -252,8 +263,8 @@
     "demande_visa": {
       "label": "Demande de visa (formulaire / récapitulatif)",
       "slug": "Demande-visa",
-      "cat": "01",
-      "sub": "01-4",
+      "cat": "18",
+      "sub": "18-3",
       "suivi": "none",
       "kw": [
         "visa application",
@@ -1395,6 +1406,1136 @@
       "suivi": "none",
       "kw": [
         "compte professionnel"
+      ],
+      "fn": []
+    },
+    "photo_identite": {
+      "label": "Photo d'identité",
+      "slug": "Photo-identite",
+      "cat": "01",
+      "sub": "01-1",
+      "suivi": "none",
+      "kw": [
+        "photo d'identite conforme",
+        "e-photo"
+      ],
+      "fn": [
+        "photo identite",
+        "photo-identite"
+      ]
+    },
+    "certificat_nationalite": {
+      "label": "Certificat de nationalité",
+      "slug": "Certificat-nationalite",
+      "cat": "01",
+      "sub": "01-2",
+      "suivi": "type",
+      "kw": [
+        "certificat de nationalite francaise"
+      ],
+      "fn": [],
+      "titre": [
+        "certificat de nationalite"
+      ]
+    },
+    "changement_nom": {
+      "label": "Changement de nom",
+      "slug": "Changement-nom",
+      "cat": "01",
+      "sub": "01-2",
+      "suivi": "none",
+      "kw": [
+        "changement de nom",
+        "decret portant changement de nom"
+      ],
+      "fn": []
+    },
+    "inscription_consulaire": {
+      "label": "Inscription consulaire / radiation",
+      "slug": "Inscription-consulaire",
+      "cat": "01",
+      "sub": "01-2",
+      "suivi": "type",
+      "kw": [
+        "registre des francais etablis hors de france",
+        "inscription consulaire",
+        "certificat de radiation"
+      ],
+      "fn": []
+    },
+    "permis_international": {
+      "label": "Permis international",
+      "slug": "Permis-international",
+      "cat": "01",
+      "sub": "01-3",
+      "suivi": "type",
+      "expiry": true,
+      "kw": [
+        "permis de conduire international",
+        "international driving permit"
+      ],
+      "fn": [],
+      "titre": [
+        "permis de conduire international",
+        "international driving permit"
+      ]
+    },
+    "traduction_permis": {
+      "label": "Traduction officielle du permis",
+      "slug": "Traduction-permis",
+      "cat": "01",
+      "sub": "01-3",
+      "suivi": "type",
+      "expiry": true,
+      "kw": [
+        "japan automobile federation",
+        "traduction officielle du permis"
+      ],
+      "fn": []
+    },
+    "attestation_energie": {
+      "label": "Attestation de contrat d'énergie",
+      "slug": "Attestation-contrat-energie",
+      "cat": "02",
+      "sub": "02-5",
+      "suivi": "emitter",
+      "kw": [
+        "attestation de contrat",
+        "attestation de titulaire de contrat"
+      ],
+      "fn": []
+    },
+    "attestation_hebergement": {
+      "label": "Attestation d'hébergement",
+      "slug": "Attestation-hebergement",
+      "cat": "02",
+      "sub": "02-5",
+      "suivi": "none",
+      "kw": [
+        "atteste sur l'honneur heberger",
+        "attestation d'hebergement",
+        "termo de responsabilidade"
+      ],
+      "fn": [],
+      "titre": [
+        "attestation d'hebergement"
+      ]
+    },
+    "election_domicile": {
+      "label": "Attestation d'élection de domicile",
+      "slug": "Election-domicile",
+      "cat": "02",
+      "sub": "02-5",
+      "suivi": "type",
+      "expiry": true,
+      "kw": [
+        "election de domicile",
+        "domiciliation administrative"
+      ],
+      "fn": [],
+      "titre": [
+        "attestation d'election de domicile"
+      ]
+    },
+    "reference_bailleur": {
+      "label": "Lettre de référence d'un bailleur",
+      "slug": "Reference-bailleur",
+      "cat": "02",
+      "sub": "02-1",
+      "suivi": "none",
+      "kw": [
+        "landlord reference",
+        "lettre de reference du bailleur"
+      ],
+      "fn": []
+    },
+    "certificat_travail": {
+      "label": "Certificat de travail",
+      "slug": "Certificat-travail",
+      "cat": "03",
+      "sub": "03-4",
+      "suivi": "none",
+      "kw": [
+        "certificat de travail"
+      ],
+      "fn": [],
+      "titre": [
+        "certificat de travail"
+      ]
+    },
+    "autorisation_teletravail": {
+      "label": "Lettre d'autorisation de télétravail",
+      "slug": "Autorisation-teletravail",
+      "cat": "03",
+      "sub": "03-1",
+      "suivi": "none",
+      "kw": [
+        "remote work authorization",
+        "autorise a exercer en teletravail",
+        "teletravail depuis l'etranger"
+      ],
+      "fn": []
+    },
+    "releve_carriere": {
+      "label": "Relevé de carrière",
+      "slug": "Releve-carriere",
+      "cat": "03",
+      "sub": "03-4",
+      "suivi": "type",
+      "kw": [
+        "releve de situation individuelle",
+        "releve de carriere",
+        "relevé individuel de situation"
+      ],
+      "fn": [],
+      "titre": [
+        "releve de carriere"
+      ]
+    },
+    "titre_pension": {
+      "label": "Titre / attestation de pension",
+      "slug": "Titre-pension",
+      "cat": "03",
+      "sub": "03-4",
+      "suivi": "emitter",
+      "kw": [
+        "titre de pension",
+        "attestation de paiement de pension",
+        "notification de retraite"
+      ],
+      "fn": []
+    },
+    "certificat_vie": {
+      "label": "Certificat de vie",
+      "slug": "Certificat-vie",
+      "cat": "03",
+      "sub": "03-4",
+      "suivi": "type",
+      "kw": [
+        "certificat de vie",
+        "certificat d'existence"
+      ],
+      "fn": [],
+      "titre": [
+        "certificat de vie"
+      ]
+    },
+    "attestation_france_travail": {
+      "label": "Attestation France Travail",
+      "slug": "Attestation-France-Travail",
+      "cat": "03",
+      "sub": "03-4",
+      "suivi": "type",
+      "kw": [
+        "attestation de periode d'inscription",
+        "attestation france travail",
+        "attestation pole emploi"
+      ],
+      "fn": [],
+      "titre": [
+        "attestation france travail"
+      ]
+    },
+    "formulaire_u1": {
+      "label": "Formulaire U1 (périodes d'emploi UE)",
+      "slug": "Formulaire-U1",
+      "cat": "03",
+      "sub": "03-4",
+      "suivi": "none",
+      "kw": [
+        "document portable u1",
+        "formulaire u1"
+      ],
+      "fn": []
+    },
+    "avis_fiscal_etranger": {
+      "label": "Avis fiscal étranger",
+      "slug": "Avis-fiscal-etranger",
+      "cat": "04",
+      "sub": "04-2",
+      "suivi": "emitter",
+      "kw": [
+        "tax assessment",
+        "notice of assessment",
+        "tax return transcript",
+        "notificacion",
+        "liquidacion"
+      ],
+      "fn": []
+    },
+    "residence_fiscale": {
+      "label": "Certificat de résidence fiscale",
+      "slug": "Residence-fiscale",
+      "cat": "04",
+      "sub": "04-3",
+      "suivi": "emitter",
+      "kw": [
+        "certificat de residence fiscale",
+        "tax residence certificate",
+        "certificate of tax residence",
+        "formulaire 5000"
+      ],
+      "fn": [],
+      "titre": [
+        "certificat de residence fiscale"
+      ]
+    },
+    "formulaire_3916": {
+      "label": "Déclaration de compte à l'étranger (3916)",
+      "slug": "Formulaire-3916",
+      "cat": "04",
+      "sub": "04-1",
+      "suivi": "none",
+      "period": "year",
+      "kw": [
+        "3916",
+        "comptes ouverts, detenus, utilises ou clos a l'etranger"
+      ],
+      "fn": []
+    },
+    "numero_fiscal": {
+      "label": "Attribution d'un numéro fiscal",
+      "slug": "Numero-fiscal",
+      "cat": "04",
+      "sub": "04-3",
+      "suivi": "emitter",
+      "kw": [
+        "numero fiscal de reference",
+        "numero d'identification fiscale",
+        "codice fiscale",
+        "numero de identificacion de extranjero",
+        "ird number",
+        "tax file number",
+        "social insurance number"
+      ],
+      "fn": []
+    },
+    "non_dette": {
+      "label": "Certificat de non-dette fiscale ou sociale",
+      "slug": "Non-dette",
+      "cat": "04",
+      "sub": "04-3",
+      "suivi": "none",
+      "kw": [
+        "certidao de nao divida",
+        "attestation de regularite fiscale",
+        "certificat de non-dette"
+      ],
+      "fn": []
+    },
+    "autocertification_crs": {
+      "label": "Auto-certification fiscale (CRS / FATCA)",
+      "slug": "Auto-certification-CRS",
+      "cat": "04",
+      "sub": "04-3",
+      "suivi": "emitter",
+      "kw": [
+        "auto-certification de residence fiscale",
+        "self-certification form",
+        "fatca"
+      ],
+      "fn": []
+    },
+    "attestation_bancaire": {
+      "label": "Attestation bancaire (solde, compte)",
+      "slug": "Attestation-bancaire",
+      "cat": "05",
+      "sub": "05-1",
+      "suivi": "none",
+      "kw": [
+        "attestation de solde",
+        "attestation bancaire",
+        "certificat de solde",
+        "bank certificate"
+      ],
+      "fn": []
+    },
+    "reference_bancaire": {
+      "label": "Lettre de référence bancaire",
+      "slug": "Reference-bancaire",
+      "cat": "05",
+      "sub": "05-1",
+      "suivi": "none",
+      "kw": [
+        "bank reference letter",
+        "lettre de reference bancaire"
+      ],
+      "fn": []
+    },
+    "releve_portefeuille": {
+      "label": "Relevé d'épargne / portefeuille",
+      "slug": "Releve-portefeuille",
+      "cat": "10",
+      "sub": "10-2",
+      "suivi": "emitter",
+      "period": "month",
+      "kw": [
+        "releve de portefeuille",
+        "releve de compte titres",
+        "valorisation du portefeuille",
+        "releve de valeurs mobilieres"
+      ],
+      "fn": []
+    },
+    "vaccination_internationale": {
+      "label": "Carnet de vaccination international",
+      "slug": "Vaccination-internationale",
+      "cat": "06",
+      "sub": "06-4",
+      "suivi": "type",
+      "kw": [
+        "certificat international de vaccination",
+        "international certificate of vaccination",
+        "fievre jaune",
+        "yellow fever"
+      ],
+      "fn": []
+    },
+    "ceam": {
+      "label": "Carte européenne d'assurance maladie (CEAM)",
+      "slug": "CEAM",
+      "cat": "06",
+      "sub": "06-4",
+      "suivi": "type",
+      "expiry": true,
+      "kw": [
+        "carte europeenne d'assurance maladie",
+        "certificat provisoire de remplacement"
+      ],
+      "fn": []
+    },
+    "examen_medical_visa": {
+      "label": "Examen médical agréé (visa)",
+      "slug": "Examen-medical-visa",
+      "cat": "06",
+      "sub": "06-4",
+      "suivi": "type",
+      "expiry": true,
+      "kw": [
+        "panel physician",
+        "emedical",
+        "immigration medical",
+        "form i-693"
+      ],
+      "fn": []
+    },
+    "radio_tuberculose": {
+      "label": "Radio thoracique / test de tuberculose",
+      "slug": "Radio-tuberculose",
+      "cat": "06",
+      "sub": "06-4",
+      "suivi": "none",
+      "kw": [
+        "chest x-ray",
+        "radiographie thoracique",
+        "igra",
+        "tuberculin"
+      ],
+      "fn": []
+    },
+    "ordonnance_traduite": {
+      "label": "Ordonnance traduite",
+      "slug": "Ordonnance-traduite",
+      "cat": "06",
+      "sub": "06-4",
+      "suivi": "none",
+      "kw": [
+        "prescription translation",
+        "ordonnance traduite"
+      ],
+      "fn": []
+    },
+    "formulaire_s1": {
+      "label": "Formulaire de sécurité sociale (S1, S1106, A1)",
+      "slug": "Formulaire-S1",
+      "cat": "06",
+      "sub": "06-4",
+      "suivi": "none",
+      "kw": [
+        "formulaire s1",
+        "s1106",
+        "document portable a1",
+        "certificat de detachement"
+      ],
+      "fn": []
+    },
+    "dossier_medical": {
+      "label": "Export du dossier médical",
+      "slug": "Dossier-medical",
+      "cat": "06",
+      "sub": "06-3",
+      "suivi": "none",
+      "kw": [
+        "mon espace sante",
+        "synthese medicale",
+        "dossier medical partage"
+      ],
+      "fn": []
+    },
+    "assurance_sante_internationale": {
+      "label": "Assurance santé internationale (CFE, visa)",
+      "slug": "Assurance-sante-internationale",
+      "cat": "07",
+      "sub": "07-4",
+      "suivi": "emitter",
+      "expiry": true,
+      "kw": [
+        "caisse des francais de l'etranger",
+        "expatriate health insurance",
+        "rapatriement sanitaire",
+        "international health insurance"
+      ],
+      "fn": []
+    },
+    "responsabilite_civile": {
+      "label": "Responsabilité civile",
+      "slug": "Responsabilite-civile",
+      "cat": "07",
+      "sub": "07-3",
+      "suivi": "emitter",
+      "kw": [
+        "attestation de responsabilite civile",
+        "responsabilite civile vie privee"
+      ],
+      "fn": []
+    },
+    "releve_information_auto": {
+      "label": "Relevé d'information auto",
+      "slug": "Releve-information-auto",
+      "cat": "07",
+      "sub": "07-2",
+      "suivi": "emitter",
+      "kw": [
+        "releve d'information",
+        "coefficient de reduction-majoration",
+        "bonus-malus"
+      ],
+      "fn": [],
+      "titre": [
+        "releve d'information"
+      ]
+    },
+    "declaration_sinistre": {
+      "label": "Déclaration de sinistre",
+      "slug": "Declaration-sinistre",
+      "cat": "07",
+      "sub": "07-5",
+      "suivi": "none",
+      "kw": [
+        "declaration de sinistre",
+        "constat amiable"
+      ],
+      "fn": []
+    },
+    "non_gage": {
+      "label": "Certificat de situation administrative (non-gage)",
+      "slug": "Non-gage",
+      "cat": "08",
+      "sub": "08-1",
+      "suivi": "none",
+      "kw": [
+        "certificat de situation administrative",
+        "non-gage",
+        "histovec"
+      ],
+      "fn": [],
+      "titre": [
+        "certificat de situation administrative"
+      ]
+    },
+    "certificat_cession": {
+      "label": "Certificat de cession de véhicule",
+      "slug": "Certificat-cession",
+      "cat": "08",
+      "sub": "08-1",
+      "suivi": "none",
+      "kw": [
+        "certificat de cession",
+        "declaration de cession",
+        "15776"
+      ],
+      "fn": []
+    },
+    "billet_itineraire": {
+      "label": "Billet / itinéraire de voyage",
+      "slug": "Billet",
+      "cat": "08",
+      "sub": "08-9",
+      "suivi": "none",
+      "kw": [
+        "e-ticket",
+        "boarding pass",
+        "carte d'embarquement",
+        "itinerary receipt"
+      ],
+      "fn": []
+    },
+    "acte_mariage": {
+      "label": "Acte de mariage",
+      "slug": "Acte-mariage",
+      "cat": "09",
+      "sub": "09-1",
+      "suivi": "type",
+      "kw": [
+        "acte de mariage",
+        "marriage certificate"
+      ],
+      "fn": [],
+      "titre": [
+        "acte de mariage"
+      ]
+    },
+    "pacs": {
+      "label": "Convention / attestation de PACS",
+      "slug": "PACS",
+      "cat": "09",
+      "sub": "09-1",
+      "suivi": "type",
+      "kw": [
+        "pacte civil de solidarite",
+        "enregistrement de la declaration conjointe"
+      ],
+      "fn": []
+    },
+    "non_pacs": {
+      "label": "Certificat de non-PACS",
+      "slug": "Non-PACS",
+      "cat": "09",
+      "sub": "09-1",
+      "suivi": "none",
+      "kw": [
+        "certificat de non-pacs",
+        "n'est pas engage dans les liens d'un pacte civil"
+      ],
+      "fn": []
+    },
+    "capacite_mariage": {
+      "label": "Certificat de capacité à mariage / de coutume",
+      "slug": "Capacite-mariage",
+      "cat": "09",
+      "sub": "09-1",
+      "suivi": "none",
+      "kw": [
+        "certificat de capacite a mariage",
+        "certificat de coutume"
+      ],
+      "fn": []
+    },
+    "jugement_divorce": {
+      "label": "Jugement de divorce",
+      "slug": "Jugement-divorce",
+      "cat": "09",
+      "sub": "09-1",
+      "suivi": "none",
+      "kw": [
+        "jugement de divorce",
+        "prononce le divorce",
+        "convention de divorce"
+      ],
+      "fn": []
+    },
+    "contrat_mariage": {
+      "label": "Contrat de mariage",
+      "slug": "Contrat-mariage",
+      "cat": "09",
+      "sub": "09-1",
+      "suivi": "none",
+      "kw": [
+        "contrat de mariage",
+        "regime matrimonial"
+      ],
+      "fn": []
+    },
+    "autorisation_parentale": {
+      "label": "Autorisation parentale",
+      "slug": "Autorisation-parentale",
+      "cat": "09",
+      "sub": "09-2",
+      "suivi": "none",
+      "kw": [
+        "autorisation de sortie du territoire",
+        "autorisation parentale",
+        "parental consent"
+      ],
+      "fn": []
+    },
+    "vie_commune": {
+      "label": "Preuve de vie commune",
+      "slug": "Vie-commune",
+      "cat": "09",
+      "sub": "09-4",
+      "suivi": "none",
+      "kw": [
+        "certificat de vie commune",
+        "attestation de concubinage",
+        "de facto relationship"
+      ],
+      "fn": []
+    },
+    "declaration_tiers": {
+      "label": "Déclaration d'un tiers (soutien, relation)",
+      "slug": "Declaration-tiers",
+      "cat": "09",
+      "sub": "09-4",
+      "suivi": "none",
+      "kw": [
+        "statutory declaration",
+        "form 888",
+        "imm 5409",
+        "affidavit of support"
+      ],
+      "fn": []
+    },
+    "pieces_garant": {
+      "label": "Pièces d'un garant ou parrain",
+      "slug": "Pieces-garant",
+      "cat": "09",
+      "sub": "09-4",
+      "suivi": "none",
+      "kw": [
+        "acte de cautionnement",
+        "form i-864",
+        "sponsor undertaking"
+      ],
+      "fn": []
+    },
+    "acte_deces": {
+      "label": "Acte de décès",
+      "slug": "Acte-deces",
+      "cat": "10",
+      "sub": "10-4",
+      "suivi": "none",
+      "kw": [
+        "acte de deces",
+        "death certificate"
+      ],
+      "fn": [],
+      "titre": [
+        "acte de deces"
+      ]
+    },
+    "testament": {
+      "label": "Testament",
+      "slug": "Testament",
+      "cat": "10",
+      "sub": "10-4",
+      "suivi": "none",
+      "kw": [
+        "testament olographe",
+        "testament authentique",
+        "je soussigne lègue"
+      ],
+      "fn": []
+    },
+    "certificat_successoral": {
+      "label": "Certificat successoral / attestation de dévolution",
+      "slug": "Certificat-successoral",
+      "cat": "10",
+      "sub": "10-4",
+      "suivi": "none",
+      "kw": [
+        "certificat successoral europeen",
+        "acte de notoriete",
+        "attestation de devolution successorale"
+      ],
+      "fn": []
+    },
+    "releve_notes": {
+      "label": "Relevé de notes officiel",
+      "slug": "Releve-notes",
+      "cat": "12",
+      "sub": "12-3",
+      "suivi": "none",
+      "kw": [
+        "releve de notes",
+        "transcript of records",
+        "official transcript"
+      ],
+      "fn": []
+    },
+    "evaluation_diplome": {
+      "label": "Évaluation de diplôme (WES, ECA, NZQA, CIMEA…)",
+      "slug": "Evaluation-diplome",
+      "cat": "12",
+      "sub": "12-5",
+      "suivi": "emitter",
+      "kw": [
+        "educational credential assessment",
+        "world education services",
+        "nzqa",
+        "cimea",
+        "dichiarazione di valore",
+        "ecctis",
+        "skills assessment"
+      ],
+      "fn": []
+    },
+    "test_langue": {
+      "label": "Test de langue (IELTS, TEF, DELE…)",
+      "slug": "Test-langue",
+      "cat": "12",
+      "sub": "12-5",
+      "suivi": "emitter",
+      "expiry": true,
+      "kw": [
+        "ielts",
+        "toefl",
+        "celpip",
+        "test d'evaluation de francais",
+        "dele",
+        "jlpt",
+        "toeic",
+        "cambridge english"
+      ],
+      "fn": []
+    },
+    "licence_professionnelle": {
+      "label": "Licence / habilitation professionnelle",
+      "slug": "Licence-pro",
+      "cat": "12",
+      "sub": "12-5",
+      "suivi": "none",
+      "kw": [
+        "professional licence",
+        "habilitation professionnelle",
+        "registration board"
+      ],
+      "fn": []
+    },
+    "lettre_admission": {
+      "label": "Lettre d'admission",
+      "slug": "Lettre-admission",
+      "cat": "12",
+      "sub": "12-4",
+      "suivi": "none",
+      "kw": [
+        "letter of acceptance",
+        "confirmation of acceptance for studies",
+        "letter of admission",
+        "form i-20"
+      ],
+      "fn": []
+    },
+    "frais_scolarite": {
+      "label": "Frais de scolarité payés",
+      "slug": "Frais-scolarite",
+      "cat": "12",
+      "sub": "12-4",
+      "suivi": "none",
+      "kw": [
+        "tuition fee receipt",
+        "droits d'inscription",
+        "frais de scolarite"
+      ],
+      "fn": []
+    },
+    "certificat_scolarite": {
+      "label": "Certificat de scolarité",
+      "slug": "Certificat-scolarite",
+      "cat": "12",
+      "sub": "12-4",
+      "suivi": "emitter",
+      "kw": [
+        "certificat de scolarite",
+        "attestation de scolarite",
+        "enrolment certificate"
+      ],
+      "fn": [],
+      "titre": [
+        "certificat de scolarite"
+      ]
+    },
+    "casier_judiciaire": {
+      "label": "Casier judiciaire (extrait)",
+      "slug": "Casier-judiciaire",
+      "cat": "13",
+      "sub": "13-5",
+      "suivi": "emitter",
+      "kw": [
+        "bulletin n 3",
+        "bulletin n°3",
+        "casier judiciaire national",
+        "police certificate",
+        "criminal record check",
+        "certificado de antecedentes penales",
+        "certificado de registo criminal",
+        "certificato del casellario"
+      ],
+      "fn": [],
+      "titre": [
+        "extrait de casier judiciaire",
+        "bulletin n°3"
+      ]
+    },
+    "releve_empreintes": {
+      "label": "Relevé d'empreintes",
+      "slug": "Releve-empreintes",
+      "cat": "13",
+      "sub": "13-5",
+      "suivi": "none",
+      "kw": [
+        "fingerprint card",
+        "fd-258",
+        "releve d'empreintes"
+      ],
+      "fn": []
+    },
+    "procuration": {
+      "label": "Procuration",
+      "slug": "Procuration",
+      "cat": "13",
+      "sub": "13-3",
+      "suivi": "none",
+      "kw": [
+        "procuration",
+        "donne pouvoir a",
+        "power of attorney"
+      ],
+      "fn": [],
+      "titre": [
+        "procuration"
+      ]
+    },
+    "declaration_honneur": {
+      "label": "Déclaration sur l'honneur",
+      "slug": "Declaration-honneur",
+      "cat": "13",
+      "sub": "13-3",
+      "suivi": "none",
+      "kw": [
+        "declare sur l'honneur",
+        "atteste sur l'honneur",
+        "declaracion jurada",
+        "sworn statement"
+      ],
+      "fn": []
+    },
+    "decision_justice": {
+      "label": "Décision de justice",
+      "slug": "Decision-justice",
+      "cat": "13",
+      "sub": "13-1",
+      "suivi": "none",
+      "kw": [
+        "par ces motifs",
+        "ordonnance du tribunal",
+        "arret de la cour",
+        "jugement du tribunal"
+      ],
+      "fn": []
+    },
+    "reference_emploi": {
+      "label": "Lettre de référence d'emploi",
+      "slug": "Reference-emploi",
+      "cat": "15",
+      "sub": "15-4",
+      "suivi": "none",
+      "kw": [
+        "reference letter",
+        "employment reference",
+        "to whom it may concern",
+        "lettre de recommandation"
+      ],
+      "fn": []
+    },
+    "recommandation_portfolio": {
+      "label": "Recommandation / portfolio / presse",
+      "slug": "Portfolio",
+      "cat": "15",
+      "sub": "15-4",
+      "suivi": "none",
+      "kw": [
+        "press coverage",
+        "letter of recommendation"
+      ],
+      "fn": []
+    },
+    "attestation_vigilance": {
+      "label": "Attestation de vigilance URSSAF",
+      "slug": "Attestation-vigilance",
+      "cat": "17",
+      "sub": "17-3",
+      "suivi": "type",
+      "expiry": true,
+      "kw": [
+        "attestation de vigilance"
+      ],
+      "fn": [],
+      "titre": [
+        "attestation de vigilance"
+      ]
+    },
+    "facture_emise": {
+      "label": "Facture émise",
+      "slug": "Facture-emise",
+      "cat": "17",
+      "sub": "17-5",
+      "suivi": "none",
+      "kw": [],
+      "fn": []
+    },
+    "contrat_client": {
+      "label": "Contrat client / mission",
+      "slug": "Contrat-client",
+      "cat": "17",
+      "sub": "17-5",
+      "suivi": "none",
+      "kw": [
+        "contrat de prestation de services",
+        "bon de commande",
+        "statement of work"
+      ],
+      "fn": []
+    },
+    "business_plan": {
+      "label": "Business plan",
+      "slug": "Business-plan",
+      "cat": "17",
+      "sub": "17-1",
+      "suivi": "none",
+      "kw": [
+        "business plan",
+        "plan d'affaires",
+        "previsionnel financier"
+      ],
+      "fn": []
+    },
+    "radiation_entreprise": {
+      "label": "Radiation / cessation d'activité",
+      "slug": "Radiation",
+      "cat": "17",
+      "sub": "17-1",
+      "suivi": "none",
+      "kw": [
+        "radiation du registre",
+        "radiation de l'entreprise",
+        "declaration de cessation d'activite"
+      ],
+      "fn": []
+    },
+    "titre_sejour": {
+      "label": "Titre de séjour / carte de résident",
+      "slug": "Titre-sejour",
+      "cat": "18",
+      "sub": "18-1",
+      "suivi": "type",
+      "expiry": true,
+      "kw": [
+        "residence card",
+        "titre de sejour",
+        "zairyu",
+        "emirates id",
+        "carte de resident",
+        "residence permit card",
+        "permesso di soggiorno"
+      ],
+      "fn": [],
+      "titre": [
+        "titre de sejour"
+      ]
+    },
+    "autorisation_voyage": {
+      "label": "Autorisation de voyage (ESTA, eTA, ETA, NZeTA)",
+      "slug": "Autorisation-voyage",
+      "cat": "18",
+      "sub": "18-2",
+      "suivi": "type",
+      "expiry": true,
+      "kw": [
+        "electronic system for travel authorization",
+        "electronic travel authorization",
+        "nzeta",
+        "electronic travel authority",
+        "etias"
+      ],
+      "fn": []
+    },
+    "decision_immigration": {
+      "label": "Décision ou refus (immigration)",
+      "slug": "Decision-immigration",
+      "cat": "18",
+      "sub": "18-3",
+      "suivi": "none",
+      "kw": [
+        "application has been approved",
+        "application has been declined",
+        "we have decided",
+        "refus de visa",
+        "decision on your application"
+      ],
+      "fn": []
+    },
+    "biometrie": {
+      "label": "Récépissé de biométrie",
+      "slug": "Biometrie",
+      "cat": "18",
+      "sub": "18-3",
+      "suivi": "none",
+      "kw": [
+        "biometric instruction",
+        "biometrics appointment",
+        "asc appointment",
+        "biometrie"
+      ],
+      "fn": []
+    },
+    "taxe_visa": {
+      "label": "Taxe de visa payée",
+      "slug": "Taxe-visa",
+      "cat": "18",
+      "sub": "18-3",
+      "suivi": "none",
+      "kw": [
+        "visa application fee",
+        "modelo 790",
+        "receipt of payment",
+        "application charge"
+      ],
+      "fn": []
+    },
+    "parrainage": {
+      "label": "Parrainage / COE / offre visée",
+      "slug": "Parrainage",
+      "cat": "18",
+      "sub": "18-4",
+      "suivi": "none",
+      "kw": [
+        "certificate of eligibility",
+        "certificate of sponsorship",
+        "labour market impact assessment",
+        "job check",
+        "nulla osta"
+      ],
+      "fn": []
+    },
+    "enregistrement_adresse": {
+      "label": "Enregistrement d'adresse sur place",
+      "slug": "Enregistrement-adresse",
+      "cat": "18",
+      "sub": "18-5",
+      "suivi": "type",
+      "kw": [
+        "empadronamiento",
+        "certificado de empadronamiento",
+        "anagrafe",
+        "juminhyo",
+        "ejari",
+        "certificado de registo",
+        "tm30",
+        "residence registration"
+      ],
+      "fn": []
+    },
+    "attestation_residence": {
+      "label": "Attestation de résidence",
+      "slug": "Attestation-residence",
+      "cat": "18",
+      "sub": "18-5",
+      "suivi": "type",
+      "kw": [
+        "certificate of residence",
+        "attestation de residence",
+        "residence certificate"
       ],
       "fn": []
     }

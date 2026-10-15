@@ -212,11 +212,14 @@ def load(bureau_fm=None, disabled=()):
         TYPES["autre_" + cat] = dict(label="Autre — " + name, slug="Autre", cat=cat, sub=cat + "-9", suivi="none", kw=[], fn=[],
                                      generic=True, _origin="Socle")
     for sub in real_subs:
-        TYPES["autre_" + sub.replace("-", "_")] = dict(label="Autre — " + {"02-6": "Copropriété", "02-7": "Gestion locative", "01-5": "Service national", "04-4": "Taxes locales", "17-1": "Création et statuts", "17-2": "Comptabilité", "17-3": "Déclarations et impôts pro", "17-4": "Banque pro"}.get(sub, SUB_FOLDERS_FR[sub].replace("-", " ")), slug="Autre", cat=sub[:2], sub=sub,
+        TYPES["autre_" + sub.replace("-", "_")] = dict(label="Autre — " + {"02-6": "Copropriété", "02-7": "Gestion locative", "01-5": "Service national", "04-4": "Taxes locales", "17-1": "Création et statuts", "17-2": "Comptabilité", "17-3": "Déclarations et impôts pro", "17-4": "Banque pro", "17-5": "Clients et factures", "06-4": "Santé voyage", "09-4": "Vie commune et tiers", "12-5": "Reconnaissance à l'étranger", "13-5": "Casiers judiciaires", "18-1": "Visas et titres de séjour", "18-2": "Autorisations de voyage", "18-3": "Demandes et décisions", "18-4": "Parrainages et invitations", "18-5": "Résidence sur place"}.get(sub, SUB_FOLDERS_FR[sub].replace("-", " ")), slug="Autre", cat=sub[:2], sub=sub,
                                                        inner="Autres", suivi="none", kw=[], fn=[], generic=True, _origin="Socle")
     # v0.9.1 : la comptabilité quitte Patrimoine (10-5) pour « Activités & entreprises » (17-2) ; les anciens « Autres » suivent.
     if "autre_10_5" not in TYPES and "autre_17_2" in TYPES:
         TYPES["autre_10_5"] = dict(TYPES["autre_17_2"], legacy=True)
+    # v0.9.2 : les titres de séjour quittent Identité (01-4) pour la famille 18 Immigration & séjours.
+    if "autre_01_4" not in TYPES and "autre_18_1" in TYPES:
+        TYPES["autre_01_4"] = dict(TYPES["autre_18_1"], legacy=True)
     return PACKS
 
 

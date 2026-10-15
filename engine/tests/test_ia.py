@@ -125,5 +125,9 @@ check(_m and _m["kind"] == "passeport" and _m["birth"] == _dt.date(2003, 3, 10) 
 d, e, _w = _pick_dates("CARTE NATIONALE D IDENTITE\nDATE DE NAISS / Date of birth\nM FRA 10 03 2003\nDATE D EXPIR / Expiry date\n| X1 22072034", "c.pdf", _T)
 check(d == _dt.date(2024, 7, 23) and e == _dt.date(2034, 7, 22) and "vérifier" in _w, "nouvelle carte : expiration sans séparateur, délivrance déduite (à vérifier)")
 
+d, e, _w = _pick_dates("PROCURATION. Monsieur Jean Dupont, demeurant a Lyon (69000). Ne a TROYES (10000), le 10 mars 1990. Celibataire. Compromis signe le 8 aout 2022.", "proc.pdf", _T)
+check(d == _dt.date(2022, 8, 8), "« Né à Troyes (10000), le … » : naissance écartée, le code postal ne coupe pas le contexte")
+from bontoutou.classify import approx_date as _ad
+check(_ad("Le vendeur ne le 26 novembre 1956 a Paris. Acte de juin 2022", "acte.pdf", _T)[0] == _dt.date(2022, 6, 30), "date approchée : « né le 26 novembre 1956 » ignoré")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)")
 sys.exit(1 if fails else 0)

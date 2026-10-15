@@ -2,6 +2,20 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.9.2 — De la place pour chaque papier, ici et ailleurs
+- **Nouvelle famille 18 « Immigration & séjours »**, rangée sous chaque pays : visas et titres de séjour, autorisations de voyage (ESTA, eTA, NZeTA…), demandes et décisions (refus compris, biométrie, taxes), parrainages et invitations (COE, CoS…), résidence sur place (enregistrement d'adresse, attestation de résidence). Les titres de séjour rangés dans Identité y rejoignent leur pays au prochain « Mettre à jour ».
+- **Nouvelles sous-familles** : Santé › Santé voyage · Famille › Vie commune et tiers · École & formation › Reconnaissance à l'étranger · Juridique › Casiers judiciaires · Activités & entreprises › Clients et factures.
+- **80 nouveaux types de documents**, pour qu'un papier ait sa place précise au lieu de finir dans « Autres » :
+  - identité et état civil : photo d'identité, certificat de nationalité, changement de nom, inscription consulaire, permis international, traduction du permis ;
+  - famille : acte de mariage, PACS, non-PACS, capacité à mariage, divorce, contrat de mariage, autorisation parentale, preuves de vie commune, pièces d'un garant ;
+  - travail et retraite : certificat de travail, relevé de carrière, pension, certificat de vie, attestation France Travail ;
+  - impôts et banque : certificat de résidence fiscale, formulaire 3916, numéro fiscal (y compris étranger), avis fiscal étranger, attestation bancaire, lettre de référence ;
+  - santé et assurances : carnet de vaccination international, CEAM, examen médical de visa, assurance santé internationale, relevé d'information auto ;
+  - formation : relevé de notes, évaluation de diplôme, test de langue, lettre d'admission, certificat de scolarité ;
+  - juridique : casier judiciaire (France et étranger), procuration, déclaration sur l'honneur ;
+  - entreprise : attestation de vigilance, factures émises, contrats clients, business plan, radiation.
+- **Dates** : « Né à Troyes (10000), le … » est reconnu comme une naissance, et « signé le » n'est plus confondu avec « né le ».
+
 ## 0.9.1 — Des cases partout, deux portes pour le logement
 - **La règle des cases**, dans Documents comme dans Archives : à chaque étage qui a au moins deux groupes, des cases ; un clic ouvre une nouvelle page. Un étage à un seul groupe est sauté. Plus jamais de listes empilées sous des intertitres.
   - Ordre des étages : sous-famille → titulaire (toi en premier) → lieu → organisme → nature du document → année.

@@ -50,7 +50,7 @@ DEVICE_KEYS = ("theme", "analyse_version", "use_ollama", "ollama_model", "ai_mod
 # Niveaux de confidentialité par défaut (catégorie -> local | autorisation | externe). Un document non trié est « local ».
 DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "09": "local", "10": "local", "13": "local",
                    "02": "autorisation", "03": "autorisation", "07": "autorisation", "12": "autorisation", "14": "autorisation",
-                   "08": "externe", "11": "externe", "15": "externe", "17": "local"}
+                   "08": "externe", "11": "externe", "15": "externe", "17": "local", "18": "local"}
 
 STATUS_LABEL = {"actuel": "Version actuelle", "ancienne_version": "Ancienne version", "termine": "Terminé", "copie": "Copie"}
 NAME_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})_([A-Z]{2,3})_(\d{2})_([^_]+)_(.+)\.[A-Za-z0-9]+$")
@@ -228,7 +228,7 @@ class Bureau:
     def cat_dir(self, cc, cat):
         return self._child(self.country_dir(cc), cat + "_", CAT_FOLDERS_FR[cat])
 
-    LEGACY_SUBS = ("02-6_Mes-logements", "02-7_Biens-loues", "10-5_Comptabilite-locative")   # sous-familles de la v0.8 : jamais réutilisées
+    LEGACY_SUBS = ("02-6_Mes-logements", "02-7_Biens-loues", "10-5_Comptabilite-locative", "01-4_Titres-sejour-visas")   # sous-familles de la v0.8 : jamais réutilisées
 
     def sub_dir(self, cc, cat, sub):
         parent, want = self.cat_dir(cc, cat), sub + "_" + SUB_FOLDERS_FR.get(sub, "Divers")
@@ -1344,6 +1344,8 @@ class Bureau:
                 ex["emitter_display"] = a["emitter_display"] = fields["emitter"].replace("-", " ").strip()
             if fields.get("date") and fields["date"] != d["doc_date"]:
                 ex.pop("lot", None); a.pop("lot", None)
+            if fields.get("date") and not fields.get("_auto"):
+                ex["date_ok"] = True   # date choisie par toi ou par une revue : « Mettre à jour » ne la change plus
             if fields.get("lot") and isinstance(fields["lot"], list) and len(fields["lot"]) == 2:
                 ex["lot"] = a["lot"] = [str(x)[:7] for x in fields["lot"]]
             for k in ("type", "country", "emitter", "date", "expiry", "person", "detail"):
@@ -1432,7 +1434,7 @@ class Bureau:
 
     def _redetect(self, ops):
         if True:
-            rows = self.db.execute("SELECT * FROM docs WHERE (emitter IS NULL OR emitter='' OR emitter='Inconnu') ORDER BY doc_date").fetchall()
+            rows = self.db.execute("SELECT * FROM docs WHERE status!='copie' AND (emitter IS NULL OR emitter='' OR emitter='Inconnu') ORDER BY doc_date").fetchall()   # jamais une pièce d'un dossier envoyé
             changes, keys = [], set()
             for d in rows:
                 text = self.text_of(d["sha"], d["path"])[0] or ""
@@ -1533,12 +1535,25 @@ class Bureau:
         - tout document : une date de naissance prise par erreur, ou la date du jour du rangement (aucune date trouvée alors)."""
         ids = {k for k, T in TYPES.items() if T.get("expiry") and not T.get("generic")}
         changes, keys = [], set()
+        # toutes les dates de naissance lues dans le bureau (toi, ta famille, tes locataires…) : jamais la date d'un autre papier
+        known_births = set()
+        for r in self.db.execute("SELECT text FROM texts").fetchall():
+            tx = r["text"] or ""
+            if not tx.strip():
+                continue
+            ds, tt = classify.find_dates(tx)
+            known_births.update(x for p, x in ds if classify._last_hint(tt[max(0, p - 45):p]) == "birth")
+            M = classify.mrz(tx)
+            if M and M.get("birth"):
+                known_births.add(M["birth"])
         for d in self.db.execute("SELECT * FROM docs WHERE status!='copie'").fetchall():
+            if '"date_ok": true' in (d["extra"] or ""):
+                continue
             text = self.text_of(d["sha"])[0] or ""
             if not text.strip():
                 continue
             date, expiry, why = classify._pick_dates(text, d["orig_name"] or "", today())
-            if not date or date.isoformat() == d["doc_date"]:
+            if not date or date.isoformat() == d["doc_date"] or date in known_births:
                 continue
             if d["type"] in ids:
                 ok = (why or "").startswith("date de délivrance")
@@ -1551,7 +1566,7 @@ class Bureau:
                 ok = (d["doc_date"] in births or d["doc_date"] == (d["added_at"] or "")[:10]) and "vérifier" not in (why or "")
             if not ok:
                 continue
-            f = {"date": date.isoformat()}
+            f = {"date": date.isoformat(), "_auto": True}
             if expiry and not d["expiry"] and TYPES.get(d["type"], {}).get("expiry"):
                 f["expiry"] = expiry.isoformat()
             if self.reclassify(d["id"], f, ops).get("ok"):
