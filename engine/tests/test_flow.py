@@ -583,5 +583,42 @@ check(any(p["optional"] for p in _sd["pieces"]) and _sd["total"] == len([p for p
 check(not b.db.execute("SELECT 1 FROM dossiers WHERE template='visa_long_sejour'").fetchone(), "situation : l'aperçu ne crée aucun dossier")
 _rs = _R.residence(b)
 check("periods" in _rs and _rs["casiers"] and _rs["casiers"][0]["country"] == "FR", "journal de résidence : casier du pays de nationalité toujours prévu")
+
+# 0.9.5 : liens vers les sites officiels, navigateur choisi
+from bontoutou import liens as _L
+check(_L.allowed("https://www.ameli.fr") and _L.allowed("https://casier-judiciaire.justice.gouv.fr/") and _L.allowed("mailto:x@y.fr?subject=a"),
+      "liens : sites des packs (même sans chemin) et mailto acceptés")
+check(not any(_L.allowed(u) for u in ("http://www.ameli.fr", "https://ameli.fr.evil.com", "https://evil.com", "file:///etc/passwd", "javascript:alert(1)", "https://www.ameli.fr/\nx", "https://user@www.ameli.fr")),
+      "liens : http, faux sous-domaines, fichiers et scripts refusés")
+check(not _L.open_url("https://evil.com", "defaut")["ok"], "liens : une adresse inconnue n'est jamais ouverte")
+check(_L.browsers()[0]["id"] == "defaut", "liens : le navigateur par défaut est toujours proposé en premier")
+b.save_settings({"navigateur": "firefox"})
+check(json.load(open(b.device_settings_path)).get("navigateur") == "firefox" and "navigateur" not in json.load(open(b.profile_path)),
+      "liens : le navigateur est un réglage de cet appareil (pas dans le dossier synchronisé)")
+
+# 0.10 : banc d'essai de l'IA locale (moteur simulé, rien ne sort)
+from bontoutou import banc as _BC, ia as _IA
+_smp = _BC.sample(b, 6)
+check(len(_smp) >= 3 and len({d["type"] for d in _smp}) == len(_smp), "banc : un document par type, avec texte lu")
+_truth = {d["sha"]: d for d in _smp}
+_seen_names = []
+def _fake_ask(eng, model, prompt, image=None, timeout=0):
+    _seen_names.append("document.pdf" in prompt)
+    d = next(x for x in _smp if (b.text_of(x["sha"])[0] or "")[:200] in prompt)
+    return {"type": d["type"], "date": d["doc_date"], "emitter": d["emitter"], "country": d["country"]}
+_old = (_IA.ask, _IA.engine_by_id)
+_IA.ask, _IA.engine_by_id = _fake_ask, (lambda eid: {"id": "faux", "name": "Moteur simulé", "running": True, "kind": "ollama", "url": "http://127.0.0.1:1"})
+_r = _BC.start(b, "faux", "modele-test", 6)
+import time as _t
+for _ in range(50):
+    if _BC.STATE["modele-test"]["status"] != "en cours": break
+    _t.sleep(0.1)
+_IA.ask, _IA.engine_by_id = _old
+_v = _BC.STATE["modele-test"].get("verdict") or {}
+check(_r["ok"] and _v.get("mot") == "fiable" and _v.get("justes") == len(_smp), "banc : un modèle qui répond juste est jugé « fiable » (en mots)")
+check(all(_seen_names), "banc : le nom du fichier (qui contient la réponse) est caché au modèle")
+check((b.settings.get("ai_banc") or {}).get("modele-test", {}).get("mot") == "fiable" and "ai_banc" not in json.load(open(b.profile_path)),
+      "banc : résultat gardé sur cet appareil seulement")
+check(_BC._cmp_type("bulletin_paie", "carte_identite") == "faux" and _BC._cmp_date("2025-03-10", "2025-03-01") == "proche", "banc : comparaison juste / proche / faux")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

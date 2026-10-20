@@ -133,9 +133,27 @@ docView = function () {
 const homeViewE = homeView;
 homeView = function () {
   let h = homeViewE();
-  const R = ((S.ess && S.ess.rappels) || []).slice(0, 4);
-  if (!R.length) return h;
-  const items = R.map((r) => `<button class="titem ${r.state === "old" ? "warn" : ""}" ${r.doc_id ? `data-doc="${r.doc_id}"` : r.renew && r.renew.url ? `data-ext="${esc(r.renew.url)}"` : 'data-go="docs"'}><span class="oi">${IC.sync}</span><div class="grow"><b><span class="vb${r.state === "old" ? " warn" : ""}">Renouveler</span> ${esc(r.label)}</b><small>${esc(r.msg)}${r.renew && r.renew.organisme ? " · " + esc(r.renew.organisme) : ""}</small></div><span class="go">›</span></button>`).join("");
+  const R = (S.ess && S.ess.rappels) || [];
+  // tout ce qui est « à renouveler » sur Aujourd'hui : le papier expiré (vues.js) passe en premier, puis les rappels (déjà triés)
+  const E = [];
+  h = h.replace(/<button class="titem warn"[^>]*>(?:(?!<\/button>)[\s\S])*?>Renouveler<\/span>[\s\S]*?<\/button>/, (m) => { E.push(m); return ""; });
+  if (!R.length && E.length < 1) return h;
+  const item = (r, extra) => { const url = r.renew && r.renew.url;
+    const tgt = url ? `data-ext="${esc(url)}"` : r.doc_id ? `data-doc="${r.doc_id}"` : 'data-go="docs"';
+    return `<button class="titem ${r.state === "old" ? "warn" : ""}${extra || ""}" ${tgt}><span class="oi">${IC.sync}</span><div class="grow"><b><span class="vb${r.state === "old" ? " warn" : ""}">Renouveler</span> ${esc(r.label)}</b><small>${esc(r.msg)}${r.renew && r.renew.organisme ? " · " + esc(r.renew.organisme) : ""}${url && r.doc_id ? ` · <span class="linkbtn remdoc" data-doc="${r.doc_id}">voir le document</span>` : ""}</small></div><span class="go">${url ? IC.globe : "›"}</span></button>`; };
+  const all = E.concat(R.map((r) => item(r)));
+  let items;
+  if (all.length <= 2) items = all.join("");
+  else {
+    const n = all.length - 1, open = !!S.remOpen;
+    const cls = (x, c) => x.replace('class="titem', `class="titem ${c}`);
+    items = `<div class="remcard${open ? " open" : ""}">${cls(all[0], "remtop")}
+      <button class="remmore" data-act="rem-more" aria-expanded="${open}">${open ? "Masquer les autres" : `et ${n} ${plural(n, "autre")} à renouveler`}<span class="chev">${open ? "▴" : "▾"}</span></button>
+      ${open ? `<div class="remrest">${all.slice(1).map((x) => cls(x, "remsub")).join("")}</div>` : ""}</div>`;
+  }
+  const others = ((h.split('<div class="today">')[1] || "").split('<div class="card')[0].match(/class="titem/g) || []).length;
+  const tot = others + all.length, owner = ((S.st.settings.owner || "").split(" ")[0]);
+  h = h.replace(/<h1>[\s\S]*?<\/h1>/, `<h1>${owner ? esc(owner) + ", " : ""}${tot} petite${tot > 1 ? "s" : ""} chose${tot > 1 ? "s" : ""} aujourd'hui</h1>`);
   return h.replace('<div class="today">', `<div class="today">${items}`).replace(/<div class="card" style="padding:18px">Rien d'urgent\. Profite\.<\/div>/, "");
 };
 
@@ -174,9 +192,11 @@ window.addEventListener("click", async (e) => {
   const c = t.closest("[data-coll]");
   if (c) { e.stopImmediatePropagation(); S.coll = c.dataset.coll || null; if (S.v !== "docs") return go("docs"); render(); return window.scrollTo(0, 0); }
   const x = t.closest("[data-ext]");
-  if (x && !t.closest(".modal")) { e.preventDefault(); e.stopImmediatePropagation(); return window.openExternal ? openExternal(x.dataset.ext) : window.open(x.dataset.ext, "_blank"); }
+  const dd = t.closest("[data-doc]");
+  if (x && !t.closest(".modal") && !(dd && x.contains(dd) && dd !== x)) { e.preventDefault(); e.stopImmediatePropagation(); return window.openExternal ? openExternal(x.dataset.ext) : window.open(x.dataset.ext, "_blank"); }
   const a = t.closest("[data-act]"); if (!a) return;
   const act = a.dataset.act;
+  if (act === "rem-more") { e.stopImmediatePropagation(); S.remOpen = !S.remOpen; return render(); }
   if (act === "ess-toggle") { e.stopImmediatePropagation(); S.essOpen = S.essOpen === false; try { localStorage.setItem("bt.ess", S.essOpen ? "1" : "0"); } catch (z) {} return render(); }
   if (act === "ess-add") { e.stopImmediatePropagation(); return go("trier"); }
   if (act === "ess-how") { e.stopImmediatePropagation(); return toast(a.dataset.n || ""); }

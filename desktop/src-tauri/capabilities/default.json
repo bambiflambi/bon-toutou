@@ -69,6 +69,171 @@
         },
         {
           "url": "https://www.infomaniak.com/*"
+        },
+        {
+          "url": "https://account.apple.com"
+        },
+        {
+          "url": "https://ants.gouv.fr"
+        },
+        {
+          "url": "https://avis-situation-sirene.insee.fr/*"
+        },
+        {
+          "url": "https://avis-situation-sirene.insee.fr"
+        },
+        {
+          "url": "https://casier-judiciaire.justice.gouv.fr/*"
+        },
+        {
+          "url": "https://casier-judiciaire.justice.gouv.fr"
+        },
+        {
+          "url": "https://config.infomaniak.com/*"
+        },
+        {
+          "url": "https://config.infomaniak.com"
+        },
+        {
+          "url": "https://demarches.service-public.gouv.fr"
+        },
+        {
+          "url": "https://faq.infomaniak.com/*"
+        },
+        {
+          "url": "https://faq.infomaniak.com"
+        },
+        {
+          "url": "https://github.com"
+        },
+        {
+          "url": "https://histovec.interieur.gouv.fr/*"
+        },
+        {
+          "url": "https://histovec.interieur.gouv.fr"
+        },
+        {
+          "url": "https://immi.homeaffairs.gov.au/*"
+        },
+        {
+          "url": "https://immi.homeaffairs.gov.au"
+        },
+        {
+          "url": "https://ksuite.infomaniak.com/*"
+        },
+        {
+          "url": "https://ksuite.infomaniak.com"
+        },
+        {
+          "url": "https://lmstudio.ai/*"
+        },
+        {
+          "url": "https://lmstudio.ai"
+        },
+        {
+          "url": "https://login.yahoo.com"
+        },
+        {
+          "url": "https://manager.infomaniak.com"
+        },
+        {
+          "url": "https://myaccount.google.com"
+        },
+        {
+          "url": "https://myir.ird.govt.nz"
+        },
+        {
+          "url": "https://ollama.com/*"
+        },
+        {
+          "url": "https://ollama.com"
+        },
+        {
+          "url": "https://support.apple.com/*"
+        },
+        {
+          "url": "https://support.apple.com"
+        },
+        {
+          "url": "https://support.google.com/*"
+        },
+        {
+          "url": "https://support.google.com"
+        },
+        {
+          "url": "https://u.ae/*"
+        },
+        {
+          "url": "https://u.ae"
+        },
+        {
+          "url": "https://vistos.mne.gov.pt/*"
+        },
+        {
+          "url": "https://vistos.mne.gov.pt"
+        },
+        {
+          "url": "https://www.ameli.fr"
+        },
+        {
+          "url": "https://www.caf.fr"
+        },
+        {
+          "url": "https://www.canada.ca/*"
+        },
+        {
+          "url": "https://www.canada.ca"
+        },
+        {
+          "url": "https://www.cfe.fr/*"
+        },
+        {
+          "url": "https://www.cfe.fr"
+        },
+        {
+          "url": "https://www.exteriores.gob.es/*"
+        },
+        {
+          "url": "https://www.exteriores.gob.es"
+        },
+        {
+          "url": "https://www.fr.emb-japan.go.jp/*"
+        },
+        {
+          "url": "https://www.fr.emb-japan.go.jp"
+        },
+        {
+          "url": "https://www.francetravail.fr"
+        },
+        {
+          "url": "https://www.immigration.govt.nz"
+        },
+        {
+          "url": "https://www.impots.gouv.fr"
+        },
+        {
+          "url": "https://www.info-retraite.fr"
+        },
+        {
+          "url": "https://www.infomaniak.com"
+        },
+        {
+          "url": "https://www.nzta.govt.nz"
+        },
+        {
+          "url": "https://www.service-public.gouv.fr"
+        },
+        {
+          "url": "https://www.thaievisa.go.th/*"
+        },
+        {
+          "url": "https://www.thaievisa.go.th"
+        },
+        {
+          "url": "https://www.urssaf.fr/*"
+        },
+        {
+          "url": "https://www.urssaf.fr"
         }
       ]
     }

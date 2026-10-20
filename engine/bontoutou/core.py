@@ -46,7 +46,7 @@ DOC_FIELDS = ("id", "suivi", "type", "label", "person", "country", "cat", "sub",
 DOSSIER_FIELDS = ("id", "template", "recipient", "country", "created_at", "state", "assign", "folder", "zip", "manifest",
                   "finalized_at", "sent_at")
 PROFILE_KEYS = ("owner", "propositions", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders", "owner_aliases", "fiche")          # suivent l'utilisateur sur tous ses appareils
-DEVICE_KEYS = ("theme", "analyse_version", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
+DEVICE_KEYS = ("theme", "analyse_version", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic", "navigateur", "ai_banc", "mail_guide")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
 # Niveaux de confidentialité par défaut (catégorie -> local | autorisation | externe). Un document non trié est « local ».
 DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "09": "local", "10": "local", "13": "local",
                    "02": "autorisation", "03": "autorisation", "07": "autorisation", "12": "autorisation", "14": "autorisation",
@@ -174,7 +174,7 @@ class Bureau:
             write_json(self.device_settings_path, {"format": FORMAT, **{k: o[k] for k in DEVICE_KEYS if k in o}})
             os.replace(old, old + ".migre")
         self.newer_data = False
-        self.settings = {"countries": ["FR", "NZ"], "propositions": False, "analyse_version": "", "use_ollama": False, "ollama_model": "", "owner": "", "ai_mode": "texte", "ai_engine": "auto", "ai_bench": {}, "ai_never": False, "maj_auto": False, "maj_last": "",
+        self.settings = {"countries": ["FR", "NZ"], "propositions": False, "analyse_version": "", "use_ollama": False, "ollama_model": "", "owner": "", "ai_mode": "texte", "ai_engine": "auto", "ai_bench": {}, "ai_never": False, "maj_auto": False, "maj_last": "", "navigateur": "", "ai_banc": {}, "mail_guide": {},
                          "privacy": dict(DEFAULT_PRIVACY), "disabled_packs": [],
                          "holders": [], "guide": {"etape": 0, "fini": False, "masque": False},
                          "mail": "", "mail_host": "", "mail_port": 993, "mail_auto": False, "mail_days": 90, "mail_saved": False,

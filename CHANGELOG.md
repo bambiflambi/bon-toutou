@@ -2,6 +2,24 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.10.0 — Brancher : adresse admin, IA locale, liens
+**Adresse admin, accompagnée de bout en bout (Réglages › Adresse admin)**
+- Un guide en 5 étapes pour créer une adresse gratuite chez **Infomaniak** (entreprise suisse, mails hébergés en Suisse) : inscription my kSuite (@ik.me, @etik.com, @ikmail.com), puis création d'un mot de passe rien que pour Bon toutou (« Ajouter un appareil » → onglet IMAP / SMTP), à coller, autoriser et tester.
+- Ce qu'il faut prévoir est dit d'avance : un numéro de portable européen pour l'inscription, résidence dans un pays de l'OCDE, mot de passe affiché une seule fois par Infomaniak.
+- Une fois reliée : carte « Lecture des pièces reçues » (règles seules ou IA locale, avec le résultat du banc d'essai) et raccourci vers « Prévenir mes organismes ». Bon toutou ne lit que les pièces jointes, jamais le texte des mails ; rien ne part vers une IA en ligne.
+- « Tu as déjà une adresse ailleurs » masque le guide.
+
+**IA locale : un guide et un banc d'essai sur tes papiers (Réglages › IA locale)**
+- Guide en 4 étapes : installer Ollama, installer le modèle conseillé pour ton ordinateur, le mettre à l'épreuve, l'activer.
+- **Banc d'essai** : 6 de tes documents déjà rangés (un par type), nom de fichier caché ; le modèle dit ce qu'il y voit, Bon toutou compare à ton classement (type, date, organisme) et donne un avis en mots : « fiable », « utile avec vérification » ou « pas assez fiable », avec le temps par document. Rien n'est modifié, tout reste sur l'ordinateur ; résultat gardé pour cet appareil.
+
+**Liens et rappels (prévus pour la 0.9.5, livrés ici)**
+- **Les sites officiels s'ouvrent enfin** (Ameli, impots.gouv, ANTS, casier judiciaire, consulats…) : c'est maintenant Bon toutou qui demande à ton ordinateur d'ouvrir le lien, comme un double-clic. Avant, l'app bloquait les adresses qui n'étaient pas dans sa courte liste.
+- **Tu choisis ton navigateur** : à la première ouverture, Bon toutou te montre les navigateurs installés (Safari, Chrome, Firefox, Brave, Arc, Edge…) et retient ton choix si tu coches « Toujours utiliser ce choix ». Modifiable dans Réglages › Navigateur. Réglage propre à cet ordinateur.
+- **Sécurité** : seules les adresses https des sites cités par les packs officiels (et les pages de compte des messageries) sont ouvertes ; toute autre adresse est refusée. Bon toutou n'envoie rien : c'est ton navigateur qui se connecte.
+- **Aujourd'hui : un seul bloc « Renouveler »** dès qu'il y a plus de 2 choses à renouveler. Il montre la plus importante (un papier expiré d'abord) et « et 3 autres à renouveler » ; un clic déplie les autres. Le titre compte tout ce qui t'attend.
+- Un rappel qui a un site ouvre directement ce site (icône globe) ; « voir le document » reste à côté.
+
 ## 0.9.4 — Composer : une situation, un dossier
 - **L'onglet Dossiers devient « Situations »**, 25 situations de la vie en tout, classées par thème :
   - **les 5 démarches déjà présentes** : louer un logement, candidater, ouvrir un compte, déclarer ses revenus, vendre un véhicule ;

@@ -13,7 +13,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import __version__
-from . import maj, retrouver
+from . import maj, retrouver, liens, banc
 from .core import Bureau, data_home, read_json, write_json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -87,6 +87,8 @@ class H(BaseHTTPRequestHandler):
                 f = os.path.normpath(os.path.join(STATIC, p[len("/static/"):]))
                 if f.startswith(STATIC):
                     return self._file(f)
+            if p == "/api/browsers":
+                return self._json({"browsers": liens.browsers(), "choice": (B.settings.get("navigateur") if B is not None else "") or ""})
             if p == "/api/state":
                 if B is None:
                     return self._json(maj.setup_state())
@@ -140,6 +142,8 @@ class H(BaseHTTPRequestHandler):
             if p == "/api/ia":
                 from . import ia
                 return self._json({"engines": ia.engines(force=q.get("force") == "1"), "pulls": ia.PULLS})
+            if p == "/api/ia/banc":
+                return self._json(banc.status(B))
             if p == "/api/events":
                 return self._json(B.events())
             if p == "/api/contacts":
@@ -177,7 +181,7 @@ class H(BaseHTTPRequestHandler):
         q = dict(urllib.parse.parse_qsl(u.query))
         p = u.path
         try:
-            if B is None and p != "/api/setup":
+            if B is None and p not in ("/api/setup", "/api/openurl"):
                 return self._json({"error": "installation à terminer", "setup": True}, 409)
             if p == "/api/upload":
                 iid = B.add_upload(q.get("name", "document"), self._body(), rel=q.get("rel"))
@@ -187,6 +191,13 @@ class H(BaseHTTPRequestHandler):
             data = json.loads(self._body() or b"{}")
             if p == "/api/setup":
                 return self._json(do_setup(data))
+            if p == "/api/openurl":       # site officiel dans le navigateur choisi (aussi pendant l'installation)
+                br = data.get("browser")
+                if B is not None:
+                    if data.get("remember") and br:
+                        B.save_settings({"navigateur": br})
+                    br = br or B.settings.get("navigateur") or ""
+                return self._json(liens.open_url(data.get("url"), br))
             if B is None:
                 return self._json({"error": "installation à terminer", "setup": True}, 409)
             if p == "/api/maj/check":
@@ -222,6 +233,10 @@ class H(BaseHTTPRequestHandler):
                 return self._json({"ok": True})
             if p == "/api/ia/pull":
                 return self._json(B.ai_pull(data.get("engine"), data.get("model"), data.get("consent")))
+            if p == "/api/ia/banc":
+                return self._json(banc.start(B, data.get("engine"), data.get("model"), int(data.get("n") or 6)))
+            if p == "/api/ia/banc/stop":
+                return self._json(banc.stop(data.get("model")))
             if p == "/api/ia/test":
                 return self._json(B.ai_test(data.get("engine"), data.get("model")))
             if p == "/api/mask":
