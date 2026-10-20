@@ -31,7 +31,7 @@ function dnTiles(kind, L, level) {
   const K = [...new Set(L.map(key))].sort();
   return `<div class="groups dntiles">${K.map((k) => {
     const n = L.filter((d) => key(d) === k).length;
-    const lab = level === "cat" ? `${k} ${esc(catName(k))}` : esc(subName(k));
+    const lab = level === "cat" ? esc(catName(k)) : esc(subName(k));
     return `<button class="group" data-dn="${kind}" data-dn-${level}="${esc(k)}"><span class="oi" style="width:30px;height:30px">${level === "cat" ? catIc(k) : IC.folder}</span><b>${lab}</b><span class="n">${n}</span></button>`;
   }).join("")}</div>`;
 }

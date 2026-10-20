@@ -106,6 +106,12 @@ class H(BaseHTTPRequestHandler):
                 return self._json(retrouver.search(B, q.get("q", ""), q.get("scope", "docs")))
             if p == "/api/essentiels":
                 return self._json({"essentiels": retrouver.essentials(B), "rappels": retrouver.reminders(B), "collections": retrouver.collections(B)})
+            if p == "/api/situations":
+                return self._json({"situations": B.situations(q.get("cc")), "residence": retrouver.residence(B)})
+            if p == "/api/raisons":
+                return self._json(retrouver.pack().get("raisons", []))
+            if p == "/api/situation":
+                return self._json(B.situation(q.get("id", ""), q.get("cc")))
             if p == "/api/profil":
                 return self._json(retrouver.profile(B))
             if p == "/api/dossiers":

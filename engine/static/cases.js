@@ -84,7 +84,7 @@ function csCrumbs(kind, root, st) {
 }
 function csCats(kind, X) {
   const K = [...new Set(X.map((d) => d.cat))].sort((a, b) => (a === "16") - (b === "16") || a.localeCompare(b));   // « Autres familles » toujours en dernier
-  return `<p class="sub dnhint">Choisis une famille.</p><div class="groups dntiles">${K.map((k) => `<button class="group" data-cs="${kind}" data-cs-cat="${esc(k)}"><span class="oi" style="width:30px;height:30px">${catIc(k)}</span><b>${k} ${esc(catName(k))}</b><span class="n">${X.filter((d) => d.cat === k).length}</span></button>`).join("")}</div>`;
+  return `<p class="sub dnhint">Choisis une famille.</p><div class="groups dntiles">${K.map((k) => `<button class="group" data-cs="${kind}" data-cs-cat="${esc(k)}"><span class="oi" style="width:30px;height:30px">${catIc(k)}</span><b>${esc(catName(k))}</b><span class="n">${X.filter((d) => d.cat === k).length}</span></button>`).join("")}</div>`;
 }
 const csNewest = (L) => [...L].sort((a, b) => String(b.doc_date || "").localeCompare(String(a.doc_date || "")) || String(a.label).localeCompare(String(b.label)));
 

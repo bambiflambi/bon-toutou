@@ -25,7 +25,7 @@ function archSection(L, kind) {
     const D = L.filter((d) => d.country === c), cats = [...new Set(D.map((d) => d.cat))].sort();
     return `<div class="cframe k-${esc(c)}" style="margin-bottom:14px"><div class="cframe-h">${cc(c)}<b>${esc(S.st.countries[c] || c)}</b><span class="sub">${D.length} ${plural(D.length, "fichier")}</span></div>
       ${cats.map((cat) => { const X = D.filter((d) => d.cat === cat), subs = [...new Set(X.map((d) => d.sub_folder))].sort();
-        return `<div class="catsec"><div class="cathead"><span class="oi">${catIc(cat)}</span><b>${cat} ${esc(S.st.categories[cat] || "")}</b><span class="n">${X.length}</span></div><div class="doclist">
+        return `<div class="catsec"><div class="cathead"><span class="oi">${catIc(cat)}</span><b>${esc(S.st.categories[cat] || "")}</b><span class="n">${X.length}</span></div><div class="doclist">
           ${subs.map((sf) => { const Y = X.filter((d) => d.sub_folder === sf), E = [...new Set(Y.map((d) => d.emitter_folder || ""))].sort();
             return `<div class="subhead">${esc(String(sf || "").replace(/_/g, " ").replace(/-/g, " "))} · ${Y.length}</div>` + E.map((e) => { const Z = Y.filter((d) => (d.emitter_folder || "") === e);
               return (e ? `<div class="subhead" style="padding-left:34px;text-transform:none;letter-spacing:0">${IC.folder.replace("<svg", '<svg style="width:13px;height:13px;vertical-align:-2px"')} ${esc(e.replace(/-/g, " "))} · ${Z.length}</div>` : "") + suiviRows(Z, kind); }).join(""); }).join("")}</div></div>`; }).join("")}</div>`;

@@ -107,7 +107,7 @@ function privacySection() {
   const st = S.st, P = st.settings.privacy || {};
   return `<div class="label">Confidentialité par catégorie</div>
   <div class="card box"><p class="sub" style="margin-top:0">Ce qui pourrait sortir de ton ordinateur si un jour tu actives une IA externe. Tant qu'elle n'est pas activée, rien ne sort, quel que soit le réglage. Un document pas encore trié est toujours 🔒.</p>
-    <div class="privgrid">${Object.entries(st.categories).sort((a, b) => a[0].localeCompare(b[0])).map(([c, l]) => `<label><span>${c} ${esc(l)}</span><select class="field small" data-priv="${c}">${LEVELS.map(([k, v]) => `<option value="${k}" ${(P[c] || "local") === k ? "selected" : ""}>${v}</option>`).join("")}</select></label>`).join("")}</div>
+    <div class="privgrid">${Object.entries(st.categories).sort((a, b) => a[0].localeCompare(b[0])).map(([c, l]) => `<label><span>${esc(l)}</span><select class="field small" data-priv="${c}">${LEVELS.map(([k, v]) => `<option value="${k}" ${(P[c] || "local") === k ? "selected" : ""}>${v}</option>`).join("")}</select></label>`).join("")}</div>
     <details class="why" style="margin-top:12px" ${S.mk || S.mkIn ? "open" : ""}><summary>Essayer le masquage</summary>
       <p class="sub">Avant tout envoi, les numéros sensibles sont remplacés : IBAN, carte, sécurité sociale, passeport, n° fiscal, téléphone, e-mail.</p>
       <textarea class="field" id="mk_in" rows="3" style="width:100%" placeholder="Colle un texte, ex. IBAN FR76 3000… · tél 06 12 34 56 78">${esc(S.mkIn || "")}</textarea>

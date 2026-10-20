@@ -2351,11 +2351,18 @@ class Bureau:
             return did
 
     def resolve(self, k):
+        """Les pièces d'un dossier (ou d'une situation, en aperçu) : pour chaque pièce, les documents choisis par toi, sinon
+        les plus récents (tes papiers d'abord, le pays du dossier d'abord, puis Archives), et ce qui ne va pas (expiré,
+        trop ancien). v0.9.4 : pièces facultatives, séries sans suivi, fraîcheur comptée depuis la date d'émission."""
         k = dict(k)
         T = TEMPLATES[k["template"]]
-        assign = json.loads(k["assign"] or "{}")
+        assign = json.loads(k.get("assign") or "{}")
         pieces = []
         t0 = today()
+
+        def mine_first(rows):
+            return sorted(rows, key=lambda d: (0 if retrouver._is_me(self, d) else 1))
+
         for i, pc in enumerate(T["pieces"]):
             count = pc.get("count", 1)
             docs, source = [], "auto"
@@ -2365,10 +2372,13 @@ class Bureau:
                 source = "choisi"
             else:
                 for t in pc["types"]:
-                    cur = self.db.execute("SELECT * FROM docs WHERE type=? AND country=? AND status='actuel' ORDER BY doc_date DESC",
-                                          (t, k["country"])).fetchall()
+                    cur = []
+                    for where, args in (("type=? AND country=? AND status='actuel'", (t, k["country"])), ("type=? AND status='actuel'", (t,))):
+                        cur = mine_first(self.db.execute(f"SELECT * FROM docs WHERE {where} ORDER BY doc_date DESC", args).fetchall())
+                        if cur:
+                            break
                     if not cur:   # aucune version actuelle : la plus récente des Archives fait l'affaire (v0.6.3)
-                        cur = self.db.execute("SELECT * FROM docs WHERE type=? AND country=? ORDER BY doc_date DESC", (t, k["country"])).fetchall()
+                        cur = mine_first(self.db.execute("SELECT * FROM docs WHERE type=? AND status!='copie' ORDER BY doc_date DESC", (t,)).fetchall())
                         if not cur:
                             continue
                         source = "archives"
@@ -2377,28 +2387,62 @@ class Bureau:
                         docs = self.db.execute("SELECT * FROM docs WHERE suivi=? AND status IN ('actuel','ancienne_version'"
                                                + (",'termine'" if source == "archives" else "") + ") ORDER BY doc_date DESC LIMIT ?",
                                                (a["suivi"], count)).fetchall()
+                    elif count > 1:
+                        docs = self.db.execute("SELECT * FROM docs WHERE type=? AND status IN ('actuel','ancienne_version','termine') ORDER BY doc_date DESC LIMIT ?",
+                                               (t, count)).fetchall()
                     else:
                         docs = [a]
                     break
             problems = []
             if docs:
-                newest = max(docs, key=lambda d: d["doc_date"])
+                newest = max(docs, key=lambda d: retrouver.issued_of(d) or "")
                 if pc.get("valid") and newest["expiry"] and newest["expiry"] < t0.isoformat():
                     problems.append(f"expiré le {newest['expiry']}")
+                elif pc.get("marge") and newest["expiry"] and newest["expiry"] < (t0 + dt.timedelta(days=pc["marge"])).isoformat():
+                    problems.append(f"expire le {newest['expiry']} : il faut au moins {pc['marge'] // 30} mois de validité")
                 if pc.get("fresh"):
-                    age = (t0 - dt.date.fromisoformat(newest["doc_date"])).days
+                    try:
+                        age = (t0 - dt.date.fromisoformat(retrouver.issued_of(newest)[:10])).days
+                    except Exception:
+                        age = 0
                     if age > pc["fresh"]:
                         problems.append(f"trop ancien ({age} jours, maximum {pc['fresh']})")
             have = len(docs)
-            st = "ok" if have >= count and not problems else ("part" if have else "missing")
+            opt = bool(pc.get("optional"))
+            st = "ok" if have >= count and not problems else ("part" if have else ("optional" if opt else "missing"))
+            if opt and st == "part" and not problems:
+                st = "ok"
             pieces.append({"i": i, "label": pc["label"], "types": pc["types"], "count": count, "have": have, "status": st,
-                           "problems": problems, "source": source,
+                           "problems": problems, "source": source, "optional": opt,
                            "docs": [{"id": d["id"], "label": d["label"], "date": d["doc_date"], "path": d["path"], "status": d["status"]} for d in docs]})
-        ok = sum(1 for p in pieces if p["status"] == "ok")
-        return {"id": k["id"], "template": k["template"], "label": T["label"], "recipient": k["recipient"], "country": k["country"],
-                "state": k["state"], "created_at": k["created_at"], "finalized_at": k["finalized_at"], "sent_at": k["sent_at"],
-                "folder": k["folder"], "zip": k["zip"], "pieces": pieces, "ok": ok, "total": len(pieces),
-                "manifest": json.loads(k["manifest"]) if k["manifest"] else None}
+        req = [p for p in pieces if not p["optional"]]
+        ok = sum(1 for p in req if p["status"] == "ok")
+        return {"id": k["id"], "template": k["template"], "label": T["label"], "recipient": k.get("recipient"), "country": k["country"],
+                "state": k.get("state"), "created_at": k.get("created_at"), "finalized_at": k.get("finalized_at"), "sent_at": k.get("sent_at"),
+                "folder": k.get("folder"), "zip": k.get("zip"), "pieces": pieces, "ok": ok, "total": len(req),
+                "manifest": json.loads(k["manifest"]) if k.get("manifest") else None}
+
+    def situations(self, country=None):
+        """v0.9.4 : chaque situation de la vie (louer, partir, demander un visa…) en aperçu : ce qui est prêt, ce qui manque."""
+        cc = country or (self.settings.get("countries") or ["FR"])[0]
+        out = []
+        for tid, T in TEMPLATES.items():
+            r = self.resolve({"id": None, "template": tid, "assign": "{}", "country": cc})
+            out.append({"id": tid, "label": T["label"], "groupe": T.get("groupe", "Autres"), "icone": T.get("icone", "folder"),
+                        "intro": T.get("intro", ""), "pays": T.get("pays"), "url": T.get("url"), "ok": r["ok"], "total": r["total"],
+                        "manque": [p["label"] for p in r["pieces"] if p["status"] in ("missing", "part") and not p["optional"]][:4]})
+        return out
+
+    def situation(self, tid, country=None):
+        if tid not in TEMPLATES:
+            return None
+        T = TEMPLATES[tid]
+        cc = country or (self.settings.get("countries") or ["FR"])[0]
+        r = self.resolve({"id": None, "template": tid, "assign": "{}", "country": cc})
+        for p in r["pieces"]:
+            p["renew"] = retrouver.renew_of(p["types"][0]) if p["status"] != "ok" else None
+        r.update(intro=T.get("intro", ""), url=T.get("url"), groupe=T.get("groupe", ""), pays=T.get("pays"))
+        return r
 
     def dossiers(self):
         rows = self.db.execute("SELECT * FROM dossiers WHERE state IN ('en_cours','finalise') ORDER BY created_at DESC").fetchall()
@@ -2434,6 +2478,8 @@ class Bureau:
             man = {"dossier": k["label"], "destinataire": k["recipient"], "pays": k["country"], "cree_le": k["created_at"],
                    "finalise_le": now(), "envoye_le": None, "pieces": []}
             for pc in k["pieces"]:
+                if pc.get("optional") and not pc["docs"]:
+                    continue
                 files = []
                 for j, d in enumerate(pc["docs"]):
                     src = self.abs(d["path"])

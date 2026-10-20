@@ -1065,5 +1065,131 @@
    "garantie",
    "invoice"
   ]
- }
+ },
+ "raisons": [
+  {
+   "id": "retraite",
+   "label": "Préparer ma retraite",
+   "intro": "Toute ta carrière : bulletins, contrats, certificats de travail, chômage.",
+   "types": [
+    "bulletin_paie",
+    "contrat_travail",
+    "certificat_travail",
+    "attestation_employeur",
+    "attestation_france_travail",
+    "releve_carriere",
+    "solde_tout_compte",
+    "titre_pension",
+    "formulaire_u1"
+   ],
+   "years": null
+  },
+  {
+   "id": "fiscal",
+   "label": "Contrôle ou réclamation fiscale",
+   "intro": "3 ans en général, 10 ans pour un compte à l'étranger non déclaré.",
+   "types": [
+    "avis_impot",
+    "declaration_revenus",
+    "formulaire_3916",
+    "taxe_fonciere",
+    "residence_fiscale",
+    "avis_fiscal_etranger",
+    "ird_assessment",
+    "bulletin_paie",
+    "immo_compta",
+    "entreprise_impots"
+   ],
+   "years": 10
+  },
+  {
+   "id": "vente",
+   "label": "Vendre un bien",
+   "intro": "Acte d'achat, travaux (pour la plus-value), diagnostics, copropriété.",
+   "types": [
+    "immo_achat",
+    "immo_vente",
+    "immo_travaux",
+    "immo_copro",
+    "immo_appel_fonds",
+    "taxe_fonciere",
+    "immo_pret",
+    "facture"
+   ],
+   "years": null
+  },
+  {
+   "id": "bail",
+   "label": "Fin de bail et dépôt de garantie",
+   "intro": "Bail, état des lieux d'entrée, quittances : la durée du bail + 3 ans.",
+   "types": [
+    "bail",
+    "immo_etat_lieux",
+    "quittance_loyer",
+    "immo_locataire",
+    "assurance_habitation"
+   ],
+   "years": null
+  },
+  {
+   "id": "garantie",
+   "label": "Garantie, litige, réclamation",
+   "intro": "Factures et contrats : 2 ans de garantie légale, 10 ans pour les travaux.",
+   "types": [
+    "facture",
+    "immo_travaux",
+    "courrier_litige",
+    "decision_justice",
+    "contrat_client",
+    "amende"
+   ],
+   "years": 10
+  },
+  {
+   "id": "sinistre",
+   "label": "Sinistre et assurance",
+   "intro": "Contrats d'assurance en vigueur à la date du sinistre.",
+   "types": [
+    "assurance_habitation",
+    "assurance_vehicule",
+    "responsabilite_civile",
+    "declaration_sinistre",
+    "releve_information_auto",
+    "assurance_emprunteur"
+   ],
+   "years": null
+  },
+  {
+   "id": "succession",
+   "label": "Succession ou donation",
+   "intro": "Donations des 15 dernières années, actes, testament.",
+   "types": [
+    "acte_deces",
+    "testament",
+    "certificat_successoral",
+    "immo_achat",
+    "epargne",
+    "releve_portefeuille"
+   ],
+   "years": null
+  },
+  {
+   "id": "sejour",
+   "label": "Titre de séjour, visa ou nationalité",
+   "intro": "Résidence passée, impôts et casiers, titres de séjour successifs.",
+   "types": [
+    "visa",
+    "titre_sejour",
+    "autorisation_voyage",
+    "demande_visa",
+    "decision_immigration",
+    "avis_impot",
+    "casier_judiciaire",
+    "bail",
+    "attestation_residence",
+    "enregistrement_adresse"
+   ],
+   "years": 10
+  }
+ ]
 }

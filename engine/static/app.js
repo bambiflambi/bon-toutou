@@ -117,7 +117,7 @@ function render() {
 function typeOptions(sel) {
   const T = S.st.types, C = S.st.categories;
   return Object.entries(T).sort((a, b) => (a[1].cat + a[1].label).localeCompare(b[1].cat + b[1].label))
-    .map(([k, v]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${v.cat} ${esc(C[v.cat] || "")} · ${esc(v.label)}</option>`).join("");
+    .map(([k, v]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${esc(C[v.cat] || "")} · ${esc(v.label)}</option>`).join("");
 }
 function reasons(p) {
   const how = { pypdf: "texte du PDF", pdftotext: "texte du PDF", ocr: "lecture de l'image (OCR)", texte: "fichier texte" }[p.method] || "nom du fichier seulement";
@@ -195,10 +195,10 @@ function subBlock(D, c) {
     const E = [...new Set(X.map((d) => d.emitter_folder || ""))].sort();
     const rows = E.length > 1 || E[0] ? E.map((e) => { const Y = X.filter((d) => (d.emitter_folder || "") === e);
       return (e ? `<div class="subhead" style="padding-left:34px;text-transform:none;letter-spacing:0">${IC.folder.replace("<svg", '<svg style="width:13px;height:13px;vertical-align:-2px"')} ${esc(e.replace(/-/g, " "))} · ${Y.length}</div>` : "") + Y.map(docRow).join(""); }).join("") : X.map(docRow).join("");
-    return `<div class="subhead${X.length ? "" : " empty"}">${esc(s.replace(/_/g, " ").replace(/-/g, " "))} · ${X.length || "vide"}</div>${rows}`; }).join("");
+    return `<div class="subhead${X.length ? "" : " empty"}">${esc(subName(String(s).split("_")[0]))} · ${X.length || "vide"}</div>${rows}`; }).join("");
 }
 function catSec(c, D) {
-  return `<div class="catsec${D.length ? "" : " empty"}"><div class="cathead"><span class="oi">${catIc(c)}</span><b>${c} ${esc(S.st.categories[c] || "")}</b>${D.length ? `<span class="n">${D.length}</span>` : `<span class="pill neutral">vide</span>`}</div><div class="doclist">${subBlock(D, c)}</div></div>`;
+  return `<div class="catsec${D.length ? "" : " empty"}"><div class="cathead"><span class="oi">${catIc(c)}</span><b>${esc(S.st.categories[c] || "")}</b>${D.length ? `<span class="n">${D.length}</span>` : `<span class="pill neutral">vide</span>`}</div><div class="doclist">${subBlock(D, c)}</div></div>`;
 }
 function docs() {
   const C = S.st.categories, q = S.q.toLowerCase(), ax = S.ax || "pays";
@@ -215,7 +215,7 @@ function docs() {
   const cats = Object.keys(C).sort();
   if (ax === "cat") {
     const tiles = `<div class="groups">${cats.filter((c) => S.showEmpty || S.docs.some((d) => d.cat === c)).map((c) => { const n = S.docs.filter((d) => d.cat === c).length;
-      return `<button class="group${S.gf === c ? " on" : ""}${n ? "" : " empty"}" data-gf="${c}"><span class="oi" style="width:30px;height:30px">${catIc(c)}</span><b>${c} ${esc(C[c])}</b><span class="n">${n || "vide"}</span></button>`; }).join("")}</div>`;
+      return `<button class="group${S.gf === c ? " on" : ""}${n ? "" : " empty"}" data-gf="${c}"><span class="oi" style="width:30px;height:30px">${catIc(c)}</span><b>${esc(C[c])}</b><span class="n">${n || "vide"}</span></button>`; }).join("")}</div>`;
     const list = (S.gf && C[S.gf] ? [S.gf] : cats.filter((c) => S.showEmpty || S.docs.some((d) => d.cat === c))).map((c) => catSec(c, S.docs.filter((d) => d.cat === c))).join("");
     return head + tiles + list;
   }
@@ -280,7 +280,7 @@ function pieceChoice(k, pc) {
 function dossierView() {
   const k = S.dos; if (!k) return "";
   const fin = k.state === "finalise" || k.state === "envoye";
-  return `<div class="navline"><button class="back" data-go="dossiers">← Dossiers</button></div>
+  return `<div class="navline"><button class="back" data-go="dossiers">← Situations</button></div>
   <h1>${esc(k.label)}</h1><p class="lead">Pour <b>${esc(k.recipient)}</b> ${cc(k.country)} · ${k.ok} ${plural(k.ok, "pièce")} sur ${k.total} ${plural(k.ok, "prête")}. Chaque pièce est prise dans sa version valable, jamais une copie.</p>
   <div class="card" style="margin-bottom:18px">${k.pieces.map((pc) => `<div class="piece ${pc.status === "ok" ? "ok" : pc.status === "part" ? "part" : "miss"}"><span class="st ${pc.status}">${pc.status === "ok" ? "✓" : pc.status === "part" ? "!" : "–"}</span>
     <div class="grow"><b>${esc(pc.label)}</b>${pc.count > 1 ? ` <span class="sub">(${pc.have}/${pc.count})</span>` : ""}

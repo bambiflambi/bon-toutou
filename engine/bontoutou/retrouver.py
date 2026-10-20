@@ -517,3 +517,53 @@ def extra_duplicates(B, already):
         else:
             st[k] = r
     return pairs
+
+
+# ------------------------------------------------------------------ journal de résidence (v0.9.4)
+HABITE = ("locataire", "proprietaire_occupant", "heberge")
+LOGE_TYPES = ("bail", "quittance_loyer", "justificatif_domicile", "facture_energie", "attestation_energie", "assurance_habitation",
+              "attestation_hebergement", "election_domicile", "enregistrement_adresse", "attestation_residence")
+SEJOUR_TYPES = ("visa", "titre_sejour", "autorisation_voyage", "demande_visa", "enregistrement_adresse", "attestation_residence")
+
+
+def residence(B, today=None):
+    """Où tu as vécu, et quand : tiré de tes baux, quittances, justificatifs (avec un lieu et un rôle « j'habite ») et de
+    tes papiers de séjour à l'étranger. Sert à prévoir les casiers judiciaires qu'un pays te demandera (pays où tu as
+    vécu au moins 6 mois sur les 10 dernières années)."""
+    today = today or dt.date.today()
+    P = {}
+    for d in B.db.execute("SELECT * FROM docs WHERE status!='copie'").fetchall():
+        if not _is_me(B, d):
+            continue
+        ex = _ex(d)
+        lieu, role = ex.get("lieu"), ex.get("role")
+        start = _date(d["doc_date"])
+        if not start or (d["doc_date"] == (d["added_at"] or "")[:10] and not ex.get("date_ok")):
+            continue   # date du rangement (aucune date lue) : ne dit rien de l'endroit où tu vivais
+        end = start
+        if d["type"] in SEJOUR_TYPES and d["expiry"]:
+            e = _date(d["expiry"])
+            if e:
+                end = min(e, today)
+        if lieu and (role in HABITE or (d["type"] in LOGE_TYPES and role != "bailleur")):
+            k = (d["country"], lieu)
+        elif d["type"] in SEJOUR_TYPES or (d["country"] not in ("FR", "INT") and d["type"] not in ("passeport", "carte_identite")):
+            k = (d["country"], "")
+        else:
+            continue
+        p = P.setdefault(k, {"country": d["country"], "lieu": lieu if k[1] else "", "from": start, "to": end, "n": 0, "sources": set()})
+        p["from"], p["to"] = min(p["from"], start), max(p["to"], end)
+        p["n"] += 1
+        p["sources"].add((TYPES.get(d["type"]) or {}).get("label", d["type"]))
+    periods = sorted(P.values(), key=lambda p: p["from"])
+    ten = today.replace(year=today.year - 10)
+    span = {}
+    for p in periods:
+        a, b = max(p["from"], ten), p["to"]
+        if b > a:
+            span[p["country"]] = span.get(p["country"], 0) + (b - a).days
+    casiers = [{"country": c, "jours": n} for c, n in sorted(span.items(), key=lambda x: -x[1]) if n >= 183]
+    if "FR" not in [c["country"] for c in casiers]:
+        casiers.insert(0, {"country": "FR", "jours": span.get("FR", 0), "nationalite": True})
+    return {"periods": [{"country": p["country"], "lieu": p["lieu"], "from": p["from"].isoformat(), "to": p["to"].isoformat(), "n": p["n"],
+                         "sources": sorted(p["sources"])[:4]} for p in periods], "casiers": casiers}

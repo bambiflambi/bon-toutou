@@ -575,5 +575,13 @@ check(_R._mrz_ids("P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<\nL898902C36UTO74
       and _R._mrz_ids("SOLDE DE TOUT COMPTE ONTRATLE3") == [], "MRZ : numéro lu seulement dans une vraie bande (clés de contrôle)")
 check(_R._mod97_iban("FR76 3000 6000 0112 3456 7890 189") and not _R._mod97_iban("FR76 3000 6000 0112 3456 7890 188"), "IBAN : clé vérifiée")
 check("••••" in _R.mask("Mot de passe : abc123XYZ") and "abc123" not in _R.mask("Mot de passe : abc123XYZ"), "extraits de recherche : mots de passe masqués")
+# v0.9.4 : situations (aperçu sans créer de dossier), pièces facultatives, journal de résidence
+_S = b.situations()
+check(len(_S) >= 20 and any(x["id"] == "partir_etranger" for x in _S) and all(x["total"] >= 1 for x in _S), "situations : plus de 20, chacune avec ses pièces")
+_sd = b.situation("visa_long_sejour")
+check(any(p["optional"] for p in _sd["pieces"]) and _sd["total"] == len([p for p in _sd["pieces"] if not p["optional"]]), "situation : les pièces facultatives ne comptent pas dans le total")
+check(not b.db.execute("SELECT 1 FROM dossiers WHERE template='visa_long_sejour'").fetchone(), "situation : l'aperçu ne crée aucun dossier")
+_rs = _R.residence(b)
+check("periods" in _rs and _rs["casiers"] and _rs["casiers"][0]["country"] == "FR", "journal de résidence : casier du pays de nationalité toujours prévu")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

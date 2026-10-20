@@ -1,190 +1,1347 @@
 {
- "format": 1,
- "id": "demarches",
- "name": "Démarches",
- "version": "1.0.0",
- "official": true,
- "description": "Modèles de dossiers (pièces demandées)",
- "templates": {
-  "louer_logement": {
-   "label": "Louer un logement",
-   "pieces": [
-    {
-     "label": "Pièce d'identité",
-     "types": [
-      "carte_identite",
-      "passeport"
-     ],
-     "valid": true
+  "format": 1,
+  "id": "demarches",
+  "name": "Démarches",
+  "version": "1.0.0",
+  "official": true,
+  "description": "Modèles de dossiers (pièces demandées)",
+  "templates": {
+    "louer_logement": {
+      "label": "Louer un logement",
+      "pieces": [
+        {
+          "label": "Pièce d'identité",
+          "types": [
+            "carte_identite",
+            "passeport"
+          ],
+          "valid": true
+        },
+        {
+          "label": "3 dernières fiches de paie",
+          "types": [
+            "bulletin_paie"
+          ],
+          "count": 3,
+          "fresh": 100
+        },
+        {
+          "label": "Dernier avis d'impôt",
+          "types": [
+            "avis_impot",
+            "ird_assessment"
+          ]
+        },
+        {
+          "label": "RIB",
+          "types": [
+            "rib"
+          ]
+        },
+        {
+          "label": "Justificatif de domicile (moins de 3 mois)",
+          "types": [
+            "facture_energie",
+            "quittance_loyer",
+            "justificatif_domicile"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Contrat de travail",
+          "types": [
+            "contrat_travail"
+          ]
+        },
+        {
+          "label": "Attestation d'assurance habitation",
+          "types": [
+            "assurance_habitation"
+          ],
+          "valid": true
+        }
+      ],
+      "icone": "house",
+      "groupe": "Logement"
     },
-    {
-     "label": "3 dernières fiches de paie",
-     "types": [
-      "bulletin_paie"
-     ],
-     "count": 3,
-     "fresh": 100
+    "candidature": {
+      "label": "Candidater à un emploi",
+      "pieces": [
+        {
+          "label": "CV",
+          "types": [
+            "cv"
+          ]
+        },
+        {
+          "label": "Lettre de motivation",
+          "types": [
+            "lettre_motivation"
+          ]
+        },
+        {
+          "label": "Diplôme",
+          "types": [
+            "diplome",
+            "certificat"
+          ]
+        },
+        {
+          "label": "Pièce d'identité",
+          "types": [
+            "carte_identite",
+            "passeport"
+          ],
+          "valid": true
+        }
+      ],
+      "icone": "work",
+      "groupe": "Travail"
     },
-    {
-     "label": "Dernier avis d'impôt",
-     "types": [
-      "avis_impot",
-      "ird_assessment"
-     ]
+    "vendre_vehicule": {
+      "label": "Vendre le véhicule",
+      "pieces": [
+        {
+          "label": "Pièce d'identité",
+          "types": [
+            "passeport",
+            "carte_identite"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Immatriculation (carte grise / rego)",
+          "types": [
+            "carte_grise"
+          ]
+        },
+        {
+          "label": "Contrôle technique / WOF valide",
+          "types": [
+            "controle_vehicule"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Assurance du véhicule",
+          "types": [
+            "assurance_vehicule"
+          ]
+        }
+      ],
+      "icone": "car",
+      "groupe": "Véhicule"
     },
-    {
-     "label": "RIB",
-     "types": [
-      "rib"
-     ]
+    "declarer_revenus": {
+      "label": "Déclarer ses revenus",
+      "pieces": [
+        {
+          "label": "Dernier avis d'impôt",
+          "types": [
+            "avis_impot",
+            "ird_assessment"
+          ]
+        },
+        {
+          "label": "Fiches de paie de l'année",
+          "types": [
+            "bulletin_paie"
+          ],
+          "count": 12
+        },
+        {
+          "label": "Relevés bancaires",
+          "types": [
+            "releve_bancaire"
+          ],
+          "count": 3
+        }
+      ],
+      "icone": "tax",
+      "groupe": "Impôts"
     },
-    {
-     "label": "Justificatif de domicile (moins de 3 mois)",
-     "types": [
-      "facture_energie",
-      "quittance_loyer",
-      "justificatif_domicile"
-     ],
-     "fresh": 92
+    "ouvrir_compte": {
+      "label": "Ouvrir un compte bancaire",
+      "pieces": [
+        {
+          "label": "Pièce d'identité",
+          "types": [
+            "carte_identite",
+            "passeport"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Justificatif de domicile (moins de 3 mois)",
+          "types": [
+            "facture_energie",
+            "quittance_loyer",
+            "justificatif_domicile"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Dernière fiche de paie",
+          "types": [
+            "bulletin_paie"
+          ],
+          "fresh": 60
+        }
+      ],
+      "icone": "bank",
+      "groupe": "Banque"
     },
-    {
-     "label": "Contrat de travail",
-     "types": [
-      "contrat_travail"
-     ]
+    "demander_credit": {
+      "label": "Demander un crédit",
+      "groupe": "Banque",
+      "icone": "bank",
+      "intro": "Ce que les banques demandent pour un prêt immobilier ou à la consommation.",
+      "pieces": [
+        {
+          "label": "Pièce d'identité",
+          "types": [
+            "carte_identite",
+            "passeport"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Justificatif de domicile (moins de 3 mois)",
+          "types": [
+            "facture_energie",
+            "attestation_energie",
+            "quittance_loyer",
+            "justificatif_domicile",
+            "assurance_habitation"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "3 dernières fiches de paie",
+          "types": [
+            "bulletin_paie"
+          ],
+          "count": 3,
+          "fresh": 100
+        },
+        {
+          "label": "2 derniers avis d'impôt",
+          "types": [
+            "avis_impot"
+          ],
+          "count": 2
+        },
+        {
+          "label": "3 derniers relevés bancaires",
+          "types": [
+            "releve_bancaire"
+          ],
+          "count": 3,
+          "fresh": 100
+        },
+        {
+          "label": "Contrat de travail",
+          "types": [
+            "contrat_travail"
+          ]
+        },
+        {
+          "label": "RIB",
+          "types": [
+            "rib"
+          ]
+        },
+        {
+          "label": "Compromis ou devis (si achat)",
+          "types": [
+            "immo_achat"
+          ],
+          "optional": true
+        }
+      ]
     },
-    {
-     "label": "Attestation d'assurance habitation",
-     "types": [
-      "assurance_habitation"
-     ],
-     "valid": true
+    "renouveler_identite": {
+      "label": "Refaire sa carte d'identité ou son passeport",
+      "groupe": "Identité",
+      "icone": "id",
+      "intro": "Pré-demande sur ants.gouv.fr puis rendez-vous en mairie.",
+      "pieces": [
+        {
+          "label": "Ancienne pièce d'identité",
+          "types": [
+            "carte_identite",
+            "passeport"
+          ]
+        },
+        {
+          "label": "Photo d'identité (moins de 6 mois)",
+          "types": [
+            "photo_identite"
+          ],
+          "fresh": 183
+        },
+        {
+          "label": "Justificatif de domicile (moins d'un an)",
+          "types": [
+            "facture_energie",
+            "attestation_energie",
+            "quittance_loyer",
+            "justificatif_domicile",
+            "assurance_habitation",
+            "avis_impot"
+          ],
+          "fresh": 365
+        },
+        {
+          "label": "Acte de naissance (si demandé, moins de 3 mois)",
+          "types": [
+            "acte_naissance"
+          ],
+          "fresh": 92,
+          "optional": true
+        }
+      ],
+      "url": "https://ants.gouv.fr"
+    },
+    "se_marier": {
+      "label": "Se marier ou se pacser",
+      "groupe": "Famille",
+      "icone": "heart",
+      "intro": "Dossier en mairie (mariage) ou en mairie / chez un notaire (PACS).",
+      "pieces": [
+        {
+          "label": "Acte de naissance (moins de 3 mois)",
+          "types": [
+            "acte_naissance"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Pièce d'identité",
+          "types": [
+            "carte_identite",
+            "passeport"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Justificatif de domicile (moins de 3 mois)",
+          "types": [
+            "facture_energie",
+            "attestation_energie",
+            "quittance_loyer",
+            "justificatif_domicile",
+            "assurance_habitation"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Certificat de non-PACS (si étranger, moins de 3 mois)",
+          "types": [
+            "non_pacs"
+          ],
+          "fresh": 92,
+          "optional": true
+        },
+        {
+          "label": "Contrat de mariage (si prévu)",
+          "types": [
+            "contrat_mariage"
+          ],
+          "optional": true
+        }
+      ]
+    },
+    "demander_aide_caf": {
+      "label": "Demander une aide (CAF)",
+      "groupe": "Aides",
+      "icone": "spark",
+      "intro": "APL, prime d'activité… sur caf.fr.",
+      "pieces": [
+        {
+          "label": "Pièce d'identité",
+          "types": [
+            "carte_identite",
+            "passeport"
+          ],
+          "valid": true
+        },
+        {
+          "label": "RIB",
+          "types": [
+            "rib"
+          ]
+        },
+        {
+          "label": "Dernier avis d'impôt",
+          "types": [
+            "avis_impot"
+          ]
+        },
+        {
+          "label": "Bail",
+          "types": [
+            "bail"
+          ]
+        },
+        {
+          "label": "Dernière quittance",
+          "types": [
+            "quittance_loyer"
+          ],
+          "fresh": 45
+        },
+        {
+          "label": "Livret de famille (si enfants)",
+          "types": [
+            "livret_famille"
+          ],
+          "optional": true
+        }
+      ],
+      "url": "https://www.caf.fr"
+    },
+    "fin_de_bail": {
+      "label": "Rendre un logement et récupérer le dépôt",
+      "groupe": "Logement",
+      "icone": "key",
+      "intro": "Le dépôt est rendu sous 1 mois (état des lieux identique) ou 2 mois ; l'état des lieux d'entrée fait foi.",
+      "pieces": [
+        {
+          "label": "Bail",
+          "types": [
+            "bail"
+          ]
+        },
+        {
+          "label": "État des lieux d'entrée",
+          "types": [
+            "immo_etat_lieux"
+          ]
+        },
+        {
+          "label": "Quittances (3 dernières)",
+          "types": [
+            "quittance_loyer"
+          ],
+          "count": 3
+        },
+        {
+          "label": "Attestation d'assurance habitation",
+          "types": [
+            "assurance_habitation"
+          ]
+        },
+        {
+          "label": "Préavis / lettre de congé",
+          "types": [
+            "immo_locataire",
+            "courrier_litige"
+          ],
+          "optional": true
+        }
+      ]
+    },
+    "vendre_bien": {
+      "label": "Vendre un bien immobilier",
+      "groupe": "Patrimoine",
+      "icone": "building",
+      "intro": "Pour le notaire et pour calculer la plus-value (frais et travaux).",
+      "pieces": [
+        {
+          "label": "Acte d'achat",
+          "types": [
+            "immo_achat"
+          ]
+        },
+        {
+          "label": "Diagnostics (DDT, DPE)",
+          "types": [
+            "immo_travaux"
+          ]
+        },
+        {
+          "label": "Règlement de copropriété",
+          "types": [
+            "immo_copro"
+          ]
+        },
+        {
+          "label": "3 derniers PV d'assemblée générale",
+          "types": [
+            "immo_copro"
+          ],
+          "count": 3
+        },
+        {
+          "label": "Appels de fonds de l'année",
+          "types": [
+            "immo_appel_fonds"
+          ],
+          "count": 4
+        },
+        {
+          "label": "Taxe foncière",
+          "types": [
+            "taxe_fonciere"
+          ]
+        },
+        {
+          "label": "Factures de travaux (plus-value)",
+          "types": [
+            "immo_travaux",
+            "facture"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Crédit en cours (remboursement anticipé)",
+          "types": [
+            "immo_pret"
+          ],
+          "optional": true
+        }
+      ]
+    },
+    "preparer_retraite": {
+      "label": "Préparer ma retraite",
+      "groupe": "Retraite",
+      "icone": "clock",
+      "intro": "Vérifie ton relevé de carrière avec tes preuves : bulletins, contrats, attestations de chômage.",
+      "pieces": [
+        {
+          "label": "Relevé de carrière",
+          "types": [
+            "releve_carriere"
+          ]
+        },
+        {
+          "label": "Bulletins de paie (tous)",
+          "types": [
+            "bulletin_paie"
+          ],
+          "count": 24
+        },
+        {
+          "label": "Contrats de travail",
+          "types": [
+            "contrat_travail"
+          ],
+          "count": 5
+        },
+        {
+          "label": "Certificats de travail",
+          "types": [
+            "certificat_travail",
+            "attestation_employeur"
+          ],
+          "count": 5
+        },
+        {
+          "label": "Attestations France Travail",
+          "types": [
+            "attestation_france_travail",
+            "attestation_employeur"
+          ],
+          "optional": true
+        }
+      ],
+      "url": "https://www.info-retraite.fr"
+    },
+    "partir_etranger": {
+      "label": "Partir vivre à l'étranger",
+      "groupe": "Voyage & étranger",
+      "icone": "globe",
+      "intro": "À faire tant que tu es en France : certaines pièces ne s'obtiennent plus une fois parti (permis international, légalisations).",
+      "pieces": [
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "Carte d'identité",
+          "types": [
+            "carte_identite"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Acte de naissance (moins de 3 mois)",
+          "types": [
+            "acte_naissance"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Casier judiciaire (moins de 3 mois)",
+          "types": [
+            "casier_judiciaire"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Permis international",
+          "types": [
+            "permis_international"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Permis de conduire",
+          "types": [
+            "permis_conduire"
+          ]
+        },
+        {
+          "label": "CEAM (Europe)",
+          "types": [
+            "ceam"
+          ],
+          "valid": true,
+          "optional": true
+        },
+        {
+          "label": "Assurance santé internationale",
+          "types": [
+            "assurance_sante_internationale",
+            "assurance_voyage"
+          ],
+          "valid": true
+        },
+        {
+          "label": "2 derniers avis d'impôt",
+          "types": [
+            "avis_impot"
+          ],
+          "count": 2
+        },
+        {
+          "label": "Relevés bancaires (6 mois)",
+          "types": [
+            "releve_bancaire"
+          ],
+          "count": 6,
+          "fresh": 200
+        },
+        {
+          "label": "Diplômes",
+          "types": [
+            "diplome"
+          ]
+        },
+        {
+          "label": "Relevé de carrière",
+          "types": [
+            "releve_carriere"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Relevé d'information auto",
+          "types": [
+            "releve_information_auto"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Lettres de référence d'emploi",
+          "types": [
+            "reference_emploi"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Carnet de vaccination international",
+          "types": [
+            "vaccination_internationale"
+          ],
+          "optional": true
+        }
+      ]
+    },
+    "visa_long_sejour": {
+      "label": "Visa de long séjour (cas le plus exigeant)",
+      "groupe": "Voyage & étranger",
+      "icone": "globe",
+      "intro": "Ce que demandent les pays les plus stricts. Vérifie toujours la liste du consulat.",
+      "pieces": [
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "Photos d'identité (moins de 6 mois)",
+          "types": [
+            "photo_identite"
+          ],
+          "fresh": 183
+        },
+        {
+          "label": "Casier judiciaire (moins de 3 mois, apostillé)",
+          "types": [
+            "casier_judiciaire"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Acte de naissance (moins de 6 mois, apostillé)",
+          "types": [
+            "acte_naissance"
+          ],
+          "fresh": 183
+        },
+        {
+          "label": "Relevés bancaires (12 mois)",
+          "types": [
+            "releve_bancaire"
+          ],
+          "count": 12,
+          "fresh": 400
+        },
+        {
+          "label": "3 derniers avis d'impôt",
+          "types": [
+            "avis_impot"
+          ],
+          "count": 3
+        },
+        {
+          "label": "Assurance santé (rapatriement, sans franchise)",
+          "types": [
+            "assurance_sante_internationale",
+            "assurance_voyage"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Logement sur place (bail ou hébergement)",
+          "types": [
+            "bail",
+            "attestation_hebergement"
+          ]
+        },
+        {
+          "label": "Contrat ou lettre de télétravail",
+          "types": [
+            "contrat_travail",
+            "autorisation_teletravail",
+            "contrat_client"
+          ]
+        },
+        {
+          "label": "Diplômes",
+          "types": [
+            "diplome"
+          ]
+        },
+        {
+          "label": "Lettres de référence d'emploi",
+          "types": [
+            "reference_emploi"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Examen médical",
+          "types": [
+            "examen_medical_visa",
+            "certificat_medical"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Acte de mariage (si conjoint)",
+          "types": [
+            "acte_mariage"
+          ],
+          "fresh": 183,
+          "optional": true
+        }
+      ]
+    },
+    "visa_nz_whv": {
+      "label": "Nouvelle-Zélande · Working Holiday",
+      "groupe": "Visas par pays",
+      "icone": "globe",
+      "intro": "Liste indicative : vérifie toujours sur le site officiel avant d'envoyer.",
+      "pieces": [
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "Preuve de fonds (relevés)",
+          "types": [
+            "releve_bancaire",
+            "attestation_bancaire"
+          ],
+          "count": 3,
+          "fresh": 100
+        },
+        {
+          "label": "Assurance santé pour tout le séjour",
+          "types": [
+            "assurance_sante_internationale",
+            "assurance_voyage"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Billet retour ou fonds pour l'acheter",
+          "types": [
+            "billet_itineraire"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Casier judiciaire (si demandé)",
+          "types": [
+            "casier_judiciaire"
+          ],
+          "fresh": 183,
+          "optional": true
+        }
+      ],
+      "pays": "NZ",
+      "url": "https://www.immigration.govt.nz"
+    },
+    "visa_ca_pvt": {
+      "label": "Canada · PVT",
+      "groupe": "Visas par pays",
+      "icone": "globe",
+      "intro": "Liste indicative : vérifie toujours sur le site officiel avant d'envoyer.",
+      "pieces": [
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "Casier judiciaire (pays de 6 mois et plus)",
+          "types": [
+            "casier_judiciaire"
+          ],
+          "fresh": 183
+        },
+        {
+          "label": "Preuve de fonds (relevés)",
+          "types": [
+            "releve_bancaire",
+            "attestation_bancaire"
+          ],
+          "count": 3,
+          "fresh": 100
+        },
+        {
+          "label": "Assurance santé pour tout le séjour",
+          "types": [
+            "assurance_sante_internationale",
+            "assurance_voyage"
+          ],
+          "valid": true
+        },
+        {
+          "label": "CV",
+          "types": [
+            "cv"
+          ]
+        },
+        {
+          "label": "Photo d'identité",
+          "types": [
+            "photo_identite"
+          ],
+          "fresh": 183
+        }
+      ],
+      "pays": "CA",
+      "url": "https://www.canada.ca/fr/immigration-refugies-citoyennete.html"
+    },
+    "visa_au_whv": {
+      "label": "Australie · Working Holiday (417)",
+      "groupe": "Visas par pays",
+      "icone": "globe",
+      "intro": "Liste indicative : vérifie toujours sur le site officiel avant d'envoyer.",
+      "pieces": [
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "Preuve de fonds (relevés)",
+          "types": [
+            "releve_bancaire",
+            "attestation_bancaire"
+          ],
+          "count": 3,
+          "fresh": 100
+        },
+        {
+          "label": "Assurance santé",
+          "types": [
+            "assurance_sante_internationale",
+            "assurance_voyage"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Casier judiciaire (si demandé)",
+          "types": [
+            "casier_judiciaire"
+          ],
+          "fresh": 183,
+          "optional": true
+        }
+      ],
+      "pays": "AU",
+      "url": "https://immi.homeaffairs.gov.au"
+    },
+    "visa_pt_nomade": {
+      "label": "Portugal · Nomade numérique (D8) / revenus (D7)",
+      "groupe": "Visas par pays",
+      "icone": "globe",
+      "intro": "Liste indicative : vérifie toujours sur le site officiel avant d'envoyer.",
+      "pieces": [
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "Casier judiciaire (moins de 3 mois, apostillé)",
+          "types": [
+            "casier_judiciaire"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Relevés bancaires (6 mois)",
+          "types": [
+            "releve_bancaire"
+          ],
+          "count": 6,
+          "fresh": 200
+        },
+        {
+          "label": "3 derniers avis d'impôt",
+          "types": [
+            "avis_impot"
+          ],
+          "count": 3
+        },
+        {
+          "label": "Contrat ou lettre de télétravail",
+          "types": [
+            "contrat_travail",
+            "autorisation_teletravail",
+            "contrat_client"
+          ]
+        },
+        {
+          "label": "Logement 12 mois (bail ou hébergement)",
+          "types": [
+            "bail",
+            "attestation_hebergement"
+          ]
+        },
+        {
+          "label": "Assurance santé",
+          "types": [
+            "assurance_sante_internationale",
+            "assurance_voyage"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Numéro fiscal portugais (NIF)",
+          "types": [
+            "numero_fiscal"
+          ],
+          "optional": true
+        }
+      ],
+      "pays": "PT",
+      "url": "https://vistos.mne.gov.pt"
+    },
+    "visa_es_nomade": {
+      "label": "Espagne · Nomade numérique",
+      "groupe": "Visas par pays",
+      "icone": "globe",
+      "intro": "Liste indicative : vérifie toujours sur le site officiel avant d'envoyer.",
+      "pieces": [
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "Casier judiciaire (apostillé, traduit)",
+          "types": [
+            "casier_judiciaire"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Contrat ou lettre de télétravail",
+          "types": [
+            "contrat_travail",
+            "autorisation_teletravail",
+            "contrat_client"
+          ]
+        },
+        {
+          "label": "Revenus (bulletins ou factures, 3 mois)",
+          "types": [
+            "bulletin_paie",
+            "facture_emise"
+          ],
+          "count": 3,
+          "fresh": 100
+        },
+        {
+          "label": "Diplôme ou 3 ans d'expérience",
+          "types": [
+            "diplome",
+            "reference_emploi"
+          ]
+        },
+        {
+          "label": "Assurance santé sans franchise",
+          "types": [
+            "assurance_sante_internationale"
+          ],
+          "valid": true
+        }
+      ],
+      "pays": "ES",
+      "url": "https://www.exteriores.gob.es"
+    },
+    "visa_jp_whv": {
+      "label": "Japon · Working Holiday",
+      "groupe": "Visas par pays",
+      "icone": "globe",
+      "intro": "Liste indicative : vérifie toujours sur le site officiel avant d'envoyer.",
+      "pieces": [
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "Preuve de fonds (moins d'un mois)",
+          "types": [
+            "releve_bancaire",
+            "attestation_bancaire"
+          ],
+          "fresh": 31
+        },
+        {
+          "label": "Certificat médical (moins d'un mois)",
+          "types": [
+            "certificat_medical",
+            "examen_medical_visa"
+          ],
+          "fresh": 31
+        },
+        {
+          "label": "CV",
+          "types": [
+            "cv"
+          ]
+        },
+        {
+          "label": "Photo d'identité",
+          "types": [
+            "photo_identite"
+          ],
+          "fresh": 183
+        }
+      ],
+      "pays": "JP",
+      "url": "https://www.fr.emb-japan.go.jp"
+    },
+    "visa_th_dtv": {
+      "label": "Thaïlande · Destination Thailand Visa",
+      "groupe": "Visas par pays",
+      "icone": "globe",
+      "intro": "Liste indicative : vérifie toujours sur le site officiel avant d'envoyer.",
+      "pieces": [
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "Relevés bancaires (3 mois)",
+          "types": [
+            "releve_bancaire",
+            "attestation_bancaire"
+          ],
+          "count": 3,
+          "fresh": 100
+        },
+        {
+          "label": "Lettre de télétravail signée ou preuve d'activité",
+          "types": [
+            "autorisation_teletravail",
+            "contrat_travail",
+            "entreprise_statuts"
+          ]
+        },
+        {
+          "label": "Photo d'identité (moins de 6 mois)",
+          "types": [
+            "photo_identite"
+          ],
+          "fresh": 183
+        },
+        {
+          "label": "Casier judiciaire (si demandé)",
+          "types": [
+            "casier_judiciaire"
+          ],
+          "fresh": 92,
+          "optional": true
+        }
+      ],
+      "pays": "TH",
+      "url": "https://www.thaievisa.go.th"
+    },
+    "visa_ae_remote": {
+      "label": "Émirats · Travail à distance",
+      "groupe": "Visas par pays",
+      "icone": "globe",
+      "intro": "Liste indicative : vérifie toujours sur le site officiel avant d'envoyer.",
+      "pieces": [
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "Relevés bancaires (6 mois)",
+          "types": [
+            "releve_bancaire"
+          ],
+          "count": 6,
+          "fresh": 200
+        },
+        {
+          "label": "Contrat ou lettre de l'employeur",
+          "types": [
+            "contrat_travail",
+            "autorisation_teletravail"
+          ]
+        },
+        {
+          "label": "Assurance santé valable aux Émirats",
+          "types": [
+            "assurance_sante_internationale"
+          ],
+          "valid": true
+        },
+        {
+          "label": "Diplômes (légalisés en chaîne)",
+          "types": [
+            "diplome"
+          ],
+          "optional": true
+        }
+      ],
+      "pays": "AE",
+      "url": "https://u.ae"
+    },
+    "origine_fonds": {
+      "label": "Prouver l'origine de mes fonds",
+      "groupe": "Voyage & étranger",
+      "icone": "bank",
+      "intro": "Pour un visa à revenus, une banque étrangère ou un investissement.",
+      "pieces": [
+        {
+          "label": "Relevés bancaires (12 mois)",
+          "types": [
+            "releve_bancaire"
+          ],
+          "count": 12,
+          "fresh": 400
+        },
+        {
+          "label": "Relevés d'épargne / portefeuille",
+          "types": [
+            "releve_portefeuille",
+            "epargne"
+          ],
+          "optional": true
+        },
+        {
+          "label": "3 derniers avis d'impôt",
+          "types": [
+            "avis_impot"
+          ],
+          "count": 3
+        },
+        {
+          "label": "Bulletins de paie (6 derniers)",
+          "types": [
+            "bulletin_paie"
+          ],
+          "count": 6,
+          "optional": true
+        },
+        {
+          "label": "Vente d'un bien (décompte du notaire)",
+          "types": [
+            "immo_vente"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Donation ou héritage",
+          "types": [
+            "certificat_successoral",
+            "testament"
+          ],
+          "optional": true
+        }
+      ]
+    },
+    "vie_commune": {
+      "label": "Prouver une vie commune",
+      "groupe": "Famille",
+      "icone": "heart",
+      "intro": "Visas de partenaire (Canada, Nouvelle-Zélande, Australie, Royaume-Uni) : 12 mois de vie commune en général.",
+      "pieces": [
+        {
+          "label": "Bail ou titre à vos deux noms",
+          "types": [
+            "bail",
+            "immo_achat"
+          ]
+        },
+        {
+          "label": "Preuves de vie commune",
+          "types": [
+            "vie_commune"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Déclarations de proches",
+          "types": [
+            "declaration_tiers"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Acte de mariage ou PACS",
+          "types": [
+            "acte_mariage",
+            "pacs"
+          ],
+          "optional": true
+        },
+        {
+          "label": "Relevés d'un compte joint",
+          "types": [
+            "releve_bancaire"
+          ],
+          "count": 3,
+          "optional": true
+        }
+      ]
+    },
+    "naturalisation": {
+      "label": "Demander une nationalité",
+      "groupe": "Voyage & étranger",
+      "icone": "name",
+      "intro": "Exemple français : 3 derniers avis d'impôt, bulletins de novembre et décembre des 3 dernières années.",
+      "pieces": [
+        {
+          "label": "Acte de naissance (moins de 3 mois)",
+          "types": [
+            "acte_naissance"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Passeport (valable 6 mois après le séjour)",
+          "types": [
+            "passeport"
+          ],
+          "valid": true,
+          "marge": 183
+        },
+        {
+          "label": "3 derniers avis d'impôt",
+          "types": [
+            "avis_impot"
+          ],
+          "count": 3
+        },
+        {
+          "label": "Bulletins de paie (3 dernières années)",
+          "types": [
+            "bulletin_paie"
+          ],
+          "count": 6
+        },
+        {
+          "label": "Casier judiciaire",
+          "types": [
+            "casier_judiciaire"
+          ],
+          "fresh": 92
+        },
+        {
+          "label": "Diplôme ou test de langue",
+          "types": [
+            "diplome",
+            "test_langue"
+          ]
+        },
+        {
+          "label": "Titres de séjour successifs",
+          "types": [
+            "titre_sejour",
+            "visa"
+          ],
+          "optional": true
+        }
+      ]
     }
-   ],
-   "icone": "house"
-  },
-  "candidature": {
-   "label": "Candidater à un emploi",
-   "pieces": [
-    {
-     "label": "CV",
-     "types": [
-      "cv"
-     ]
-    },
-    {
-     "label": "Lettre de motivation",
-     "types": [
-      "lettre_motivation"
-     ]
-    },
-    {
-     "label": "Diplôme",
-     "types": [
-      "diplome",
-      "certificat"
-     ]
-    },
-    {
-     "label": "Pièce d'identité",
-     "types": [
-      "carte_identite",
-      "passeport"
-     ],
-     "valid": true
-    }
-   ],
-   "icone": "work"
-  },
-  "vendre_vehicule": {
-   "label": "Vendre le véhicule",
-   "pieces": [
-    {
-     "label": "Pièce d'identité",
-     "types": [
-      "passeport",
-      "carte_identite"
-     ],
-     "valid": true
-    },
-    {
-     "label": "Immatriculation (carte grise / rego)",
-     "types": [
-      "carte_grise"
-     ]
-    },
-    {
-     "label": "Contrôle technique / WOF valide",
-     "types": [
-      "controle_vehicule"
-     ],
-     "valid": true
-    },
-    {
-     "label": "Assurance du véhicule",
-     "types": [
-      "assurance_vehicule"
-     ]
-    }
-   ],
-   "icone": "car"
-  },
-  "declarer_revenus": {
-   "label": "Déclarer ses revenus",
-   "pieces": [
-    {
-     "label": "Dernier avis d'impôt",
-     "types": [
-      "avis_impot",
-      "ird_assessment"
-     ]
-    },
-    {
-     "label": "Fiches de paie de l'année",
-     "types": [
-      "bulletin_paie"
-     ],
-     "count": 12
-    },
-    {
-     "label": "Relevés bancaires",
-     "types": [
-      "releve_bancaire"
-     ],
-     "count": 3
-    }
-   ],
-   "icone": "tax"
-  },
-  "ouvrir_compte": {
-   "label": "Ouvrir un compte bancaire",
-   "pieces": [
-    {
-     "label": "Pièce d'identité",
-     "types": [
-      "carte_identite",
-      "passeport"
-     ],
-     "valid": true
-    },
-    {
-     "label": "Justificatif de domicile (moins de 3 mois)",
-     "types": [
-      "facture_energie",
-      "quittance_loyer",
-      "justificatif_domicile"
-     ],
-     "fresh": 92
-    },
-    {
-     "label": "Dernière fiche de paie",
-     "types": [
-      "bulletin_paie"
-     ],
-     "fresh": 60
-    }
-   ],
-   "icone": "bank"
   }
- }
 }

@@ -2,6 +2,29 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.9.4 — Composer : une situation, un dossier
+- **L'onglet Dossiers devient « Situations »**, 25 situations de la vie en tout, classées par thème :
+  - **les 5 démarches déjà présentes** : louer un logement, candidater, ouvrir un compte, déclarer ses revenus, vendre un véhicule ;
+  - **20 nouvelles**, dont :
+    - demander un crédit ;
+    - refaire sa carte d'identité ou son passeport ;
+    - se marier ou se pacser ;
+    - demander une aide CAF ;
+    - rendre un logement et récupérer le dépôt ;
+    - vendre un bien ;
+    - préparer sa retraite ;
+    - partir vivre à l'étranger ;
+    - visa de long séjour (cas le plus exigeant) ;
+    - prouver l'origine de ses fonds ;
+    - prouver une vie commune ;
+    - demander une nationalité ;
+    - **8 visas par pays** : Nouvelle-Zélande, Canada, Australie, Portugal, Espagne, Japon, Thaïlande, Émirats.
+- Pour chaque situation : les pièces trouvées dans tes documents (les tiennes d'abord), ce qui manque, ce qui est expiré ou trop ancien (compté depuis la date d'émission), le passeport qui n'a pas 6 mois de validité, et où obtenir chaque pièce. Les pièces « si besoin » ne bloquent pas.
+- **Composer le dossier** en un clic : choisis le destinataire, remplace une pièce si tu veux, finalise. Bon toutou copie les pièces dans un dossier et un ZIP, avec une preuve d'envoi. Tes originaux ne bougent jamais.
+- **Journal de résidence** (en bas de Situations) : où tu as vécu et quand, tiré de tes baux, quittances, justificatifs et papiers de séjour, et les **casiers judiciaires à prévoir**.
+- **Archives s'ouvre sur « Pourquoi tu cherches ? »** : préparer ma retraite, contrôle fiscal, vendre un bien, fin de bail et dépôt, garantie ou litige, sinistre, succession, titre de séjour ou nationalité. Chaque raison rassemble les bons papiers (Archives et Documents), le plus récent en haut.
+- **Les numéros devant les familles disparaissent de l'écran** (« Identité » au lieu de « 01 Identité »). Ils restent dans les dossiers du Finder pour garder l'ordre.
+
 ## 0.9.3 — Retrouver tout, avoir l'essentiel prêt
 - **Essentiels** en haut de Documents : passeport, carte d'identité, acte de naissance, justificatif de domicile, RIB, relevés, avis d'impôt, attestation santé, casier judiciaire, CV, diplôme… et, selon ce que tu as, paie, bail, quittances, véhicule, visa, entreprise.
   - Un voyant par pièce : **prêt**, **bientôt**, **à renouveler** (trop ancien ou expiré), **à ajouter**.
