@@ -1,53 +1,68 @@
 /* Bon toutou — installation (premier lancement) et mises à jour / rapport de bug (Réglages).
    L'installation ne demande que ce qui est nécessaire, une chose par écran, et dit ce qu'elle fait. */
-const SSTEPS = ["Bienvenue", "Ton dossier", "Ton nom", "Tes pays", "IA locale", "Internet"];
-S.su = S.su || { i: 0, path: "", owner: "", countries: ["FR"] };
+S.su = S.su || { i: 0, path: "", owner: "", countries: ["FR"], maj: false };
+/* v0.10.2 : accueil refait — une question par écran, gros caractères, rien de technique.
+   0 Bienvenue · 1 Ton nom · 2 Tes pays · 3 Ton dossier (création) · 4 Deux options · 5 C'est prêt */
+const FLAGS = { FR: "🇫🇷", NZ: "🇳🇿", INT: "🌍", AU: "🇦🇺", CA: "🇨🇦", ES: "🇪🇸", IT: "🇮🇹", PT: "🇵🇹", DE: "🇩🇪", BE: "🇧🇪", CH: "🇨🇭", GB: "🇬🇧", US: "🇺🇸", JP: "🇯🇵", TH: "🇹🇭" };
+const CHELP = { INT: "Passeport international, permis international, diplômes étrangers…" };
+function shortPath(p) { const parts = String(p || "").split(/[\\/]+/).filter(Boolean); return parts.slice(-2).join(" › ") || p; }
 
 function setupView() {
   const st = S.st, u = S.su, i = u.i;
-  const dots = SSTEPS.map((_, k) => `<span class="${k < i ? "d" : k === i ? "c" : ""}"></span>`).join("");
-  const next = (lab = "Continuer", ok = true) => `<div class="gnav">${i > 0 && i < 4 ? `<button class="ghost" data-act="su-prev">←</button>` : "<span></span>"}<button class="cta" data-act="su-next" ${ok ? "" : "disabled"}>${lab}</button><span></span></div>`;
+  const first = (u.owner || "").trim().split(/\s+/)[0];
+  const steps = 4, k = Math.min(i, steps);
+  const prog = i >= 1 && i <= 3 ? `<div class="obprog" role="progressbar" aria-valuemin="1" aria-valuemax="3" aria-valuenow="${i}" aria-label="Étape ${i} sur 3">
+      <button class="obback" data-act="su-prev">← Retour</button><div class="obbar"><i style="width:${(i / 3) * 100}%"></i></div><span>Étape ${i} sur 3</span></div>` : "";
+  const err = u.err ? `<div class="oberr" role="alert">${esc(u.err)}</div>` : "";
+  const btn = (lab, act = "su-next", ok = true) => `<button class="obcta" data-act="${act}" ${ok ? "" : "disabled"}>${lab}</button>`;
   let b = "";
-  if (i === 0) b = `<div style="text-align:center"><div class="hero-dog">${IC.dog}</div><h1 style="font-size:32px">Bienvenue dans l'application, Bon toutou</h1>
-    <p class="lead" style="margin:6px auto 18px">Il sait quels documents tu as, lesquels sont valables, à quoi ils servent, et exactement ce que tu as envoyé.</p>
-    <div class="versus"><div class="before"><span class="h">Avant</span><s>Carte_identite.pdf</s><br><s>Carte_identite_2.pdf</s><br><s>Carte_identite_location.pdf</s><br>Carte_identite_location_FINAL_v2.pdf</div>
-      <div class="after"><span class="h">Avec Bon toutou</span>2021-06-02_FR_01_Carte-identite.pdf<br><br>Une seule, toujours la bonne.<br>Réutilisée dans chaque dossier.</div></div>
-    <p class="sub">Tout reste sur ton ordinateur. Bon toutou ne détruit jamais rien.</p></div>${next("Commencer")}`;
-  if (i === 1) b = `<h2>Où ranger ton dossier administratif ?</h2><p class="sub">Un seul dossier, lisible même sans Bon toutou. Choisis un dossier existant ou un nouveau : Bon toutou n'accède à rien d'autre sur ton ordinateur.</p>
-    ${window.__TAURI__ ? `<div class="acts" style="margin:14px 0"><button class="ghost" data-act="su-pick">Choisir un dossier…</button></div>` : ""}
-    <input class="field" id="su_path" style="width:100%" value="${esc(u.path || st.suggest)}">
-    <p class="sub">Si le dossier contient déjà des papiers, Bon toutou n'y touche pas : il ajoute seulement ses propres dossiers à côté, et ce que tu lui confies passe par Trier.</p>
-    ${u.err ? `<div class="hint">${esc(u.err)}</div>` : ""}${next()}`;
-  if (i === 2) b = `<h2>Comment t'appelles-tu ?</h2><p class="sub">Tu es le titulaire par défaut de tes papiers. Ton nom est ajouté au nom de tes pièces d'identité, santé, diplômes. Il reste sur ton ordinateur.</p>
-    <input class="field" id="su_owner" style="width:100%" placeholder="Prénom Nom" value="${esc(u.owner)}">${next()}`;
-  if (i === 3) b = `<h2>Tes papiers viennent de quels pays ?</h2><p class="sub">Chaque pays a ses dossiers, ses organismes et ses règles. Tu pourras en ajouter plus tard.</p>
-    <div class="privgrid" style="margin:14px 0">${Object.entries(st.countries).map(([k, v]) => `<label class="chk"><input type="checkbox" data-su-cc="${k}" ${u.countries.includes(k) ? "checked" : ""}> <b>${k}</b> ${esc(v)}</label>`).join("")}</div>
-    ${u.err ? `<div class="hint">${esc(u.err)}</div>` : ""}${next("Créer mon dossier", u.countries.length > 0)}`;
+  if (i === 0) b = `<div class="obhero">${IC.dog}</div>
+    <h1>Bonjour, moi c'est Bon toutou.</h1>
+    <p class="oblead">Je range tes papiers administratifs, je te préviens quand l'un d'eux expire, et je prépare tes dossiers en un clic.</p>
+    <ul class="obpromise">
+      <li><span>${IC.lock}</span><div><b>Tout reste chez toi</b><small>Tes papiers ne quittent pas ton ordinateur.</small></div></li>
+      <li><span>${IC.shield}</span><div><b>Rien n'est jamais effacé</b><small>Je copie et je range. Tu peux toujours annuler.</small></div></li>
+      <li><span>${IC.heart}</span><div><b>Gratuit, sans compte</b><small>Pas d'inscription, pas de publicité.</small></div></li></ul>
+    ${btn("C'est parti")}<p class="obnote">2 minutes · 3 petites questions</p>`;
+  if (i === 1) b = `<h1>Comment t'appelles-tu ?</h1>
+    <p class="oblead">Pour reconnaître <b>tes</b> papiers parmi ceux de tes proches.</p>
+    <label class="oblabel" for="su_owner">Prénom et nom</label>
+    <input class="obinput" id="su_owner" placeholder="ex. Camille Martin" autocomplete="name" value="${esc(u.owner)}">
+    ${err}${btn("Continuer")}<button class="oblink" data-act="su-next">Passer cette étape</button>`;
+  if (i === 2) b = `<h1>${first ? esc(first) + ", tes" : "Tes"} papiers viennent d'où ?</h1>
+    <p class="oblead">Coche tous les pays où tu as (ou as eu) des papiers. Tu pourras en ajouter plus tard.</p>
+    <div class="obtiles" role="group" aria-label="Pays">${Object.entries(st.countries || {}).map(([c, n]) => { const on = u.countries.includes(c);
+      return `<button class="obtile${on ? " on" : ""}" data-act="su-cc" data-cc="${c}" aria-pressed="${on}"><span class="flag" aria-hidden="true">${FLAGS[c] || "🏳️"}</span><span class="tn"><b>${esc(n)}</b>${CHELP[c] ? `<small>${esc(CHELP[c])}</small>` : ""}</span><span class="tick" aria-hidden="true">${on ? "✓" : ""}</span></button>`; }).join("")}</div>
+    ${err}${btn("Continuer", "su-next", u.countries.length > 0)}${u.countries.length ? "" : `<p class="obnote">Choisis au moins un pays.</p>`}`;
+  if (i === 3) { const p = u.path || st.suggest;
+    b = `<h1>Où ranger ton dossier ?</h1>
+    <p class="oblead">Je crée <b>un seul dossier</b> pour tous tes papiers. Un dossier ordinaire, lisible même sans moi.</p>
+    <div class="obfolder"><span class="fi">${IC.folder}</span><div class="grow"><b>${esc(shortPath(p))}</b><small>${esc(p)}</small></div>
+      ${window.__TAURI__ ? `<button class="obghost" data-act="su-pick">Changer…</button>` : `<button class="obghost" data-act="su-edit">Changer…</button>`}</div>
+    ${u.editPath ? `<label class="oblabel" for="su_path">Chemin du dossier</label><input class="obinput" id="su_path" value="${esc(p)}">` : ""}
+    <p class="obnote" style="text-align:left">Je n'accède à rien d'autre sur ton ordinateur. S'il y a déjà des papiers dans ce dossier, je n'y touche pas.</p>
+    ${err}${btn(u.busy ? "Création…" : "Créer mon dossier", "su-next", !u.busy)}`; }
   if (i === 4) {
     const I = st.ia || {}, M = I.machine || {}, cat = (I.catalogue || {}).modeles || [], m = cat.find((x) => x.niveau === M.niveau && x.conseille) || cat[0] || {};
     const E = I.engines || [], integ = E.find((e) => e.id === "integre" && e.running), oll = E.find((e) => e.id === "ollama" && e.running);
     const can = (integ && m.gguf && m.gguf.sha256) || oll;
-    b = `<h2>Une IA locale pour t'aider à trier ?</h2><p class="sub">Facultatif : les règles de Bon toutou suffisent pour commencer. L'IA locale aide pour les papiers inhabituels. Elle tourne sur ton ordinateur : aucun document ne sort.</p>
-      <div class="card box"><b>Ton ordinateur</b> : ${esc(M.puce || "")} · ${M.ram_go || "?"} Go de mémoire<br>
-        <span class="pill acc">Niveau conseillé : ${({ modeste: "Modeste", equilibre: "Équilibré", puissant: "Puissant" })[M.niveau] || "?"}</span>
-        <p style="margin:10px 0 0"><b>${esc(m.nom || "")}</b> · ${esc(m.auteur || "")} (${esc(m.pays || "")}) · ${esc(m.licence || "")} · ${String(m.taille_go || "").replace(".", ",")} Go</p></div>
-      ${u.dl ? `<div class="hint">${esc(u.dl)}</div>` : ""}
-      <div class="acts" style="justify-content:center;margin-top:16px">
-        ${can ? `<button class="cta" data-act="su-ia-get" data-m="${esc(integ ? m.id : m.ollama)}" data-e="${integ ? "integre" : "ollama"}">Télécharger maintenant</button>` : ""}
-        <button class="ghost" data-act="su-ia-later">Plus tard</button><button class="linkbtn" data-act="su-ia-never">Jamais</button></div>
-      ${can ? `<p class="sub" style="text-align:center">Le téléchargement est la seule sortie vers internet de l'installation. Il sera noté dans ton journal des sorties.</p>`
-        : `<p class="sub" style="text-align:center">Aucun moteur d'IA n'est encore disponible ici : tu pourras l'installer depuis Réglages › IA locale.</p>`}`;
+    u.iaKey = can ? (integ ? m.id : m.ollama) : ""; u.iaEng = integ ? "integre" : "ollama";
+    b = `<h1>Ton dossier est créé ✓</h1>
+    <p class="oblead">Deux options, à toi de voir. Tu pourras les changer à tout moment dans Réglages.</p>
+    <label class="obopt"><input type="checkbox" id="su_maj" ${u.maj ? "checked" : ""}><span class="sw" aria-hidden="true"></span><div><b>Me prévenir des nouvelles versions</b><small>Je regarde une fois par semaine s'il y a une mise à jour. Jamais obligatoire.</small></div></label>
+    <label class="obopt${can ? "" : " off"}"><input type="checkbox" id="su_ia" ${u.ia && can ? "checked" : ""} ${can ? "" : "disabled"}><span class="sw" aria-hidden="true"></span><div><b>Installer l'assistant IA${m.taille_go ? ` (${String(m.taille_go).replace(".", ",")} Go)` : ""}</b><small>${can ? "Il m'aide pour les papiers inhabituels. Il tourne sur ton ordinateur : rien ne sort." : "Facultatif, je fonctionne très bien sans. Tu pourras l'installer plus tard : Réglages › IA locale."}</small></div></label>
+    <p class="obnote">${IC.lock} Je ne me connecte à internet que si tu le demandes, et je note chaque sortie.</p>
+    ${btn("Terminer", "su-finish")}`;
   }
-  if (i === 5) b = `<h2>Bon toutou ne se connecte jamais à internet sauf si tu le demandes.</h2>
-    <div class="card box"><b>Les seules exceptions possibles, toujours avec ton accord :</b>
-      <div class="row" style="padding-left:0"><span>🔄</span><div class="grow"><b>Vérifier les mises à jour</b><div class="sub">Une requête vers la page publique de Bon toutou. Jamais obligatoire.</div></div></div>
-      <div class="row" style="padding-left:0"><span>🧠</span><div class="grow"><b>Télécharger un modèle d'IA</b><div class="sub">Seulement si tu le demandes, fichier vérifié par son empreinte.</div></div></div>
-      <div class="row" style="padding-left:0"><span>☁</span><div class="grow"><b>IA externe</b><div class="sub">Désactivée. Si un jour tu l'actives : seulement pour les catégories que tu autorises, numéros masqués.</div></div></div>
-      <div class="row" style="padding-left:0"><span>🐞</span><div class="grow"><b>Rapport de bug</b><div class="sub">Volontaire, relu par toi avant l'envoi, sans aucun document.</div></div></div></div>
-    <p class="sub">Chaque sortie est notée avant de partir dans Réglages › Journal des sorties.</p>
-    <label class="chk"><input type="checkbox" id="su_maj" ${u.maj ? "checked" : ""}> Vérifier les mises à jour toute seule, une fois par semaine</label>
-    <div class="gnav"><span></span><button class="cta" data-act="su-done">C'est prêt : commencer à trier</button><span></span></div>`;
-  return `<div class="guide"><div class="gtop"><span class="sub">Installation</span><div class="dots">${dots}</div><span class="sub">${SSTEPS[i]}</span></div>${b}</div>`;
+  if (i === 5) b = `<div class="obhero ok">✓</div><h1>C'est prêt${first ? ", " + esc(first) : ""} !</h1>
+    <p class="oblead">Par quoi veux-tu commencer ?</p>
+    <div class="obchoices">
+      <button class="obchoice main" data-act="su-go" data-to="trier"><span class="ci">${IC.inbox}</span><span><b>Ajouter mes papiers</b><small>Glisse des PDF, des photos ou un dossier entier. Les originaux ne bougent pas.</small></span></button>
+      <button class="obchoice" data-act="su-go" data-to="guide"><span class="ci">${IC.sparkles}</span><span><b>Essayer avec 3 papiers</b><small>Une visite guidée de 5 minutes.</small></span></button>
+      <button class="obchoice" data-act="su-go" data-to="mail"><span class="ci">${IC.mail}</span><span><b>Relier une adresse e-mail</b><small>Tes pièces jointes administratives arrivent toutes seules.</small></span></button></div>
+    <button class="oblink" data-act="su-go" data-to="home">Découvrir l'app d'abord</button>
+    ${u.dl ? `<p class="obnote">${esc(u.dl)}</p>` : ""}`;
+  return `<div class="ob">${prog}<section class="obcard" aria-labelledby="obh">${b.replace("<h1>", "<h1 id=\"obh\" tabindex=\"-1\">")}</section></div>`;
 }
 
 function openExternal(url) {
@@ -96,6 +111,8 @@ function bugModal(m) {
     document.querySelectorAll("[data-su-cc]").forEach((el) => (el.onchange = () => {
       S.su.countries = [...document.querySelectorAll("[data-su-cc]:checked")].map((x) => x.dataset.suCc); render(); }));
     const mj = $("#su_maj"); if (mj) mj.onchange = () => (S.su.maj = mj.checked);
+    const ia = $("#su_ia"); if (ia) ia.onchange = () => (S.su.ia = ia.checked);
+    document.querySelectorAll(".obinput").forEach((f) => (f.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); const n = document.querySelector('.obcta[data-act="su-next"]'); if (n && !n.disabled) n.click(); } }));
     const ma = $("#maj_auto"); if (ma) ma.onchange = async () => { await api("/api/settings", { maj_auto: ma.checked }); toast(ma.checked ? "Vérification hebdomadaire activée" : "Vérification automatique désactivée"); load(); };
     // vérification hebdomadaire, seulement si tu l'as demandée
     const st = S.st;
@@ -112,29 +129,46 @@ function bugModal(m) {
 document.addEventListener("click", async (e) => {
   const a = e.target.closest("[data-act]"); if (!a) return;
   const act = a.dataset.act, u = S.su;
-  if (act === "su-prev") { u.i--; u.err = ""; return render(); }
+  if (act === "su-prev") { u.i = Math.max(0, u.i - 1); u.err = ""; return render(); }
+  if (act === "su-cc") { const c = a.dataset.cc; u.countries = u.countries.includes(c) ? u.countries.filter((x) => x !== c) : u.countries.concat(c); u.err = ""; return render(); }
+  if (act === "su-edit") { u.editPath = true; render(); const f = $("#su_path"); if (f) f.focus(); return; }
   if (act === "su-pick") {
-    try { const d = await window.__TAURI__.dialog.open({ directory: true, multiple: false, title: "Ton dossier administratif" }); if (d) { u.path = d; render(); } } catch (x) { u.err = "Sélecteur indisponible : écris le chemin."; render(); }
+    try { const d = await window.__TAURI__.dialog.open({ directory: true, multiple: false, title: "Ton dossier administratif" }); if (d) { u.path = d; u.err = ""; render(); } }
+    catch (x) { u.editPath = true; u.err = "Le sélecteur ne s'ouvre pas : écris le chemin du dossier."; render(); }
+    return;
   }
   if (act === "su-next") {
     u.err = "";
-    if (u.i === 1 && !(u.path || S.st.suggest)) return;
-    if (u.i === 1 && !u.path) u.path = S.st.suggest;
+    if (u.i === 2 && !u.countries.length) { u.err = "Choisis au moins un pays."; return render(); }
     if (u.i === 3) {
+      if (!u.path) u.path = S.st.suggest;
+      u.busy = true; render();
       const r = await api("/api/setup", { path: u.path, owner: u.owner, countries: u.countries });
-      if (!r.ok) { u.err = r.msg; u.i = 1; return render(); }
+      u.busy = false;
+      if (!r.ok) { u.err = r.msg; u.editPath = true; return render(); }
       S.st = await api("/api/state"); S.setupDone = true;
     }
-    u.i++; return render();
+    u.i++; render();
+    const f = document.querySelector(".obinput"); if (f) f.focus();
+    return;
   }
-  if (act === "su-ia-get") {
-    const r = await api("/api/ia/pull", { engine: a.dataset.e, model: a.dataset.m, consent: true });
-    if (r.ok) { await api("/api/settings", { ai_engine: a.dataset.e, use_ollama: true }); u.dl = "Téléchargement lancé en arrière-plan : tu peux continuer. Choisis le modèle dans Réglages › IA locale quand il est prêt."; }
-    else u.dl = r.msg;
-    u.i++; return render();
+  if (act === "su-finish") {
+    const mj = $("#su_maj"), ia = $("#su_ia");
+    await api("/api/settings", { maj_auto: !!(mj && mj.checked) });
+    if (ia && ia.checked && u.iaKey) {
+      const r = await api("/api/ia/pull", { engine: u.iaEng, model: u.iaKey, consent: true });
+      if (r.ok) { await api("/api/settings", { ai_engine: u.iaEng, use_ollama: true }); u.dl = "L'assistant IA se télécharge en arrière-plan. Tu peux commencer sans attendre."; }
+      else u.dl = r.msg || "";
+    }
+    u.i = 5; return render();
   }
-  if (act === "su-ia-later") { u.i++; return render(); }
-  if (act === "su-ia-never") { await api("/api/settings", { ai_never: true, use_ollama: false }); u.i++; return render(); }
+  if (act === "su-go") {
+    const to = a.dataset.to;
+    S.su = { i: 0, path: "", owner: "", countries: ["FR"], maj: false };
+    if (to === "mail") return go("reglages", { sv: "mail" });
+    if (to === "guide") { S.gids = S.gids || []; return go("guide"); }
+    return go(to);
+  }
   if (act === "su-done") { await api("/api/settings", { maj_auto: !!u.maj }); S.v = "trier"; return load(); }
   if (act === "maj-check") { S.maj = { ok: false, msg: "Vérification…" }; render(); S.maj = await api("/api/maj/check", { consent: true }); await api("/api/settings", { maj_last: new Date().toISOString() }); return load(); }
   if (act === "maj-later") { S.maj = null; return render(); }

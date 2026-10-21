@@ -11,38 +11,6 @@ async function mgSet(p) { const v = Object.assign({}, mg(), p); S.st.settings.ma
 function gstep(n, done, cur, title, body) {
   return `<div class="gstep${done ? " done" : ""}${cur ? " cur" : ""}"><span class="gnum">${done ? "✓" : n}</span><div class="grow"><b>${title}</b>${cur || !done ? `<div class="gbody">${body}</div>` : ""}</div></div>`;
 }
-function mailGuide() {
-  const s = S.st.settings, M = S.mst || {}, G = mg();
-  const addr = s.mail || "", ik = IK_DOMS.test(addr) || (!addr && !G.ailleurs);
-  if (G.ailleurs && !IK_DOMS.test(addr)) return `<div class="card box ikguide"><span class="sub">Tu utilises une autre messagerie. <button class="linkbtn" style="padding:0" data-act="mg-ik">Revenir au guide Infomaniak</button></span></div>`;
-  if (!ik) return "";
-  const c1 = !!G.cree || !!addr, c2 = !!addr, c3 = !!G.mdp || !!M.saved, c4 = !!M.saved;
-  const cur = !c1 ? 1 : !c2 ? 2 : !c3 ? 3 : !c4 ? 4 : 5;
-  return `<div class="label" style="margin:0 0 8px">Créer ton adresse admin, pas à pas</div>
-  <div class="card box ikguide">
-    <p class="sub" style="margin-top:0"><b style="color:var(--text)">Infomaniak</b> est une entreprise suisse : tes mails sont hébergés en Suisse, l'offre de base est gratuite, et elle laisse Bon toutou relever les pièces jointes depuis ton ordinateur (ce que Proton et Tuta ne permettent pas).</p>
-    ${gstep(1, c1, cur === 1, "Créer l'adresse gratuite (my kSuite)", `
-      <ul class="gl"><li>Une adresse se terminant par <b>@ik.me</b>, <b>@etik.com</b> ou <b>@ikmail.com</b>. Idée : <i>prenom.nom.admin@ik.me</i>.</li>
-      <li>20 Go pour les mails. Une seule adresse gratuite par compte.</li>
-      <li><b>À prévoir</b> : un numéro de portable <b>européen</b> pour le code de confirmation, et l'inscription est réservée aux résidents d'un pays de l'OCDE.</li>
-      <li>Le mot de passe de ton compte Infomaniak reste à toi : Bon toutou ne le demande jamais.</li></ul>
-      <div class="acts"><button class="cta small" data-ext="${IK.inscription}">Ouvrir l'inscription ↗</button><button class="ghost small" data-act="mg-cree">C'est fait</button><button class="linkbtn" data-act="mg-ailleurs">J'ai déjà une adresse ailleurs</button></div>`)}
-    ${gstep(2, c2, cur === 2, "Écrire ta nouvelle adresse ci-dessous", `<span class="sub">Dans le champ « Ton adresse admin », puis Continuer.</span>`)}
-    ${gstep(3, c3, cur === 3, "Créer un mot de passe rien que pour Bon toutou", `
-      <ol class="gl"><li>Ouvre ta messagerie Infomaniak et connecte-toi.</li>
-      <li>Clique sur <b>⋮</b> à droite de ton adresse, puis <b>Paramètres</b>.</li>
-      <li><b>Gérer le mot de passe</b> → <b>Ajouter un appareil</b>. Nomme-le « Bon toutou ».</li>
-      <li>Dans l'assistant, choisis l'onglet <b>IMAP / SMTP</b>, puis génère le mot de passe.</li>
-      <li><b>Copie-le tout de suite</b> : Infomaniak ne le réaffiche jamais. Tu pourras le supprimer à tout moment (l'appareil « Bon toutou »), sans toucher à ton vrai mot de passe.</li></ol>
-      <div class="acts"><button class="cta small" data-ext="${IK.webmail}">Ouvrir ma messagerie Infomaniak ↗</button><button class="ghost small" data-act="mg-mdp">Je l'ai copié</button><button class="linkbtn" data-ext="${IK.aide}">Aide Infomaniak ↗</button></div>`)}
-    ${gstep(4, c4, cur === 4, "Coller, autoriser, tester", `<span class="sub">Colle le mot de passe ci-dessous, coche l'autorisation, puis « Tester la connexion ». Il est rangé dans le trousseau de ton ordinateur, jamais dans un fichier.</span>`)}
-    ${gstep(5, false, cur === 5, "Laisser Bon toutou relever et l'IA locale lire", `
-      <ul class="gl"><li>Coche « Relever à l'ouverture » : les nouvelles pièces jointes (PDF, images) arrivent dans Trier.</li>
-      <li>L'IA locale, si tu l'as activée, propose un classement pour chacune : elle tourne sur ton ordinateur, ne voit jamais ton mot de passe, et toi tu valides.</li>
-      <li>Puis donne ta nouvelle adresse à tes organismes.</li></ul>
-      <div class="acts"><button class="ghost small" data-go="reglages" data-sv="ia">Régler l'IA locale</button><button class="ghost small" data-go="reglages" data-sv="orgs">Prévenir mes organismes</button></div>`)}
-  </div>`;
-}
 function mailAiCard() {
   const s = S.st.settings, on = s.use_ollama && s.ollama_model, b = (s.ai_banc || {})[s.ollama_model] || null;
   return `<div class="label" style="margin:22px 0 8px">Lecture des pièces reçues</div>
@@ -56,8 +24,7 @@ const mailViewB = mailView;
 mailView = function () {
   const h = mailViewB(), M = S.mst || {};
   if (S.ml && S.ml.busy) return h;
-  const i = h.indexOf('<div class="card box mailbox">');
-  if (!M.saved) return i < 0 ? h : h.slice(0, i) + mailGuide() + (mailGuide() ? '<div class="label" style="margin:22px 0 8px">Relier l\'adresse</div>' : "") + h.slice(i);
+  if (!M.saved) return h;   // pas encore reliée : l'assistant pas à pas (mailwiz.js) s'en charge
   const j = h.indexOf('<p class="sub" style="margin-top:10px">Connexion directe');
   return j < 0 ? h + mailAiCard() : h.slice(0, j) + mailAiCard() + h.slice(j);
 };
@@ -129,10 +96,6 @@ if (window.iaSection) {
 window.addEventListener("click", async (e) => {
   const a = e.target.closest("[data-act]"); if (!a) return;
   const act = a.dataset.act;
-  if (act === "mg-cree") { e.stopImmediatePropagation(); return mgSet({ cree: true }); }
-  if (act === "mg-mdp") { e.stopImmediatePropagation(); return mgSet({ mdp: true }); }
-  if (act === "mg-ailleurs") { e.stopImmediatePropagation(); return mgSet({ ailleurs: true }); }
-  if (act === "mg-ik") { e.stopImmediatePropagation(); return mgSet({ ailleurs: false }); }
   if (act === "banc-go") { e.stopImmediatePropagation();
     const C = iaCtx(); const r = await api("/api/ia/banc", { engine: C.eng.id, model: C.model, n: 6 });
     if (!r.ok) return toast(r.msg || "Banc d'essai impossible");

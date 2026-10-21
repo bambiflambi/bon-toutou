@@ -75,5 +75,10 @@ check(imap_refused(host="imap.gmail.com", port=143, user="a", password="b", cons
 check(imap_refused(host="127.0.0.1", port=993, user="a", password="b", consent=True, log=logged.append), "IMAP vers une adresse non valide : refusé")
 check(imap_refused(host="imap.gmail.com", port=993, user="a", password="b", consent=True, log=None), "IMAP sans journal : refusé")
 
+import ssl as _ssl
+_c = sortie.tls_context()
+check(_c.verify_mode == _ssl.CERT_REQUIRED and _c.check_hostname and _c.cert_store_stats()["x509_ca"] > 0,
+      "TLS : certificats toujours vérifiés, avec des autorités chargées (aussi dans l'app empaquetée)")
+
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)")
 sys.exit(1 if fails else 0)

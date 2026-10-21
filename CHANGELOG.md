@@ -2,6 +2,33 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.10.3 — Relier son adresse e-mail, pas à pas
+- **Réglages › Adresse admin refait comme l'accueil** : une question par écran, gros caractères, barre « Étape 1 sur 3 ».
+  1. « Une adresse rien que pour tes papiers » : **Créer une adresse gratuite** (Infomaniak, Suisse) ou **J'ai déjà une adresse**.
+  2. Si tu la crées : ce qu'il faut prévoir (adresse @ik.me, portable européen, ton mot de passe reste à toi) et un bouton vers l'inscription.
+  3. **Ton adresse** : un seul champ ; la messagerie est reconnue toute seule.
+  4. **Créer un code pour Bon toutou** : les étapes exactes selon ta messagerie (Gmail, iCloud, Infomaniak, Yahoo, ou les autres), avec le bouton qui ouvre la bonne page. Pour Gmail : rappel de la validation en deux étapes et d'IMAP.
+  5. **Colle le code** : bouton Afficher / Masquer, autorisation en interrupteur, message clair si ça ne marche pas. Les espaces du code Gmail sont retirés tout seuls.
+  6. **C'est relié !** : relever à chaque ouverture (interrupteur), voir tes pièces jointes, donner l'adresse à tes organismes.
+- Une fois l'adresse reliée, la page habituelle revient : relève, pièces jointes, lecture par l'IA locale.
+
+## 0.10.2 — Un accueil qui donne envie
+- **Installation refaite** : une question par écran, gros caractères, gros boutons, rien de technique.
+  1. « Bonjour, moi c'est Bon toutou » et trois promesses : tout reste chez toi, rien n'est jamais effacé, gratuit et sans compte.
+  2. Ton nom, que tu peux passer ; la touche Entrée valide.
+  3. Tes pays, en grandes cases avec leur drapeau.
+  4. Ton dossier, montré simplement (« Documents › BON_TOUTOU_ADMIN ») avec un bouton « Changer… ».
+  5. Deux options en interrupteurs, désactivées par défaut : mises à jour, assistant IA.
+  6. « C'est prêt » : ajouter tes papiers, essayer avec 3 papiers, ou relier une adresse e-mail.
+- Barre de progression « Étape 2 sur 3 » avec « ← Retour ». Erreurs lisibles, lues par les lecteurs d'écran. S'adapte au téléphone.
+- **Trier, la première fois** : une seule grande zone « Ajoute tes premiers papiers » avec deux boutons, au lieu de quatre boutons et d'un « Tout est trié » trompeur.
+- Le tri guidé reprend le même confort de lecture.
+
+## 0.10.1 — L'adresse admin se relie
+- **Correction : la connexion à la messagerie échouait dans l'app** (« SSLCertVerificationError »). L'app empaquetée ne trouvait pas les certificats de sécurité de ton ordinateur ; elle les charge maintenant (certificats embarqués + ceux du trousseau macOS). La vérification reste toujours active. Corrige aussi la vérification des mises à jour et le téléchargement des modèles d'IA.
+- Si un antivirus ou un VPN bloque encore la vérification, le message le dit clairement.
+- Aujourd'hui : le bouton des rappels est en bas de la liste, plus visible (« +3 · Voir les 3 autres à renouveler », puis « Masquer les autres » tout en bas).
+
 ## 0.10.0 — Brancher : adresse admin, IA locale, liens
 **Adresse admin, accompagnée de bout en bout (Réglages › Adresse admin)**
 - Un guide en 5 étapes pour créer une adresse gratuite chez **Infomaniak** (entreprise suisse, mails hébergés en Suisse) : inscription my kSuite (@ik.me, @etik.com, @ikmail.com), puis création d'un mot de passe rien que pour Bon toutou (« Ajouter un appareil » → onglet IMAP / SMTP), à coller, autoriser et tester.

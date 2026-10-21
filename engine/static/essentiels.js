@@ -148,8 +148,8 @@ homeView = function () {
     const n = all.length - 1, open = !!S.remOpen;
     const cls = (x, c) => x.replace('class="titem', `class="titem ${c}`);
     items = `<div class="remcard${open ? " open" : ""}">${cls(all[0], "remtop")}
-      <button class="remmore" data-act="rem-more" aria-expanded="${open}">${open ? "Masquer les autres" : `et ${n} ${plural(n, "autre")} à renouveler`}<span class="chev">${open ? "▴" : "▾"}</span></button>
-      ${open ? `<div class="remrest">${all.slice(1).map((x) => cls(x, "remsub")).join("")}</div>` : ""}</div>`;
+      ${open ? `<div class="remrest">${all.slice(1).map((x) => cls(x, "remsub")).join("")}</div>` : ""}
+      <button class="remmore" data-act="rem-more" aria-expanded="${open}"><span class="remn">${open ? "−" : "+" + n}</span><span class="grow">${open ? "Masquer les autres" : `Voir les ${n} autres à renouveler`}</span><span class="chev">${open ? "▴" : "▾"}</span></button></div>`;
   }
   const others = ((h.split('<div class="today">')[1] || "").split('<div class="card')[0].match(/class="titem/g) || []).length;
   const tot = others + all.length, owner = ((S.st.settings.owner || "").split(" ")[0]);

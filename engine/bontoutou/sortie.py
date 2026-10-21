@@ -61,8 +61,46 @@ def http(url, data=None, headers=None, timeout=60, method=None, purpose=None, co
         log({"dest": urllib.parse.urlparse(url).hostname, "purpose": purpose, "label": PURPOSES[purpose],
              "what": what, "doc_id": doc_id, "level": level, "bytes": len(data or b"")})
     req = urllib.request.Request(url, data=data, headers=headers or {}, method=method)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with _urlopen(req, timeout) as r:
         return r.read()
+
+
+_TLS = {"ctx": None}
+
+
+def tls_context():
+    """Contexte TLS qui vérifie vraiment les certificats, même dans l'app empaquetée (PyInstaller) où Python
+    ne trouve pas les certificats du système : certifi s'il est embarqué, puis les racines du trousseau macOS,
+    puis celles du système. Jamais de vérification désactivée."""
+    if _TLS["ctx"] is not None:
+        return _TLS["ctx"]
+    import ssl
+    import subprocess
+    import sys
+    ctx = ssl.create_default_context()
+    try:
+        import certifi
+        ctx.load_verify_locations(cafile=certifi.where())
+    except Exception:
+        pass
+    if sys.platform == "darwin":
+        for kc in ("/System/Library/Keychains/SystemRootCertificates.keychain", "/Library/Keychains/System.keychain"):
+            try:
+                pem = subprocess.run(["/usr/bin/security", "find-certificate", "-a", "-p", kc],
+                                     capture_output=True, timeout=10).stdout.decode("ascii", "ignore")
+                if "BEGIN CERTIFICATE" in pem:
+                    ctx.load_verify_locations(cadata=pem)
+            except Exception:
+                pass
+    _TLS["ctx"] = ctx
+    return ctx
+
+
+def _urlopen(req, timeout):
+    url = req.full_url if hasattr(req, "full_url") else str(req)
+    if url.lower().startswith("https://"):
+        return urllib.request.urlopen(req, timeout=timeout, context=tls_context())
+    return urllib.request.urlopen(req, timeout=timeout)
 
 
 _HOST = __import__("re").compile(r"^(?=.{4,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,63}$")
@@ -84,8 +122,8 @@ def imap_open(host, port, user, password, consent=False, log=None, what="", time
     if log is None:
         raise SortieRefusee("Sortie impossible sans journal des sorties.")
     log({"dest": host, "purpose": "mail", "label": PURPOSES["mail"], "what": what, "bytes": 0})
-    M = imaplib.IMAP4_SSL(host, port, ssl_context=ssl.create_default_context(), timeout=timeout) \
-        if _imap_has_timeout(imaplib) else imaplib.IMAP4_SSL(host, port, ssl_context=ssl.create_default_context())
+    M = imaplib.IMAP4_SSL(host, port, ssl_context=tls_context(), timeout=timeout) \
+        if _imap_has_timeout(imaplib) else imaplib.IMAP4_SSL(host, port, ssl_context=tls_context())
     try:
         M.login(user, password)
     except imaplib.IMAP4.error as e:
@@ -111,7 +149,7 @@ def http_lines(url, payload, timeout=3600, **kw):
     if not is_local(url):
         raise SortieRefusee("Flux réservé aux moteurs locaux.")
     req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with _urlopen(req, timeout) as r:
         for line in r:
             yield line
 
@@ -131,7 +169,7 @@ def download(url, dest, sha256, purpose, consent=False, log=None, what="", progr
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     h = hashlib.sha256()
     req = urllib.request.Request(url, headers={"User-Agent": "Bon toutou"})
-    with urllib.request.urlopen(req, timeout=timeout) as r, open(part, "wb") as f:
+    with _urlopen(req, timeout) as r, open(part, "wb") as f:
         total = int(r.headers.get("Content-Length") or 0)
         done = 0
         while True:

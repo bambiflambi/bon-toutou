@@ -123,7 +123,15 @@ function reasons(p) {
   const how = { pypdf: "texte du PDF", pdftotext: "texte du PDF", ocr: "lecture de l'image (OCR)", texte: "fichier texte" }[p.method] || "nom du fichier seulement";
   return `<details class="why"><summary>Pourquoi ?</summary><ul>${p.reasons.map((r) => `<li>${esc(r)}</li>`).join("")}<li>Lu par : ${how}</li></ul></details>`;
 }
+const firstUse = (P) => !(P || []).length && !S.busy && !((S.st.counts || {}).docs) && !((S.st.counts || {}).archives_n);
 function trierAdd(P) {
+  if (firstUse(P)) return `<div class="firstdrop" id="drop">
+    <span class="fdi">${IC.up}</span><h2>Ajoute tes premiers papiers</h2>
+    <p>Glisse-les ici, ou choisis-les. Je les <b>copie</b> : tes originaux ne bougent pas. Tout est lu sur ton ordinateur.</p>
+    <div class="fdbtns"><label class="obcta">Choisir des fichiers<input type="file" id="files" multiple hidden></label>
+      <label class="obghost">Choisir un dossier entier<input type="file" id="dirIn" webkitdirectory multiple hidden></label></div>
+    <p class="fdsmall">PDF, photos, scans · <button class="linkbtn" data-go="reglages" data-sv="mail">tu les reçois par e-mail ? Relier une adresse</button></p></div>
+  ${window.guideCard ? guideCard() : ""}`;
   return `<div class="addrow">
     <span class="ghost">${IC.up} Déposer des fichiers<input type="file" id="files" multiple aria-label="Déposer des fichiers"></span>
     <span class="ghost">${IC.folder} Importer un dossier<input type="file" id="dirIn" webkitdirectory multiple aria-label="Importer un dossier"></span>

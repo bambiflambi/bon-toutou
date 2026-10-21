@@ -20,13 +20,13 @@ trier = function () {
   if (S.tmode === "liste") return modeSwitch() + trierListe().replace(/^<h1>Trier<\/h1>/, "");
   const P = S.inbox || [], Q = queue(), p = Q[0], sure = P.filter(isHi);
   return `${modeSwitch()}
-  <p class="lead">${P.length ? `${P.length} ${plural(P.length, "document")} à trier. <b>On ne va pas y passer la journée.</b>` : "Rien à trier."} Bon toutou propose, tu décides. Il ne détruit rien.</p>
+  <p class="lead">${P.length ? `${P.length} ${plural(P.length, "document")} à trier. <b>On ne va pas y passer la journée.</b> Bon toutou propose, tu décides. Il ne détruit rien.` : firstUse(P) ? "Ton bureau est encore vide : c'est ici que tout commence." : "Rien à trier. Bon toutou propose, tu décides. Il ne détruit rien."}</p>
   ${trierAdd(P)}
   ${S.st.counts.a_identifier ? `<div class="card box suresbar"><span class="oi">${IC.search}</span><div class="grow"><b>${S.st.counts.a_identifier} ${plural(S.st.counts.a_identifier, "document")} à identifier</b><div class="sub">Mis de côté avec « Inconnu », dans 00_A-TRIER/_A-IDENTIFIER.</div></div><button class="ghost small" data-act="c-unknown-back">Les revoir</button></div>` : ""}
   ${S.imported || P.some((x) => x.origin) ? understood(P) : ""}
   ${(() => { const U = P.filter(isUnknown); return U.length > 1 ? `<div class="card box suresbar"><span class="oi">${IC.search}</span><div class="grow"><b>${U.length} ${plural(U.length, "document inconnu", "documents inconnus")}</b><div class="sub">Type non reconnu ou confiance faible. Mets-les de côté pour avancer : ils attendent dans « À identifier » et ne reviennent pas avec un nouvel import. Annulable.</div></div><button class="ghost small" data-act="c-unknown-all">Mettre de côté les ${U.length}</button></div>` : ""; })()}
   ${sure.length > 1 && (S.st.settings.propositions) ? `<div class="card box suresbar"><span class="oi" style="background:var(--success-light);color:var(--success)">${IC.check}</span><div class="grow"><b>${sure.length} ${plural(sure.length, "document sûr", "documents sûrs")}</b><div class="sub">Confiance élevée, aucun conflit : rangés comme proposé, en une fois (dans Documents, sauf les anciennes versions). Annulable.</div></div><button class="cta small" data-act="c-sure">Ranger les sûrs d'un coup</button></div>` : ""}
-  ${p ? card(p, Q.length) : !S.busy ? `<div class="card" style="padding:28px;text-align:center"><span class="oi" style="margin:0 auto 10px;background:var(--success-light);color:var(--success)">${IC.check}</span><b>Tout est trié.</b><div class="sub">Dépose un fichier ou un dossier ci-dessus.</div></div>` : ""}`;
+  ${p ? card(p, Q.length) : !S.busy && !firstUse(P) ? `<div class="card" style="padding:28px;text-align:center"><span class="oi" style="margin:0 auto 10px;background:var(--success-light);color:var(--success)">${IC.check}</span><b>Tout est trié.</b><div class="sub">Dépose un fichier ou un dossier ci-dessus.</div></div>` : ""}`;
 };
 function modeSwitch() {
   return `<div class="thead"><h1>Trier</h1><div class="seg" role="tablist" aria-label="Affichage">

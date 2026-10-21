@@ -791,6 +791,9 @@ class Bureau:
         except sortie.SortieRefusee:
             raise
         except Exception as e:
+            if "SSLCertVerification" in type(e).__name__ or "CERTIFICATE_VERIFY_FAILED" in str(e):
+                raise ValueError(f"Bon toutou n'a pas pu vérifier le certificat de sécurité de {host}. Si un antivirus ou un VPN "
+                                 "inspecte tes connexions, mets-le en pause le temps du test ; sinon, signale-le (Réglages › Signaler un problème).")
             raise ValueError(f"Impossible de joindre {host} ({type(e).__name__}). Vérifie ta connexion internet et le nom du serveur.")
 
     @staticmethod
