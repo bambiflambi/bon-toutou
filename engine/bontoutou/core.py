@@ -18,6 +18,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import time
 import threading
 import uuid
 import zipfile
@@ -45,8 +46,8 @@ DOC_FIELDS = ("id", "suivi", "type", "label", "person", "country", "cat", "sub",
               "orig_name", "sha", "status", "added_at", "note", "detail", "extra")
 DOSSIER_FIELDS = ("id", "template", "recipient", "country", "created_at", "state", "assign", "folder", "zip", "manifest",
                   "finalized_at", "sent_at")
-PROFILE_KEYS = ("owner", "propositions", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders", "owner_aliases", "fiche")          # suivent l'utilisateur sur tous ses appareils
-DEVICE_KEYS = ("theme", "analyse_version", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic", "navigateur", "ai_banc", "mail_guide", "mail_rules", "mail_known")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
+PROFILE_KEYS = ("owner", "propositions", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders", "owner_aliases", "fiche", "demandes")          # suivent l'utilisateur sur tous ses appareils
+DEVICE_KEYS = ("theme", "analyse_version", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic", "navigateur", "ai_banc", "mail_guide", "mail_rules", "mail_known", "mail_since")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
 # Niveaux de confidentialité par défaut (catégorie -> local | autorisation | externe). Un document non trié est « local ».
 DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "09": "local", "10": "local", "13": "local",
                    "02": "autorisation", "03": "autorisation", "07": "autorisation", "12": "autorisation", "14": "autorisation",
@@ -174,7 +175,7 @@ class Bureau:
             write_json(self.device_settings_path, {"format": FORMAT, **{k: o[k] for k in DEVICE_KEYS if k in o}})
             os.replace(old, old + ".migre")
         self.newer_data = False
-        self.settings = {"countries": ["FR", "NZ"], "propositions": False, "analyse_version": "", "use_ollama": False, "ollama_model": "", "owner": "", "ai_mode": "texte", "ai_engine": "auto", "ai_bench": {}, "ai_never": False, "maj_auto": False, "maj_last": "", "navigateur": "", "ai_banc": {}, "mail_guide": {}, "mail_rules": {}, "mail_known": [],
+        self.settings = {"countries": ["FR", "NZ"], "propositions": False, "analyse_version": "", "use_ollama": False, "ollama_model": "", "owner": "", "ai_mode": "texte", "ai_engine": "auto", "ai_bench": {}, "ai_never": False, "maj_auto": False, "maj_last": "", "navigateur": "", "ai_banc": {}, "mail_guide": {}, "mail_rules": {}, "mail_known": [], "mail_since": "", "demandes": [],
                          "privacy": dict(DEFAULT_PRIVACY), "disabled_packs": [],
                          "holders": [], "guide": {"etape": 0, "fini": False, "masque": False},
                          "mail": "", "mail_host": "", "mail_port": 993, "mail_auto": False, "mail_days": 90, "mail_saved": False,
@@ -770,7 +771,8 @@ class Bureau:
         name, host, port, help_url, no = mail.provider_for(s.get("mail"), s.get("mail_host"), s.get("mail_port"))
         return {"address": s.get("mail") or "", "provider": name, "host": host, "port": port, "help": help_url, "unsupported": no,
                 "saved": bool(s.get("mail_saved")), "where": trousseau.where(), "auto": bool(s.get("mail_auto")),
-                "days": int(s.get("mail_days") or 90), "seen": self.db.execute("SELECT COUNT(*) FROM mail_seen").fetchone()[0],
+                "days": int(s.get("mail_days") or 90), "since": s.get("mail_since") or "",
+                "discarded": self.db.execute("SELECT COUNT(*) FROM mail_seen WHERE inbox_id='ecarte'").fetchone()[0], "seen": self.db.execute("SELECT COUNT(*) FROM mail_seen").fetchone()[0],
                 "providers": sorted({v[0] for v in mail.PROVIDERS.values()})}
 
     def _mail_open(self, consent, what, address=None, password=None, host=None, port=None):
@@ -821,28 +823,64 @@ class Bureau:
         self.save_settings({"mail": address, "mail_host": custom, "mail_port": port, "mail_saved": True})
         return {"ok": True, "provider": name, "messages": n, "keychain": safe, "where": trousseau.where(), "status": self.mail_status()}
 
-    def mail_scan(self, consent=False, days=None):
-        """Liste les pièces jointes récentes (noms seulement, rien n'est téléchargé)."""
+    def mail_window(self, days=None):
+        """Jusqu'où relire : la période choisie à la première relève, puis seulement depuis la dernière relève traitée."""
+        if days:
+            return int(days)
+        since = self.settings.get("mail_since") or ""
+        try:
+            return max(3, (today() - dt.date.fromisoformat(since)).days + 3)
+        except ValueError:
+            return int(self.settings.get("mail_days") or 90)
+
+    def mail_scan(self, consent=False, days=None, show_discarded=False):
+        """Liste les pièces jointes (noms seulement, rien n'est téléchargé). Les pièces déjà copiées ne reviennent jamais ;
+        celles que tu as écartées non plus, sauf si tu demandes à les revoir."""
         try:
             M, _ = self._mail_open(consent, "Liste des pièces jointes (en-têtes seulement)")
         except (ValueError, sortie.SortieRefusee) as e:
             return {"ok": False, "msg": str(e)}
+        n_days = self.mail_window(days)
+        disc = {r[0] for r in self.db.execute("SELECT key FROM mail_seen WHERE inbox_id='ecarte'")}
         try:
             seen = {r[0] for r in self.db.execute("SELECT key FROM mail_seen")}
-            items = mail.scan(M, int(days or self.settings.get("mail_days") or 90), seen)
+            if show_discarded:
+                seen -= disc
+            items = mail.scan(M, n_days, seen, limit=300 if n_days <= 120 else 3000)
         except Exception as e:
             return {"ok": False, "msg": f"Lecture de la boîte impossible ({type(e).__name__})."}
         finally:
             self._mail_close(M)
         self._mail_cache = {i["key"]: i for i in items}
-        return {"ok": True, "items": self._mail_triage(items)}
+        T = self._mail_triage(items)
+        for i in T:
+            if i["key"] in disc:
+                i.update(group="ecarte", why=["écarté par toi"], level="", discarded=True)
+        return {"ok": True, "items": T, "days": n_days}
+
+    def mail_discard(self, keys, back=False):
+        """Écarter des pièces jointes : elles ne reviennent plus à la relève (le mail reste intact dans ta boîte). back = les rétablir."""
+        keys = [k for k in keys or [] if isinstance(k, str)]
+        if back:
+            for k in keys:
+                self.db.execute("DELETE FROM mail_seen WHERE key=? AND inbox_id='ecarte'", (k,))
+        else:
+            for k in keys:
+                self.db.execute("INSERT OR IGNORE INTO mail_seen VALUES(?,?,?,?)", (k, now(), None, "ecarte"))
+        self.db.commit()
+        return {"ok": True, "n": len(keys)}
 
     def _mail_triage(self, items):
         """Arbitrage local (aucune connexion) : papiers administratifs / à toi de voir / écartés, avec les raisons."""
         from . import liens
         s = self.settings
         T = mail.triage(items, s.get("mail_rules") or {}, s.get("mail_known") or [], [s.get("mail") or ""], liens.hosts())
-        return [{k: i.get(k) for k in ("key", "filename", "size", "from", "from_addr", "subject", "date", "group", "why")} for i in T]
+        def level(i):
+            if i["group"] == "ecarte":
+                return ""
+            sc = i.get("score") or 0
+            return "sûr" if sc >= 5 and i["group"] == "admin" else "probable" if sc >= 3 else "à vérifier"
+        return [dict({k: i.get(k) for k in ("key", "filename", "size", "from", "from_addr", "subject", "date", "group", "why")}, level=level(i)) for i in T]
 
     def mail_rule(self, addr, rule):
         """« Toujours accepter » / « toujours ignorer » un expéditeur (adresse ou domaine) ; "" retire la règle. Réglage de cet appareil."""
@@ -858,12 +896,18 @@ class Bureau:
         cache = getattr(self, "_mail_cache", {}) or {}
         return {"ok": True, "rules": R, "items": self._mail_triage(list(cache.values()))}
 
-    def mail_import(self, keys, consent=False):
+    def mail_import(self, keys, consent=False, discard=None):
         """Copie les pièces jointes choisies dans Trier. Le mail reste intact (lu en lecture seule, jamais marqué lu)."""
         cache = getattr(self, "_mail_cache", {}) or {}
         want = [cache[k] for k in keys or [] if k in cache]
+        if discard:   # les pièces non cochées de la liste : écartées, elles ne reviendront pas
+            self.mail_discard([k for k in discard if k not in (keys or [])])
+            for k in discard:
+                cache.pop(k, None)
+        if discard is not None:
+            self.save_settings({"mail_since": today().isoformat()})
         if not want:
-            return {"ok": False, "msg": "Rien à copier : relance la liste."}
+            return {"ok": True, "added": 0, "dup": 0, "failed": 0, "discarded": len(discard or [])} if discard else {"ok": False, "msg": "Rien à copier : relance la liste."}
         try:
             M, _ = self._mail_open(consent, f"Copie de {len(want)} pièce(s) jointe(s) dans Trier")
         except (ValueError, sortie.SortieRefusee) as e:
@@ -894,7 +938,7 @@ class Bureau:
             self._mail_close(M)
             if len(known) != n_known:
                 self.save_settings({"mail_known": sorted(known)[-500:]})
-        return {"ok": True, "added": added, "dup": dup, "failed": failed}
+        return {"ok": True, "added": added, "dup": dup, "failed": failed, "discarded": len([k for k in (discard or []) if k not in (keys or [])])}
 
     def mail_auto_run(self):
         """Relève à l'ouverture (si tu l'as activée) : liste puis copie tout ce qui est nouveau dans Trier."""
@@ -1225,7 +1269,7 @@ class Bureau:
                               + (f" · ancien{'s' if len(closed) > 1 else ''} employeur{'s' if len(closed) > 1 else ''} dans Anciennes versions" if closed else ""), ops)
             return {"ok": True, "done": done, "batch": b, "closed": closed}
 
-    def ignore(self, iid, folder="_IGNORES", state="ignore", label="Document ignoré (gardé dans 00_A-TRIER/_IGNORES)"):
+    def ignore(self, iid, folder="_IGNORES", state="ignore", label="Pièce écartée (gardée dans 00_A-TRIER/_IGNORES)"):
         with self.lock:
             row = self.db.execute("SELECT * FROM inbox WHERE id=? AND state='a_trier'", (iid,)).fetchone()
             if not row:
@@ -1245,7 +1289,7 @@ class Bureau:
 
     def known_sha(self, h):
         """Ce contenu exact a déjà été traité : rangé (docs), ignoré ou mis de côté « à identifier »."""
-        return bool(self.db.execute("SELECT 1 FROM docs WHERE sha=? UNION SELECT 1 FROM inbox WHERE sha=? AND state IN ('ignore','a_identifier')",
+        return bool(self.db.execute("SELECT 1 FROM docs WHERE sha=? UNION SELECT 1 FROM inbox WHERE sha=? AND state IN ('ignore','a_identifier','supprime')",
                                     (h, h)).fetchone())
 
     def unknown_many(self, ids):
@@ -1288,6 +1332,141 @@ class Bureau:
             if not n:
                 return {"ok": True, "n": 0}
             return {"ok": True, "n": n, "batch": self._journal(f"{n} document{'s' if n > 1 else ''} à identifier remis dans Trier", ops)}
+
+    # ------------------------------------------------------------ tournée « Aller chercher » (v0.11)
+    TOUR_EXT = (".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif", ".tif", ".tiff")
+
+    @staticmethod
+    def downloads_dir():
+        """Le dossier Téléchargements de cet ordinateur (lu seulement pendant une tournée, jamais modifié)."""
+        home = os.path.expanduser("~")
+        for name in ("Downloads", "Téléchargements"):
+            p = os.path.join(home, name)
+            if os.path.isdir(p):
+                return p
+        return None
+
+    def _downloads(self):
+        d = self.downloads_dir()
+        out = {}
+        if not d:
+            return out
+        try:
+            for f in os.listdir(d):
+                p = os.path.join(d, f)
+                if f.startswith(".") or not f.lower().endswith(self.TOUR_EXT) or not os.path.isfile(p):
+                    continue   # .crdownload, .download, .part… : téléchargement pas fini
+                st = os.stat(p)
+                out[p] = (st.st_mtime, st.st_size)
+        except OSError:
+            pass
+        return out
+
+    def tour_start(self):
+        """Commence une tournée : Bon toutou regarde les NOUVEAUX fichiers de Téléchargements, rien d'autre."""
+        d = self.downloads_dir()
+        if not d:
+            return {"ok": False, "msg": "Dossier Téléchargements introuvable sur cet ordinateur."}
+        self._tour = {"t0": time.time(), "before": self._downloads(), "sizes": {}, "got": []}
+        return {"ok": True, "dir": d}
+
+    def tour_poll(self):
+        """Les fichiers arrivés depuis le début de la tournée (taille stable) sont copiés dans Trier ; l'original reste où il est."""
+        T = getattr(self, "_tour", None)
+        if not T:
+            return {"ok": False, "active": False, "got": []}
+        for p, (mt, size) in sorted(self._downloads().items(), key=lambda x: x[1][0]):
+            if p in T["before"] and T["before"][p] == (mt, size):
+                continue
+            if mt < T["t0"] - 2 or size <= 0 or any(g["path"] == p for g in T["got"]):
+                continue
+            if T["sizes"].get(p) != size:   # encore en train de s'écrire : on attend le passage suivant
+                T["sizes"][p] = size
+                continue
+            try:
+                with open(p, "rb") as f:
+                    data = f.read()
+            except OSError:
+                continue
+            iid = self.add_upload(os.path.basename(p), data, source="Tournée")
+            row = self.db.execute("SELECT analysis FROM inbox WHERE id=?", (iid,)).fetchone() if iid else None
+            try:
+                an = json.loads(row["analysis"]) if row and row["analysis"] else {}
+            except ValueError:
+                an = {}
+            T["got"].append({"path": p, "name": os.path.basename(p), "inbox_id": iid or None,
+                             "status": "ajoute" if iid else ("deja_trier" if iid is None else "deja_range"),
+                             "type": an.get("type"), "label": (classify.TYPES.get(an.get("type")) or {}).get("label", "")})
+        return {"ok": True, "active": True, "got": [{k: g[k] for k in ("name", "inbox_id", "status", "type", "label")} for g in T["got"]]}
+
+    def demande(self, d_type, action="add"):
+        """« J'ai fait la demande » (passeport, casier, acte…) : suivie dans « Demandes en cours » jusqu'à la réception.
+        action : add | cancel. Gardé dans le profil (suit l'utilisateur sur ses appareils)."""
+        L = [d for d in (self.settings.get("demandes") or []) if d.get("type") != d_type]
+        if action == "add":
+            L.append({"type": d_type, "date": today().isoformat()})
+        self.save_settings({"demandes": L})
+        return {"ok": True, "demandes": L}
+
+    def tour_stop(self):
+        T = getattr(self, "_tour", None)
+        self._tour = None
+        got = (T or {}).get("got", [])
+        return {"ok": True, "added": sum(1 for g in got if g["status"] == "ajoute"), "n": len(got)}
+
+    # ------------------------------------------------------------ pièces écartées (v0.10.5)
+    def ignored(self):
+        """Les pièces écartées de Trier : gardées dans 00_A-TRIER/_IGNORES jusqu'à ce que TU les supprimes."""
+        out = []
+        for r in self.db.execute("SELECT id, path, orig_name, added_at, source FROM inbox WHERE state='ignore' ORDER BY added_at DESC").fetchall():
+            p = self.abs(r["path"])
+            out.append({"id": r["id"], "name": r["orig_name"] or os.path.basename(r["path"]), "source": r["source"] or "",
+                        "added": (r["added_at"] or "")[:10], "size": os.path.getsize(p) if os.path.exists(p) else 0, "present": os.path.exists(p)})
+        return {"items": out, "n": len(out), "bytes": sum(x["size"] for x in out)}
+
+    def ignore_back(self, ids=None):
+        """Remet dans Trier des pièces écartées (toutes, ou celles choisies). Annulable."""
+        with self.lock:
+            ops, n = [], 0
+            rows = self.db.execute("SELECT * FROM inbox WHERE state='ignore'").fetchall()
+            for row in rows:
+                if ids and row["id"] not in ids:
+                    continue
+                src, newp = self.abs(row["path"]), row["path"]
+                if os.path.exists(src):
+                    dst = unique_path(self.inbox_dir, os.path.basename(src))
+                    self._move(src, dst, ops)
+                    newp = self.rel(dst)
+                ops.append({"t": "inbox", "id": row["id"], "state": "ignore", "path": row["path"]})
+                self.db.execute("UPDATE inbox SET state='a_trier', path=? WHERE id=?", (newp, row["id"]))
+                n += 1
+            if not n:
+                return {"ok": True, "n": 0}
+            return {"ok": True, "n": n, "batch": self._journal(f"{n} pièce{'s' if n > 1 else ''} écartée{'s' if n > 1 else ''} remise{'s' if n > 1 else ''} dans Trier", ops)}
+
+    def purge_ignored(self, ids=None, confirm=False):
+        """Suppression DÉFINITIVE, décidée par toi seul (Réglages › Pièces écartées, confirmation) : seuls les fichiers de
+        00_A-TRIER/_IGNORES, jamais un document rangé ni un original. L'empreinte est gardée : la pièce ne reviendra pas."""
+        if confirm is not True:
+            return {"ok": False, "msg": "Confirmation nécessaire."}
+        base = os.path.realpath(os.path.join(self.inbox_dir, "_IGNORES")) + os.sep
+        with self.lock:
+            n, freed = 0, 0
+            for row in self.db.execute("SELECT * FROM inbox WHERE state='ignore'").fetchall():
+                if ids and row["id"] not in ids:
+                    continue
+                p = os.path.realpath(self.abs(row["path"]))
+                if os.path.exists(p):
+                    if not p.startswith(base):
+                        continue   # garde-fou : on ne supprime jamais ailleurs
+                    freed += os.path.getsize(p)
+                    os.remove(p)
+                self.db.execute("UPDATE inbox SET state='supprime' WHERE id=?", (row["id"],))
+                n += 1
+            self.db.commit()
+            if n:
+                self._journal(f"{n} pièce{'s' if n > 1 else ''} écartée{'s' if n > 1 else ''} supprimée{'s' if n > 1 else ''} définitivement (par toi)", [])
+            return {"ok": True, "n": n, "bytes": freed}
 
     # ------------------------------------------------------------ documents
     def _doc_pub(self, d):
@@ -2751,6 +2930,7 @@ class Bureau:
             "ia": {"machine": self._machine(), "engines": ia.engines(), "catalogue": ia.catalogue(), "pulls": ia.PULLS},
             "counts": {"inbox": c("SELECT COUNT(*) FROM inbox WHERE state='a_trier'"),
                        "a_identifier": c("SELECT COUNT(*) FROM inbox WHERE state='a_identifier'"),
+                       "ecartes": c("SELECT COUNT(*) FROM inbox WHERE state='ignore'"),
                        "old_jobs": self._old_jobs_count(),
                        "docs": c("SELECT COUNT(*) FROM docs WHERE status='actuel'"),
                        "old": c("SELECT COUNT(*) FROM docs WHERE status='ancienne_version'"),

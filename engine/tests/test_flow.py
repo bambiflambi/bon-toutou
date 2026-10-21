@@ -620,5 +620,61 @@ check(all(_seen_names), "banc : le nom du fichier (qui contient la réponse) est
 check((b.settings.get("ai_banc") or {}).get("modele-test", {}).get("mot") == "fiable" and "ai_banc" not in json.load(open(b.profile_path)),
       "banc : résultat gardé sur cet appareil seulement")
 check(_BC._cmp_type("bulletin_paie", "carte_identite") == "faux" and _BC._cmp_date("2025-03-10", "2025-03-01") == "proche", "banc : comparaison juste / proche / faux")
+
+# 0.10.5 : écarter une pièce de Trier, la remettre, la supprimer définitivement (par toi seulement)
+_p = os.path.join(root, "piece-sans-interet.pdf")
+pdf(_p, ["Publicite sans interet", "Offre speciale du mois 2026"])
+_bytes = open(_p, "rb").read()
+_iid = b.add_upload("piece-sans-interet.pdf", _bytes)
+os.remove(_p)
+r = b.ignore(_iid)
+_ig = b.ignored()
+check(r["ok"] and _ig["n"] >= 1 and any(x["id"] == _iid for x in _ig["items"]), "écarter : la pièce part dans 00_A-TRIER/_IGNORES, listée dans Pièces écartées")
+r = b.ignore_back([_iid])
+check(r["ok"] and r["n"] == 1 and b.db.execute("SELECT state FROM inbox WHERE id=?", (_iid,)).fetchone()[0] == "a_trier", "remettre dans Trier : annule l'écart")
+b.ignore(_iid)
+_path = b.abs(b.db.execute("SELECT path FROM inbox WHERE id=?", (_iid,)).fetchone()[0])
+check(not b.purge_ignored([_iid])["ok"] and os.path.exists(_path), "supprimer définitivement : rien sans confirmation")
+r = b.purge_ignored([_iid], confirm=True)
+check(r["ok"] and r["n"] == 1 and not os.path.exists(_path) and "_IGNORES" in _path, "supprimer définitivement : seulement le fichier écarté, avec ta confirmation")
+check(b.add_upload("piece-sans-interet.pdf", _bytes) is False, "une pièce supprimée ne revient pas si tu la réimportes")
+
+# 0.11 : aller chercher — collecte et tournée (Téléchargements lu seulement, copié dans Trier)
+from bontoutou import retrouver as _R11
+_c = _R11.collecte(b)
+check(_c["site"] and all(x["state"] in ("due", "ok") for x in _c["site"]) and any(x["id"] == "avis_impot" for x in _c["site"]),
+      "collecte : avis d'impôt, attestation ameli… avec leur état (à aller chercher / à jour)")
+check(not any(x["id"] == "allocation_caf" for x in _c["site"]) or b.db.execute("SELECT 1 FROM docs WHERE type='allocation_caf'").fetchone(),
+      "collecte : la CAF n'est proposée qu'aux allocataires")
+check(any(x["id"] == "releve_bancaire" for x in _c["mail"]) and _c["banque"], "collecte : relevés bancaires et pièces de la banque attendus par mail")
+_dl = tempfile.mkdtemp()
+_old_dl = Bureau.downloads_dir
+Bureau.downloads_dir = staticmethod(lambda: _dl)
+pdf(os.path.join(_dl, "ancien.pdf"), ["Deja la avant la tournee"])
+check(b.tour_start()["ok"], "tournée : démarre en regardant Téléchargements")
+pdf(os.path.join(_dl, "avis_impot_2026.pdf"), ["DIRECTION GENERALE DES FINANCES PUBLIQUES", "AVIS D'IMPOT 2026 SUR LES REVENUS 2025", "Impot sur le revenu net"])
+open(os.path.join(_dl, "gros.pdf.crdownload"), "wb").write(b"%PDF en cours")
+r1 = b.tour_poll(); r2 = b.tour_poll()
+_names = [g["name"] for g in r2["got"]]
+check(_names == ["avis_impot_2026.pdf"] and r2["got"][0]["status"] == "ajoute", "tournée : seul le nouveau fichier fini est pris (pas l'ancien, pas le téléchargement en cours)")
+check(os.path.exists(os.path.join(_dl, "avis_impot_2026.pdf")), "tournée : le fichier téléchargé reste dans Téléchargements (copie seulement)")
+check(r2["got"][0]["type"] == "avis_impot", "tournée : le fichier est reconnu (avis d'impôt)")
+check(b.tour_stop()["added"] == 1 and not b.tour_poll()["active"], "tournée : terminée, plus rien n'est regardé")
+Bureau.downloads_dir = _old_dl
+
+# 0.11.1 : la carte des sources (toutes les pièces de toutes les situations) et les demandes en cours
+_k = _R11.carte(b)
+_all = [x for c in _k["canaux"].values() for x in c]
+check(len(_all) >= 60 and all(x["canal"] in _R11.CANAUX for x in _all), "carte : chaque pièce demandée par une situation a son guichet et son canal")
+_rb = next(x for x in _all if x["type"] == "releve_bancaire")
+check(_rb["canal"] == "mail" and _rb["guichet"] == "banque" and _rb["n"] >= 10, "carte : relevés bancaires = banque, par mail, demandés dans plus de 10 situations")
+_pp = next(x for x in _k["canaux"]["demander"] if x["type"] == "casier_judiciaire")
+check(_pp["delai"] and _pp["url"], "carte : le casier judiciaire se demande, avec son délai et son site")
+b.demande("casier_judiciaire")
+_k2 = _R11.carte(b)
+check(not any(x["type"] == "casier_judiciaire" for x in _k2["canaux"]["demander"]) and any(c["type"] == "casier_judiciaire" and not c["recu"] for c in _k2["cours"]),
+      "demande faite : la pièce passe de « À demander » à « Demandes en cours »")
+b.demande("casier_judiciaire", "cancel")
+check(not _R11.carte(b)["cours"], "demande annulée : elle revient dans « À demander »")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)", "· bureau de test :", root)
 sys.exit(1 if fails else 0)

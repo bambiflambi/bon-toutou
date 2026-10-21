@@ -36,7 +36,7 @@ function mailView() {
     <div class="grow"><b>${esc(M.address)}</b><div class="sub">${esc(M.provider)} · reliée · mot de passe dans ${esc(M.where)}${M.seen ? ` · ${M.seen} ${plural(M.seen, "pièce jointe déjà copiée", "pièces jointes déjà copiées")}` : ""}</div></div>
     <button class="linkbtn" data-act="ml-forget">Oublier le mot de passe</button></div>
     <label class="consent"><input type="checkbox" id="ml_auto" ${M.auto ? "checked" : ""}> Relever à l'ouverture de Bon toutou (les nouvelles pièces jointes arrivent dans Trier ; tu valides toujours)</label>
-    <div class="acts" style="margin-top:12px"><button class="cta small" data-act="ml-scan">${IC.sync} Voir les pièces jointes des ${M.days} derniers jours</button></div>
+    ${mlScanBar(M)}
     ${L.msg ? `<div class="hint warn">${esc(L.msg)}</div>` : ""}</div>
   ${items ? mlGroups(items, sel) : ""}
   ${never}`;
@@ -75,22 +75,25 @@ document.addEventListener("click", async (e) => {
     S.mst = r.status; await load();
     return toast(r.keychain ? `Reliée · mot de passe rangé dans ${r.where}` : "Reliée · mot de passe gardé jusqu'à la fermeture (pas de trousseau trouvé)");
   }
-  if (act === "ml-scan") {
-    L.busy = "Lecture des noms des pièces jointes…"; render();
-    const r = await api("/api/mail/scan", { consent: true });
-    L.busy = "";
-    if (!r.ok) { L.msg = r.msg; return render(); }
-    L.items = r.items; L.sel = new Set(r.items.filter((i) => i.group === "admin").map((i) => i.key)); L.showEc = false; return render();
-  }
+  if (act === "ml-scan") return mlScan(a.dataset.days ? +a.dataset.days : null, !!a.dataset.disc);
   if (act === "ml-import") {
     const keys = [...L.sel];
-    L.busy = `Copie de ${keys.length} ${plural(keys.length, "pièce jointe", "pièces jointes")} dans Trier…`; render();
-    const r = await api("/api/mail/import", { keys, consent: true });
+    const discard = (L.items || []).filter((i) => !L.sel.has(i.key) && !i.discarded).map((i) => i.key);
+    L.busy = keys.length ? `Copie de ${keys.length} ${plural(keys.length, "pièce jointe", "pièces jointes")} dans Trier…` : "Mise à l'écart…"; render();
+    const r = await api("/api/mail/import", { keys, consent: true, discard });
     L.busy = "";
     if (!r.ok) { L.msg = r.msg; return render(); }
-    L.items = (L.items || []).filter((i) => !L.sel.has(i.key)); L.sel = new Set();
+    L.items = null; L.sel = new Set();
     S.mst = await api("/api/mail/status", {}); await load();
-    return toast(`${r.added} ${plural(r.added, "document copié", "documents copiés")} dans Trier${r.dup ? ` · ${r.dup} déjà là` : ""}${r.failed ? ` · ${r.failed} illisible${r.failed > 1 ? "s" : ""}` : ""}`);
+    return toast(`${r.added || 0} ${plural(r.added || 0, "document copié", "documents copiés")} dans Trier${r.dup ? ` · ${r.dup} déjà là` : ""}${r.discarded ? ` · ${r.discarded} ${plural(r.discarded, "pièce écartée", "pièces écartées")}` : ""}${r.failed ? ` · ${r.failed} illisible${r.failed > 1 ? "s" : ""}` : ""}`);
+  }
+  if (act === "ml-disc" || act === "ml-undisc") {
+    const k = a.dataset.k, back = act === "ml-undisc";
+    await api("/api/mail/discard", { keys: [k], back });
+    if (back) { const it = (L.items || []).find((i) => i.key === k); if (it) { it.discarded = false; it.group = "voir"; it.why = ["rétabli par toi"]; } }
+    else { L.items = (L.items || []).filter((i) => i.key !== k); L.sel.delete(k); }
+    S.mst = await api("/api/mail/status", {}); render();
+    return toast(back ? "Rétablie : elle reviendra à la relève" : "Écartée : elle ne reviendra plus");
   }
   if (act === "ml-forget") { const r = await api("/api/mail/forget", {}); S.mst = r.status; L.items = null; await load(); return toast("Mot de passe retiré du trousseau"); }
 });
@@ -115,7 +118,8 @@ function mlRow(i, sel) {
   const R = (S.st.settings.mail_rules || {})[(i.from_addr || "").toLowerCase()];
   return `<div class="mlrow"><label class="mlpick"><input type="checkbox" data-mlk="${esc(i.key)}" ${sel.has(i.key) ? "checked" : ""} aria-label="Copier ${esc(i.filename)}">
     <div class="grow"><b class="mlname">${esc(i.filename)}</b><div class="sub">${esc(i.from || i.from_addr)} · ${esc(i.subject || "(sans objet)")} · ${frd(i.date)} · ${ko(i.size)}</div>
-      <div class="mlwhy">${(i.why || []).map((w) => `<span>${esc(w)}</span>`).join("")}</div></div></label>
+      <div class="mlwhy">${i.level ? `<span class="lvl ${i.level === "sûr" ? "ok" : i.level === "probable" ? "mid" : "low"}">${esc(i.level)}</span>` : ""}${(i.why || []).map((w) => `<span>${esc(w)}</span>`).join("")}</div></div></label>
+    ${`<div class="mlact">${i.discarded ? `<button class="linkbtn" data-act="ml-undisc" data-k="${esc(i.key)}">Rétablir</button>` : `<button class="linkbtn" data-act="ml-disc" data-k="${esc(i.key)}">Écarter</button>`}</div>`}
     ${i.from_addr ? `<div class="mlact">${R ? `<button class="linkbtn" data-act="ml-rule" data-a="${esc(i.from_addr)}" data-r="">${R === "accepter" ? "toujours accepté" : "toujours ignoré"} · annuler</button>`
       : `<button class="linkbtn" data-act="ml-rule" data-a="${esc(i.from_addr)}" data-r="accepter">Toujours accepter</button><button class="linkbtn" data-act="ml-rule" data-a="${esc(i.from_addr)}" data-r="ignorer">Toujours ignorer</button>`}</div>` : ""}</div>`;
 }
@@ -130,7 +134,7 @@ function mlGroups(items, sel) {
       ${fold ? "" : `<div class="card">${L.map((i) => mlRow(i, sel)).join("")}</div>`}</div>`; };
   return `<div class="label" style="margin:22px 0 8px">${items.length} ${plural(items.length, "pièce jointe nouvelle", "pièces jointes nouvelles")} · seuls les noms ont été lus</div>
     ${sec("admin")}${sec("voir")}${sec("ecarte")}
-    <div class="mlbar"><span class="sub">Copiées dans Trier : le mail reste tel quel dans ta boîte.</span><button class="cta" data-act="ml-import" ${sel.size ? "" : "disabled"}>Copier ${sel.size} dans Trier</button></div>`;
+    <div class="mlbar"><span class="sub">Les pièces non cochées sont écartées et ne reviendront plus (« Revoir les pièces écartées » pour changer d'avis). Tes mails restent intacts.</span><button class="cta" data-act="ml-import">${sel.size ? `Copier ${sel.size} dans Trier et écarter le reste` : "Écarter toute la liste"}</button></div>`;
 }
 document.addEventListener("click", async (e) => {
   const a = e.target.closest("[data-act]"); if (!a) return;
@@ -148,4 +152,30 @@ document.addEventListener("click", async (e) => {
     render();
     return toast(a.dataset.r === "accepter" ? "Expéditeur toujours accepté" : a.dataset.r === "ignorer" ? "Expéditeur toujours ignoré" : "Règle retirée");
   }
+});
+
+/* v0.10.5 : jusqu'où relire, puis seulement les nouveautés ; « Revoir les pièces écartées » */
+const ML_PER = [[90, "3 mois"], [365, "1 an"], [1095, "3 ans"], [10950, "Tout"]];
+function mlScanBar(M) {
+  if (!M.since) return `<div class="mlper"><b>Première relève : depuis quand ?</b><div class="sub">Plus la période est longue, plus la lecture prend de temps (jusqu'à quelques minutes pour « Tout »). Seuls les noms des pièces jointes sont lus.</div>
+    <div class="mlperb">${ML_PER.map(([d, l]) => `<button class="${d === 90 ? "cta" : "ghost"} small" data-act="ml-scan" data-days="${d}">${l}</button>`).join("")}</div></div>`;
+  return `<div class="acts" style="margin-top:12px"><button class="cta small" data-act="ml-scan">${IC.sync} Relever les nouvelles pièces jointes</button>
+    <span class="sub">depuis le ${frd(M.since)}</span>
+    ${M.discarded ? `<button class="linkbtn" data-act="ml-scan" data-disc="1">Revoir les pièces écartées (${M.discarded})</button>` : ""}
+    <button class="linkbtn" data-act="ml-period">Relire une période plus longue</button></div>
+    ${S.ml.period ? `<div class="mlperb" style="margin-top:8px">${ML_PER.map(([d, l]) => `<button class="ghost small" data-act="ml-scan" data-days="${d}">${l}</button>`).join("")}</div>` : ""}`;
+}
+async function mlScan(days, disc) {
+  const L = S.ml;
+  L.msg = ""; L.period = false;
+  L.busy = days && days > 365 ? "Lecture d'une longue période de mails… cela peut prendre quelques minutes." : "Lecture des noms des pièces jointes…"; render();
+  const r = await api("/api/mail/scan", { consent: true, days: days || undefined, discarded: !!disc });
+  L.busy = "";
+  if (!r.ok) { L.msg = r.msg; return render(); }
+  L.items = r.items; L.sel = new Set(r.items.filter((i) => i.group === "admin" && !i.discarded).map((i) => i.key)); L.showEc = !!disc;
+  return render();
+}
+document.addEventListener("click", (e) => {
+  const a = e.target.closest('[data-act="ml-period"]'); if (!a) return;
+  S.ml.period = !S.ml.period; render();
 });

@@ -567,3 +567,136 @@ def residence(B, today=None):
         casiers.insert(0, {"country": "FR", "jours": span.get("FR", 0), "nationalite": True})
     return {"periods": [{"country": p["country"], "lieu": p["lieu"], "from": p["from"].isoformat(), "to": p["to"].isoformat(), "n": p["n"],
                          "sources": sorted(p["sources"])[:4]} for p in periods], "casiers": casiers}
+
+
+# ------------------------------------------------------------------ v0.11 « Aller chercher »
+def collecte(B, today=None):
+    """Ce qu'il faut aller chercher sur les sites (tu te connectes, Bon toutou reconnaît le fichier téléchargé)
+    et ce qui peut arriver tout seul par mail. Pour chaque pièce : où elle en est dans ton bureau."""
+    today = today or dt.date.today()
+    C = pack().get("collecte") or {}
+
+    def last(types):
+        q = ",".join("?" * len(types))
+        rows = B.db.execute(f"SELECT id, doc_date, person FROM docs WHERE type IN ({q}) AND status IN ('actuel','ancienne_version','termine') "
+                            "ORDER BY doc_date DESC", types).fetchall()
+        rows = [r for r in rows if _is_me(B, r)] or rows
+        return rows[0] if rows else None
+
+    site = []
+    for it in C.get("site", []):
+        r = last(it["types"])
+        if not r and not it.get("always"):
+            continue   # tu n'es pas concerné (pas d'allocations, pas inscrit à France Travail…)
+        d = (r["doc_date"] or "") if r else ""
+        state, msg = "due", "pas encore dans ton bureau"
+        if d:
+            try:
+                dd = dt.date.fromisoformat(d)
+            except ValueError:
+                dd = None
+            if dd and it.get("rythme") == "annuel":
+                m = int(it.get("mois") or 1)
+                ready = today.year if today.month >= m else today.year - 1
+                state = "ok" if dd.year >= ready else "due"
+                msg = f"celui de {dd.year} est dans ton bureau" if state == "ok" else f"le dernier date du {_fr(d)} : le nouveau est disponible"
+            elif dd:
+                age = (today - dd).days
+                state = "ok" if age <= int(it.get("jours") or 90) else "due"
+                msg = f"à jour (du {_fr(d)})" if state == "ok" else f"le dernier date du {_fr(d)}"
+        site.append(dict(it, state=state, msg=msg, doc_id=r["id"] if r else None))
+    mail = []
+    for it in C.get("mail", []):
+        r = last(it["types"])
+        mail.append(dict(it, last=_fr(r["doc_date"]) if r and r["doc_date"] else "", doc_id=r["id"] if r else None))
+    due = [x for x in site if x["state"] == "due"]
+    return {"site": sorted(site, key=lambda x: x["state"] != "due"), "mail": mail, "due": len(due),
+            "minutes": sum(int(x.get("min") or 2) for x in due), "banque": C.get("banque_utiles", [])}
+
+
+# ------------------------------------------------------------------ v0.11.1 la carte des sources
+CANAUX = ("telecharger", "demander", "mail", "produire", "garder")
+
+
+def carte(B, today=None):
+    """Toutes les pièces demandées par au moins une situation (le « pire cas »), avec qui les délivre (guichet),
+    comment on les obtient (canal), combien de situations les demandent, et où elles en sont dans ton bureau.
+    Les demandes déjà faites (réglage `demandes`) sont suivies à part jusqu'à la réception."""
+    from .catalog import TEMPLATES
+    today = today or dt.date.today()
+    P = pack()
+    SRC, G = P.get("sources") or {}, P.get("guichets") or {}
+    site_info = {x["id"]: x for x in (P.get("collecte") or {}).get("site", [])}
+    mail_info = {x["id"]: x for x in (P.get("collecte") or {}).get("mail", [])}
+    need = {}     # type -> {count, fresh, valid, pieces}
+    pieces = []
+    for tid, T in TEMPLATES.items():
+        for p in T.get("pieces", []):
+            ts = [t for t in p.get("types", []) if t]
+            pieces.append(ts)
+            for t in ts:
+                n = need.setdefault(t, {"sit": set(), "fresh": None, "valid": False})
+                n["sit"].add(T.get("label", tid))
+                if p.get("fresh"):
+                    n["fresh"] = min(n["fresh"] or 10 ** 6, int(p["fresh"]))
+                n["valid"] = n["valid"] or bool(p.get("valid"))
+    rows = B.db.execute("SELECT id, type, doc_date, expiry, person, added_at FROM docs WHERE status IN ('actuel','ancienne_version','termine')").fetchall()
+    by = {}
+    for r in rows:
+        by.setdefault(r["type"], []).append(r)
+
+    def latest(t):
+        L = by.get(t) or []
+        L = [r for r in L if _is_me(B, r)] or L
+        return max(L, key=lambda r: r["doc_date"] or "") if L else None
+
+    def state(t):
+        r, n = latest(t), need.get(t) or {}
+        if not r:
+            return "manquant", "pas encore dans ton bureau", None
+        exp, d = _date(r["expiry"]), _date(r["doc_date"])
+        if n.get("valid") and exp and (exp - today).days < 30:
+            return "renouveler", (f"expiré le {_fr(r['expiry'])}" if exp < today else f"expire le {_fr(r['expiry'])}"), r["id"]
+        if n.get("fresh") and d and (today - d).days > n["fresh"]:
+            return "renouveler", f"le dernier date du {_fr(r['doc_date'])} (il faut moins de {n['fresh']} jours)", r["id"]
+        return "ok", (f"à jour (du {_fr(r['doc_date'])})" if d else "dans ton bureau"), r["id"]
+
+    st = {t: state(t) for t in need}
+    dem = {d.get("type"): d for d in (B.settings.get("demandes") or []) if d.get("type")}
+    items = []
+    for t, n in need.items():
+        g, canal, delai = (SRC.get(t) or ["garder", "garder"]) + [None] * (3 - len(SRC.get(t) or ["", ""]))
+        s_, msg, did = st[t]
+        if s_ == "manquant":   # couvert par une autre pièce acceptée partout où celle-ci est demandée (ex. CNI ↔ passeport)
+            alts = [ts for ts in pieces if t in ts]
+            if alts and all(any(st.get(o, ("manquant",))[0] == "ok" for o in ts if o != t) for ts in alts):
+                s_, msg = "couvert", "remplacé par une autre pièce que tu as"
+        info = site_info.get(t) or {}
+        GG = G.get(g) or {}
+        items.append({"type": t, "label": (TYPES.get(t) or {}).get("label", t), "guichet": g, "guichet_label": GG.get("label", g),
+                      "url": info.get("url") or GG.get("url"), "canal": canal, "delai": delai, "n": len(n["sit"]),
+                      "situations": sorted(n["sit"])[:6], "fresh": n["fresh"], "state": s_, "msg": msg, "doc_id": did,
+                      "chemin": info.get("chemin"), "quand": info.get("quand") or (mail_info.get(t) or {}).get("quand"),
+                      "comment": (mail_info.get(t) or {}).get("comment"), "note": ((P.get("renouveler") or {}).get(t) or {}).get("note"),
+                      "min": info.get("min", 2)})
+    # demandes en cours : reçues dès qu'un document de ce type arrive après la date de la demande
+    cours = []
+    for t, d in dem.items():
+        it = next((x for x in items if x["type"] == t), None)
+        L = by.get(t) or []
+        got = [r for r in L if (r["added_at"] or "")[:10] >= (d.get("date") or "")]
+        dd = _date(d.get("date"))
+        delai = (it or {}).get("delai") or (SRC.get(t) or [None, None, 7])[2] or 7
+        cours.append({"type": t, "label": (TYPES.get(t) or {}).get("label", t), "guichet_label": (it or {}).get("guichet_label", ""),
+                      "date": d.get("date"), "prevu": (dd + dt.timedelta(days=int(delai))).isoformat() if dd else None,
+                      "recu": bool(got), "doc_id": got[0]["id"] if got else None, "url": (it or {}).get("url")})
+    todo = lambda x: x["state"] in ("manquant", "renouveler")
+    out = {c: [] for c in CANAUX}
+    for x in sorted(items, key=lambda x: (not todo(x), -x["n"], x["label"])):
+        if x["canal"] == "demander" and x["type"] in dem and not next((c for c in cours if c["type"] == x["type"] and c["recu"]), None):
+            continue   # déjà demandée : elle est dans « Demandes en cours »
+        out.setdefault(x["canal"], []).append(x)
+    due = [x for x in out.get("telecharger", []) if todo(x)]
+    return {"canaux": out, "cours": sorted(cours, key=lambda c: c["date"] or ""), "due": len(due),
+            "a_demander": sum(1 for x in out.get("demander", []) if todo(x)), "minutes": sum(int(x.get("min") or 2) for x in due),
+            "banque": (P.get("collecte") or {}).get("banque_utiles", [])}

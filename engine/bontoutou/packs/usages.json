@@ -7,16 +7,18 @@
  "renouveler": {
   "attestation_secu": {
    "organisme": "Ameli",
-   "url": "https://www.ameli.fr",
+   "url": "https://assure.ameli.fr",
    "rythme": "demande",
-   "note": "Téléchargeable à tout moment, datée du jour."
+   "note": "Téléchargeable à tout moment, datée du jour.",
+   "chemin": "Mes démarches en 2 clics › Attestation de droits (ou « Mes documents »)"
   },
   "avis_impot": {
    "organisme": "impots.gouv.fr",
    "url": "https://www.impots.gouv.fr",
    "rythme": "annuel",
    "mois": 8,
-   "note": "Publié chaque année fin juillet."
+   "note": "Publié chaque année fin juillet.",
+   "chemin": "Espace particulier › Documents › avis d'impôt sur les revenus le plus récent"
   },
   "declaration_revenus": {
    "organisme": "impots.gouv.fr",
@@ -92,12 +94,14 @@
   "attestation_france_travail": {
    "organisme": "France Travail",
    "url": "https://www.francetravail.fr",
-   "rythme": "demande"
+   "rythme": "demande",
+   "chemin": "Espace personnel › Mes échanges et documents › Mes documents › Mes attestations"
   },
   "allocation_caf": {
    "organisme": "CAF",
    "url": "https://www.caf.fr",
-   "rythme": "demande"
+   "rythme": "demande",
+   "chemin": "Mon Compte › Mes attestations › paiement ou quotient familial › période › Télécharger"
   },
   "attestation_vigilance": {
    "organisme": "Urssaf",
@@ -183,6 +187,20 @@
    "organisme": "Info-retraite (Mon certificat de vie)",
    "url": "https://www.info-retraite.fr",
    "rythme": "annuel"
+  },
+  "ifu": {
+   "organisme": "Ta banque",
+   "url": null,
+   "rythme": "annuel",
+   "mois": 4,
+   "note": "Envoyé en mars ou début avril si tu as de l'épargne imposable ; aussi dans ton espace client."
+  },
+  "frais_bancaires": {
+   "organisme": "Ta banque",
+   "url": null,
+   "rythme": "annuel",
+   "mois": 2,
+   "note": "Envoyé en janvier."
   }
  },
  "usages": {
@@ -1191,5 +1209,618 @@
    ],
    "years": 10
   }
- ]
+ ],
+ "collecte": {
+  "_doc": "v0.11 « Aller chercher » : les pièces qu'un utilisateur classique doit récupérer. site = tu te connectes et tu télécharges (Bon toutou reconnaît le fichier) ; mail = l'organisme peut l'envoyer à ton adresse admin. always = proposé à tout le monde ; sinon seulement si tu as déjà ce type de papier.",
+  "site": [
+   {
+    "id": "avis_impot",
+    "label": "Avis d'impôt sur le revenu",
+    "types": [
+     "avis_impot"
+    ],
+    "organisme": "impots.gouv.fr",
+    "url": "https://www.impots.gouv.fr",
+    "chemin": [
+     "Connecte-toi à ton espace particulier (ou avec FranceConnect).",
+     "Ouvre « Documents ».",
+     "Clique sur l'avis d'impôt sur les revenus le plus récent, puis télécharge-le."
+    ],
+    "quand": "Chaque année, fin juillet : un mail des impôts te prévient.",
+    "rythme": "annuel",
+    "mois": 8,
+    "always": true,
+    "min": 2
+   },
+   {
+    "id": "attestation_secu",
+    "label": "Attestation de droits à l'Assurance Maladie",
+    "types": [
+     "attestation_secu"
+    ],
+    "organisme": "Ameli",
+    "url": "https://assure.ameli.fr",
+    "chemin": [
+     "Connecte-toi à ton compte ameli.",
+     "« Mes démarches en 2 clics » › « Attestation de droits » (ou rubrique « Mes documents »).",
+     "Télécharge-la : elle est datée du jour."
+    ],
+    "quand": "À la demande ; souvent exigée de moins de 3 mois.",
+    "rythme": "demande",
+    "jours": 90,
+    "always": true,
+    "min": 2
+   },
+   {
+    "id": "assurance_habitation",
+    "label": "Attestation d'assurance habitation",
+    "types": [
+     "assurance_habitation"
+    ],
+    "organisme": "Ton assureur habitation",
+    "url": null,
+    "chemin": [
+     "Connecte-toi à ton espace client chez ton assureur.",
+     "Cherche « Mes documents » ou « Attestations ».",
+     "Télécharge l'attestation d'assurance habitation de l'année en cours."
+    ],
+    "quand": "Chaque année, à l'échéance de ton contrat.",
+    "rythme": "demande",
+    "jours": 365,
+    "always": true,
+    "min": 3
+   },
+   {
+    "id": "releve_carriere",
+    "label": "Relevé de carrière",
+    "types": [
+     "releve_carriere"
+    ],
+    "organisme": "Info-retraite",
+    "url": "https://www.info-retraite.fr",
+    "chemin": [
+     "Connecte-toi avec FranceConnect.",
+     "Ouvre ton relevé de carrière.",
+     "Télécharge-le en PDF."
+    ],
+    "quand": "Une fois par an suffit : vérifie qu'il ne manque aucune période.",
+    "rythme": "demande",
+    "jours": 365,
+    "always": true,
+    "min": 3
+   },
+   {
+    "id": "allocation_caf",
+    "label": "Attestation CAF (paiement ou quotient familial)",
+    "types": [
+     "allocation_caf"
+    ],
+    "organisme": "CAF",
+    "url": "https://www.caf.fr",
+    "chemin": [
+     "Connecte-toi à Mon Compte.",
+     "Clique sur « Mes attestations ».",
+     "Choisis paiement ou quotient familial, la période, puis « Télécharger »."
+    ],
+    "quand": "À la demande.",
+    "rythme": "demande",
+    "jours": 90,
+    "always": false,
+    "min": 2
+   },
+   {
+    "id": "attestation_france_travail",
+    "label": "Attestation France Travail",
+    "types": [
+     "attestation_france_travail"
+    ],
+    "organisme": "France Travail",
+    "url": "https://www.francetravail.fr",
+    "chemin": [
+     "Connecte-toi à ton espace personnel.",
+     "« Mes échanges et documents » › « Mes documents » › « Mes attestations ».",
+     "Choisis l'attestation (paiement, périodes, fiscale…) et télécharge-la."
+    ],
+    "quand": "À la demande.",
+    "rythme": "demande",
+    "jours": 90,
+    "always": false,
+    "min": 2
+   }
+  ],
+  "mail": [
+   {
+    "id": "releve_bancaire",
+    "label": "Relevés de compte",
+    "types": [
+     "releve_bancaire"
+    ],
+    "organisme": "Ta banque",
+    "quand": "Chaque mois.",
+    "comment": "Dans ton espace client : active les relevés en ligne et l'envoi d'une alerte, ou l'envoi du relevé par e-mail, vers ton adresse admin."
+   },
+   {
+    "id": "rib",
+    "label": "RIB",
+    "types": [
+     "rib"
+    ],
+    "organisme": "Ta banque",
+    "quand": "Une fois : il ne change pas tant que le compte existe.",
+    "comment": "Télécharge-le une fois dans ton espace client (« RIB / IBAN ») et dépose-le dans Trier."
+   },
+   {
+    "id": "ifu",
+    "label": "Imprimé fiscal unique (IFU)",
+    "types": [
+     "ifu"
+    ],
+    "organisme": "Ta banque",
+    "quand": "En mars ou début avril, si tu as de l'épargne imposable.",
+    "comment": "Souvent envoyé par courrier ou déposé dans l'espace client : utile pour ta déclaration de revenus."
+   },
+   {
+    "id": "frais_bancaires",
+    "label": "Récapitulatif annuel des frais",
+    "types": [
+     "frais_bancaires"
+    ],
+    "organisme": "Ta banque",
+    "quand": "En janvier.",
+    "comment": "Envoyé chaque année ; utile pour vérifier ou contester des frais."
+   },
+   {
+    "id": "bulletin_paie",
+    "label": "Fiches de paie",
+    "types": [
+     "bulletin_paie"
+    ],
+    "organisme": "Ton employeur",
+    "quand": "Chaque mois.",
+    "comment": "Demande l'envoi par e-mail à ton adresse admin, ou télécharge-les depuis ton coffre-fort numérique."
+   },
+   {
+    "id": "facture_energie",
+    "label": "Factures d'énergie, eau, internet",
+    "types": [
+     "facture_energie"
+    ],
+    "organisme": "Tes fournisseurs",
+    "quand": "Chaque mois ou chaque trimestre.",
+    "comment": "Dans chaque espace client : choisis la facture électronique envoyée par e-mail à ton adresse admin. Elles servent de justificatif de domicile."
+   }
+  ],
+  "banque_utiles": [
+   "Relevés des 3 derniers mois (location, crédit, visa)",
+   "RIB (employeur, CAF, impôts, location)",
+   "IFU (déclaration de revenus)",
+   "Attestation de solde ou d'épargne (visa : preuve de fonds)",
+   "Offre de prêt et tableau d'amortissement (si tu as un crédit)",
+   "Récapitulatif annuel des frais"
+  ]
+ },
+ "guichets": {
+  "_doc": "v0.11.1 : qui délivre chaque pièce. canal par défaut : telecharger (tu te connectes et tu télécharges), mail (arrive à ton adresse admin), demander (délai, rendez-vous), produire (c'est toi), garder (délivré une fois, rien à renouveler), etranger.",
+  "impots": {
+   "label": "impots.gouv.fr",
+   "url": "https://www.impots.gouv.fr"
+  },
+  "ameli": {
+   "label": "Ameli",
+   "url": "https://assure.ameli.fr"
+  },
+  "caf": {
+   "label": "CAF",
+   "url": "https://www.caf.fr"
+  },
+  "francetravail": {
+   "label": "France Travail",
+   "url": "https://www.francetravail.fr"
+  },
+  "inforetraite": {
+   "label": "Info-retraite",
+   "url": "https://www.info-retraite.fr"
+  },
+  "ants": {
+   "label": "ANTS · mairie",
+   "url": "https://ants.gouv.fr"
+  },
+  "casier": {
+   "label": "Casier judiciaire national",
+   "url": "https://casier-judiciaire.justice.gouv.fr"
+  },
+  "etatcivil": {
+   "label": "État civil (mairie, service-public.fr)",
+   "url": "https://www.service-public.gouv.fr/particuliers/vosdroits/F1427"
+  },
+  "insee": {
+   "label": "INSEE (avis SIRENE)",
+   "url": "https://avis-situation-sirene.insee.fr"
+  },
+  "histovec": {
+   "label": "HistoVec",
+   "url": "https://histovec.interieur.gouv.fr"
+  },
+  "banque": {
+   "label": "Ta banque",
+   "url": null
+  },
+  "employeur": {
+   "label": "Ton employeur",
+   "url": null
+  },
+  "assureur": {
+   "label": "Tes assureurs",
+   "url": null
+  },
+  "fournisseur": {
+   "label": "Tes fournisseurs (énergie, internet)",
+   "url": null
+  },
+  "bailleur": {
+   "label": "Ton bailleur ou ton agence",
+   "url": null
+  },
+  "medecin": {
+   "label": "Ton médecin",
+   "url": null
+  },
+  "tiers": {
+   "label": "Un proche ou un tiers",
+   "url": null
+  },
+  "toi": {
+   "label": "Toi",
+   "url": null
+  },
+  "garder": {
+   "label": "Délivré une fois",
+   "url": null
+  },
+  "etranger": {
+   "label": "Administrations étrangères",
+   "url": null
+  },
+  "ird": {
+   "label": "Inland Revenue (NZ)",
+   "url": "https://myir.ird.govt.nz"
+  },
+  "garage": {
+   "label": "Ton garage",
+   "url": null
+  }
+ },
+ "sources": {
+  "_doc": "type -> [guichet, canal, délai en jours pour une demande]",
+  "passeport": [
+   "ants",
+   "demander",
+   42
+  ],
+  "carte_identite": [
+   "ants",
+   "demander",
+   42
+  ],
+  "permis_conduire": [
+   "ants",
+   "demander",
+   30
+  ],
+  "permis_international": [
+   "ants",
+   "demander",
+   15
+  ],
+  "carte_grise": [
+   "ants",
+   "demander",
+   7
+  ],
+  "casier_judiciaire": [
+   "casier",
+   "demander",
+   1
+  ],
+  "acte_naissance": [
+   "etatcivil",
+   "demander",
+   10
+  ],
+  "acte_mariage": [
+   "etatcivil",
+   "demander",
+   10
+  ],
+  "non_pacs": [
+   "etatcivil",
+   "demander",
+   7
+  ],
+  "livret_famille": [
+   "garder",
+   "garder"
+  ],
+  "pacs": [
+   "garder",
+   "garder"
+  ],
+  "contrat_mariage": [
+   "garder",
+   "garder"
+  ],
+  "avis_impot": [
+   "impots",
+   "telecharger"
+  ],
+  "taxe_fonciere": [
+   "impots",
+   "telecharger"
+  ],
+  "numero_fiscal": [
+   "garder",
+   "garder"
+  ],
+  "declaration_revenus": [
+   "impots",
+   "telecharger"
+  ],
+  "attestation_secu": [
+   "ameli",
+   "telecharger"
+  ],
+  "ceam": [
+   "ameli",
+   "demander",
+   15
+  ],
+  "releve_carriere": [
+   "inforetraite",
+   "telecharger"
+  ],
+  "attestation_france_travail": [
+   "francetravail",
+   "telecharger"
+  ],
+  "allocation_caf": [
+   "caf",
+   "telecharger"
+  ],
+  "entreprise_statuts": [
+   "insee",
+   "telecharger"
+  ],
+  "non_gage": [
+   "histovec",
+   "telecharger"
+  ],
+  "releve_bancaire": [
+   "banque",
+   "mail"
+  ],
+  "epargne": [
+   "banque",
+   "mail"
+  ],
+  "releve_portefeuille": [
+   "banque",
+   "mail"
+  ],
+  "ifu": [
+   "banque",
+   "mail"
+  ],
+  "frais_bancaires": [
+   "banque",
+   "mail"
+  ],
+  "attestation_bancaire": [
+   "banque",
+   "demander",
+   3
+  ],
+  "rib": [
+   "banque",
+   "garder"
+  ],
+  "immo_pret": [
+   "banque",
+   "garder"
+  ],
+  "bulletin_paie": [
+   "employeur",
+   "mail"
+  ],
+  "contrat_travail": [
+   "employeur",
+   "garder"
+  ],
+  "certificat_travail": [
+   "employeur",
+   "garder"
+  ],
+  "attestation_employeur": [
+   "employeur",
+   "demander",
+   7
+  ],
+  "reference_emploi": [
+   "employeur",
+   "demander",
+   7
+  ],
+  "autorisation_teletravail": [
+   "employeur",
+   "demander",
+   7
+  ],
+  "assurance_sante_internationale": [
+   "assureur",
+   "telecharger"
+  ],
+  "assurance_voyage": [
+   "assureur",
+   "telecharger"
+  ],
+  "assurance_habitation": [
+   "assureur",
+   "telecharger"
+  ],
+  "assurance_vehicule": [
+   "assureur",
+   "telecharger"
+  ],
+  "releve_information_auto": [
+   "assureur",
+   "demander",
+   15
+  ],
+  "facture_energie": [
+   "fournisseur",
+   "mail"
+  ],
+  "justificatif_domicile": [
+   "fournisseur",
+   "mail"
+  ],
+  "attestation_energie": [
+   "fournisseur",
+   "telecharger"
+  ],
+  "quittance_loyer": [
+   "bailleur",
+   "mail"
+  ],
+  "bail": [
+   "bailleur",
+   "garder"
+  ],
+  "immo_etat_lieux": [
+   "garder",
+   "garder"
+  ],
+  "immo_locataire": [
+   "garder",
+   "garder"
+  ],
+  "immo_achat": [
+   "garder",
+   "garder"
+  ],
+  "immo_vente": [
+   "garder",
+   "garder"
+  ],
+  "immo_copro": [
+   "garder",
+   "garder"
+  ],
+  "immo_travaux": [
+   "garder",
+   "garder"
+  ],
+  "immo_appel_fonds": [
+   "garder",
+   "garder"
+  ],
+  "diplome": [
+   "garder",
+   "garder"
+  ],
+  "certificat": [
+   "garder",
+   "garder"
+  ],
+  "test_langue": [
+   "garder",
+   "garder"
+  ],
+  "facture": [
+   "garder",
+   "garder"
+  ],
+  "facture_emise": [
+   "garder",
+   "garder"
+  ],
+  "contrat_client": [
+   "garder",
+   "garder"
+  ],
+  "courrier_litige": [
+   "garder",
+   "garder"
+  ],
+  "certificat_successoral": [
+   "garder",
+   "garder"
+  ],
+  "testament": [
+   "garder",
+   "garder"
+  ],
+  "vaccination_internationale": [
+   "garder",
+   "garder"
+  ],
+  "photo_identite": [
+   "toi",
+   "produire"
+  ],
+  "cv": [
+   "toi",
+   "produire"
+  ],
+  "lettre_motivation": [
+   "toi",
+   "produire"
+  ],
+  "billet_itineraire": [
+   "toi",
+   "produire"
+  ],
+  "vie_commune": [
+   "toi",
+   "produire"
+  ],
+  "attestation_hebergement": [
+   "tiers",
+   "demander",
+   3
+  ],
+  "declaration_tiers": [
+   "tiers",
+   "demander",
+   7
+  ],
+  "certificat_medical": [
+   "medecin",
+   "demander",
+   7
+  ],
+  "examen_medical_visa": [
+   "medecin",
+   "demander",
+   14
+  ],
+  "ird_assessment": [
+   "ird",
+   "telecharger"
+  ],
+  "visa": [
+   "etranger",
+   "demander",
+   30
+  ],
+  "titre_sejour": [
+   "etranger",
+   "demander",
+   60
+  ],
+  "controle_vehicule": [
+   "garage",
+   "demander",
+   3
+  ]
+ }
 }

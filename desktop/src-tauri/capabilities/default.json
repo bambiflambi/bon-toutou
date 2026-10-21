@@ -234,6 +234,12 @@
         },
         {
           "url": "https://www.urssaf.fr"
+        },
+        {
+          "url": "https://assure.ameli.fr/*"
+        },
+        {
+          "url": "https://assure.ameli.fr"
         }
       ]
     }

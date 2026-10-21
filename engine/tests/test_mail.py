@@ -121,6 +121,22 @@ check(r["ok"] and r["added"] == 0 and r["dup"] == 1, "même fichier déjà dans 
 check(all(c[0] != "select" or c[2] is True for c in CALLS), "boîte toujours ouverte en lecture seule")
 check(all("PEEK" in c[3] for c in CALLS if c[0] == "uid" and c[1] == "FETCH"), "lecture sans marquer comme lu (BODY.PEEK)")
 
+# ---------- 4 bis (v0.10.5). écarter, revoir, rétablir ; période de relève
+b.db.execute("DELETE FROM mail_seen"); b.db.commit()
+b.save_settings({"mail_since": ""})
+check(b.mail_window() == 90 and b.mail_window(365) == 365, "première relève : la période choisie (90 jours par défaut)")
+r = b.mail_scan(consent=True); k = r["items"][0]["key"]
+check(r["items"][0].get("level") in ("sûr", "probable", "à vérifier"), "pertinence dite en mots (sûr / probable / à vérifier)")
+r = b.mail_import([], consent=True, discard=[k])
+check(r["ok"] and r["discarded"] == 1, "les pièces non cochées sont écartées")
+check(b.mail_scan(consent=True)["items"] == [], "une pièce écartée ne revient plus à la relève")
+r = b.mail_scan(consent=True, show_discarded=True)
+check(r["items"] and r["items"][0]["group"] == "ecarte" and r["items"][0].get("discarded"), "« Revoir les pièces écartées » les montre")
+b.mail_discard([k], back=True)
+check(len(b.mail_scan(consent=True)["items"]) == 1, "rétablie : elle revient dans la liste")
+check(b.settings.get("mail_since") == __import__("datetime").date.today().isoformat() and b.mail_window() <= 5,
+      "ensuite, la relève ne lit que depuis la dernière relève traitée")
+
 # ---------- 5. relève à l'ouverture et oubli
 check(b.mail_auto_run().get("skipped"), "relève automatique désactivée par défaut")
 b.save_settings({"mail_auto": True}); b.db.execute("DELETE FROM mail_seen"); b.db.commit()

@@ -808,10 +808,70 @@ h1 .whoname{font-size:.6em}
 .mlbar{position:sticky;bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;margin-top:8px;border-radius:16px;background:var(--card);box-shadow:var(--shadow-lg);border:1px solid var(--border-light)}
 @media (max-width:640px){.mlrow{flex-direction:column;align-items:stretch}.mlact{flex-direction:row;justify-content:flex-start;gap:14px;padding-left:34px}}
 
-/* v0.10.4 : grand écran — plus large et plus grand, proportions gardées */
-@media (min-width:1500px){body{zoom:1.1}.wrap{max-width:1180px}}
-@media (min-width:1800px){body{zoom:1.22}.wrap{max-width:1240px}}
-@media (min-width:2300px){body{zoom:1.45}}
-@media (min-width:3000px){body{zoom:1.75}}
+/* v0.10.5 : l'app prend la largeur de la fenêtre, quel que soit l'écran (petites marges qui grandissent avec lui) ;
+   les écrans s'organisent en colonnes selon la place disponible ; le texte grossit un peu sur les très grands écrans. */
+.wrap{max-width:none}
+.app{padding-inline:clamp(16px,3.2vw,56px)}
+@media (min-width:2200px){body{zoom:1.15}}
+@media (min-width:2900px){body{zoom:1.35}}
+.lead,.oblead{max-width:72ch}
+.homecols{display:block}
+@media (min-width:1100px){
+  .homecols{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(380px,1fr);gap:24px;align-items:start}
+  .homecols .today{margin-bottom:0}
+  .homecols .tiles.hometiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .homecols .hright .calcard{margin-top:0}
+}
+@media (min-width:1100px){.ccard{min-height:clamp(520px,72vh,1000px)}}
 .tiles.hometiles{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:720px){.tiles.hometiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* v0.10.5 : pertinence en mots, période de relève, relève dans Trier, écarter */
+.mlwhy .lvl{font-weight:700}
+.mlwhy .lvl.ok{background:var(--success-light);color:var(--success)}
+.mlwhy .lvl.mid{background:var(--accent-light);color:var(--accent-dark)}
+.mlwhy .lvl.low{background:var(--warning-light);color:var(--warning)}
+.mlper{margin-top:12px;padding:14px 16px;border-radius:14px;background:var(--bg)}
+.mlper b{font-size:15px}
+.mlperb{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.trmail{margin-bottom:16px;border:2px solid var(--accent-light)}
+.trmhead{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.trmhead .grow{flex:1;min-width:0}
+.ghost.on{border-color:var(--accent);background:var(--accent-light)}
+.linkbtn.danger{color:var(--danger)}
+.cta.danger{background:var(--danger)}.cta.danger:hover{background:#a30010}
+.etfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.etfoot kbd{font-size:11px}
+
+/* v0.11 : aller chercher */
+.colbar{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.colbar .grow{flex:1;min-width:0}
+.colbar.on{border:2px solid var(--accent);background:var(--accent-light)}
+.pulse{width:14px;height:14px;border-radius:50%;background:var(--success);flex-shrink:0;box-shadow:0 0 0 0 rgba(36,138,61,.5);animation:pulse 1.6s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 12px rgba(36,138,61,0)}100%{box-shadow:0 0 0 0 rgba(36,138,61,0)}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+.colgot{margin-bottom:8px}
+.colrow{border-top:1px solid var(--border-light)}.colrow:first-child{border-top:0}
+.colhead{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:0;background:none;text-align:left;cursor:pointer}
+.colhead .grow{flex:1;min-width:0}.colhead b{display:block;font-size:15.5px}.colhead small{display:block;font-size:13px;color:var(--text-tertiary)}
+.colhead .chev{color:var(--text-tertiary)}
+.colrow.done .colhead b{color:var(--text-secondary)}
+.colrow.open{background:var(--bg)}
+.colbody{padding:0 16px 16px 66px}
+.colmail{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.colmail p{margin:6px 0 0;font-size:13.5px;color:var(--text-secondary)}
+@media (max-width:640px){.colbody{padding-left:16px}.colbar{flex-wrap:wrap}}
+/* v0.11.1 : carte des sources */
+.colsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 14px}
+.colsumi{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border:1px solid var(--border-light);border-radius:14px;background:var(--card);text-align:left;cursor:pointer}
+.colsumi:hover{border-color:var(--accent)}
+.colsumi b{font-size:22px;line-height:1.1}.colsumi span{font-size:13px;color:var(--text-secondary)}
+.colsumi.warn b{color:var(--warning)}
+.colsec{margin:22px 0 0;scroll-margin-top:16px}
+.colsh{display:flex;justify-content:space-between;align-items:flex-end;margin:0 0 8px}
+.colsh b{font-size:17px}.colsh .sub{margin-top:2px}
+.coln{font-size:12px;color:var(--text-tertiary);white-space:nowrap}
+.colmore{display:block;width:100%;padding:11px 16px;border:0;border-top:1px solid var(--border-light);background:none;color:var(--accent-dark);font-weight:600;font-size:13.5px;text-align:left;cursor:pointer}
+.colbody p{margin:0 0 10px;font-size:14px}
+.colbody{padding:0 16px 16px 16px}
+@media (max-width:640px){.coln{display:none}}

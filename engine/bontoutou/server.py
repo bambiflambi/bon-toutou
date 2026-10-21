@@ -144,6 +144,12 @@ class H(BaseHTTPRequestHandler):
                 return self._json({"engines": ia.engines(force=q.get("force") == "1"), "pulls": ia.PULLS})
             if p == "/api/ia/banc":
                 return self._json(banc.status(B))
+            if p == "/api/ignored":
+                return self._json(B.ignored())
+            if p == "/api/carte":
+                return self._json(dict(retrouver.carte(B), tour=bool(getattr(B, "_tour", None)), downloads=B.downloads_dir() or ""))
+            if p == "/api/collecte":
+                return self._json(dict(retrouver.collecte(B), tour=bool(getattr(B, "_tour", None)), downloads=B.downloads_dir() or ""))
             if p == "/api/events":
                 return self._json(B.events())
             if p == "/api/contacts":
@@ -301,6 +307,18 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.restore(data.get("file")))
             if p == "/api/unknown/many":
                 return self._json(B.unknown_many(data.get("ids")))
+            if p == "/api/demande":
+                return self._json(B.demande(data.get("type"), data.get("action", "add")))
+            if p == "/api/tour/start":
+                return self._json(B.tour_start())
+            if p == "/api/tour/poll":
+                return self._json(B.tour_poll())
+            if p == "/api/tour/stop":
+                return self._json(B.tour_stop())
+            if p == "/api/ignored/back":
+                return self._json(B.ignore_back(data.get("ids")))
+            if p == "/api/ignored/purge":
+                return self._json(B.purge_ignored(data.get("ids"), confirm=data.get("confirm") is True))
             if p == "/api/unknown/back":
                 return self._json(B.unknown_back())
             if p == "/api/mail/status":
@@ -309,9 +327,11 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.mail_connect(data.get("address", ""), data.get("password", ""), data.get("host"), data.get("port"),
                                                  consent=data.get("consent") is True))
             if p == "/api/mail/scan":
-                return self._json(B.mail_scan(consent=data.get("consent") is True, days=data.get("days")))
+                return self._json(B.mail_scan(consent=data.get("consent") is True, days=data.get("days"), show_discarded=bool(data.get("discarded"))))
             if p == "/api/mail/import":
-                return self._json(B.mail_import(data.get("keys") or [], consent=data.get("consent") is True))
+                return self._json(B.mail_import(data.get("keys") or [], consent=data.get("consent") is True, discard=data.get("discard")))
+            if p == "/api/mail/discard":
+                return self._json(B.mail_discard(data.get("keys") or [], back=bool(data.get("back"))))
             if p == "/api/mail/auto":
                 return self._json(B.mail_auto_run())
             if p == "/api/mail/rule":

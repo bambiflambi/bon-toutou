@@ -2538,6 +2538,36 @@
         "residence certificate"
       ],
       "fn": []
+    },
+    "ifu": {
+      "label": "Imprimé fiscal unique (IFU)",
+      "slug": "IFU",
+      "cat": "04",
+      "sub": "04-3",
+      "suivi": "none",
+      "kw": [
+        "imprime fiscal unique",
+        "imprimé fiscal unique",
+        "revenus de capitaux mobiliers",
+        "ifu "
+      ],
+      "fn": [
+        "ifu"
+      ]
+    },
+    "frais_bancaires": {
+      "label": "Récapitulatif annuel des frais bancaires",
+      "slug": "Frais-bancaires",
+      "cat": "05",
+      "sub": "05-1",
+      "suivi": "none",
+      "kw": [
+        "recapitulatif annuel des frais",
+        "récapitulatif annuel des frais",
+        "releve annuel des frais",
+        "relevé annuel des frais"
+      ],
+      "fn": []
     }
   },
   "contribution": {

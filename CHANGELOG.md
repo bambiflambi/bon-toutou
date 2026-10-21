@@ -2,6 +2,40 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.11.1 — La carte des sources
+- **« Aller chercher » est maintenant déduite des situations** : toutes les pièces demandées par au moins une des 25 situations (le « pire cas »), chacune avec **son guichet** (impots.gouv, Ameli, ANTS, banque, employeur, assureurs…) et le **nombre de situations** qui la demandent. Ajouter une situation enrichit la page toute seule.
+- **Cinq façons d'obtenir une pièce**, chacune dans sa partie :
+  - **Télécharger sur les sites** : la tournée de la 0.11 (chemin dans le site, bouton, Téléchargements regardé pendant la tournée) ;
+  - **À demander** : passeport, carte d'identité, casier, actes, attestation de solde, attestations employeur… avec le délai à prévoir et « J'ai fait la demande » ;
+  - **Par mail** : relevés, fiches de paie, quittances, factures (via ton adresse admin) ;
+  - **À produire toi-même** : photo d'identité, CV, lettre de motivation… ;
+  - **Délivrés une fois** : diplômes, actes d'achat, bail, contrat de travail… (rien à renouveler).
+- **Demandes en cours** : une pièce demandée quitte « À demander » ; Bon toutou affiche la date à laquelle l'attendre, et la reconnaît quand elle arrive dans ton bureau. « Terminer le suivi » ou « annuler ».
+- État de chaque pièce selon l'exigence la plus stricte des situations : à aller chercher, à renouveler (trop ancienne ou bientôt expirée), à jour, ou couverte par une autre pièce acceptée (ex. le passeport à la place de la carte d'identité).
+- En haut de la page, le compte par partie ; sur Aujourd'hui, « Aller chercher N papiers » (à télécharger et à demander).
+
+## 0.11.0 — Aller chercher
+- **Nouvelle page « Aller chercher »** (menu Plus, et sur Aujourd'hui quand des papiers sont à récupérer) : la tournée des sites officiels. **Tu te connectes, Bon toutou fait le reste** ; tes mots de passe ne passent jamais par lui.
+- **Sur les sites** : avis d'impôt (impots.gouv), attestation de droits (Ameli), attestation d'assurance habitation, relevé de carrière (Info-retraite), et, si tu es concerné, attestation CAF et attestation France Travail. Pour chacun :
+  - où il en est dans ton bureau (à aller chercher / à jour) ;
+  - le chemin exact dans le site en 3 étapes ;
+  - le bouton qui ouvre la bonne page dans ton navigateur ;
+  - quand le renouveler.
+- **Pendant la tournée seulement**, Bon toutou regarde les nouveaux fichiers de ton dossier Téléchargements : chacun est copié dans Trier et reconnu (« avis_2026.pdf → Avis d'impôt »). Le fichier téléchargé reste où il est ; les téléchargements pas finis sont ignorés ; quitter la page arrête la tournée.
+- **Par mail** : ce qui n'a pas besoin de tournée une fois réglé : relevés de compte, RIB, IFU, récapitulatif annuel des frais, fiches de paie, factures d'énergie et d'internet, avec ce qu'il faut activer dans chaque espace client. Les relevés bancaires passent par l'adresse admin, quelle que soit ta banque.
+- Nouveaux types : **Imprimé fiscal unique (IFU)** et **Récapitulatif annuel des frais bancaires**.
+- « Quels papiers de la banque garder ? » : la liste des pièces bancaires utiles (relevés, RIB, IFU, attestation de solde pour un visa, offre de prêt et tableau d'amortissement, frais).
+
+## 0.10.5 — Trier sans friction
+- **Un bouton « Continuer » à chaque étape** de Trier, au même endroit. À « Qui l'a émis ? » : « Continuer » prend le nom tapé (ou la proposition), « Je ne sais pas » range le papier sans organisme.
+- **Écarter une pièce sans importance** : « Écarter cette pièce » (touche E) en bas de chaque carte. Elle quitte Trier, ne revient jamais (même réimportée), et l'action s'annule.
+- **Réglages › Pièces écartées** : la liste, « Remettre dans Trier », et « Supprimer définitivement » avec confirmation. Seuls les fichiers écartés de 00_A-TRIER/_IGNORES sont effacés : jamais un document rangé, jamais un original.
+- **Relever l'adresse admin depuis Trier** : le bouton ouvre la relève sur place, en trois groupes, sans passer par Réglages.
+- **Les pièces non cochées sont écartées** après « Copier dans Trier » : elles ne reviennent plus. « Écarter » sur chaque pièce, « Revoir les pièces écartées » et « Rétablir » pour changer d'avis.
+- **Jusqu'où relire** : à la première relève, tu choisis 3 mois, 1 an, 3 ans ou tout ; ensuite, seulement les mails arrivés depuis la dernière relève. « Relire une période plus longue » reste possible.
+- **Pertinence en mots** sur chaque pièce : sûr, probable, à vérifier.
+- **L'app prend toute la largeur de la fenêtre**, quel que soit l'écran : petites marges qui grandissent avec lui. Aujourd'hui passe en deux colonnes dès que la place le permet (à faire à gauche, échéances et compteurs à droite) ; l'aperçu de Trier est plus haut. Texte un peu plus grand sur les très grands écrans.
+
 ## 0.10.4 — Le tri des pièces jointes, et l'app à la taille de ton écran
 - **Les pièces jointes en trois groupes**, avec la raison en mots pour chacune :
   - **Papiers administratifs** (cochés d'avance) : organismes officiels, expéditeurs déjà acceptés, PDF aux mots administratifs, pièces que tu t'es envoyées toi-même ;

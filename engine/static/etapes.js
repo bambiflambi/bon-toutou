@@ -163,16 +163,17 @@ function stepChemin(p) {
     ${pick ? tpHTML("card") : `${pathTree(p)}
       ${isAutre(p.type) ? `<label class="ff sugg"><span>Quelle famille imagines-tu pour lui ? <small>facultatif — pour étudier plus tard les « Autres »</small></span>
         <input class="field" data-et-f="suggest" data-ac="suggestions" autocomplete="off" value="${esc(p.suggest || "")}" placeholder="ex. Travail › Formation professionnelle"></label>` : ""}
-      <div class="etacts"><button type="button" class="cta" data-act="et-ok" data-et-enter>Valider <kbd>Entrée</kbd></button><button type="button" class="ghost" data-act="et-pick">Changer</button></div>
+      <div class="etacts"><button type="button" class="cta" data-act="et-ok" data-et-enter>Continuer <kbd>Entrée</kbd></button><button type="button" class="ghost" data-act="et-pick">Changer l'endroit</button></div>
       ${C.length > 1 ? `<div class="segc">${C.map((c) => `<button type="button" class="${c === p.country ? "on" : ""}" data-act="et-set" data-f="country" data-v="${c}">${esc(S.st.countries[c] || c)}</button>`).join("")}</div>` : ""}`}</div>`;
 }
 function stepEmetteur(p) {
   const shown = PROPS() || chose(p, "emitter"), has = shown && p.emitter && p.emitter !== "Inconnu", em = has ? p.emitter_display || p.emitter : "";
   const cands = PROPS() ? (p.emitter_candidates || []).filter((x) => x !== em) : [];
   return `<div class="etbig"><h2 class="etq">Qui l'a émis ?</h2>
-    ${has ? `<div class="bigval">${esc(em)}</div><div class="etacts"><button type="button" class="cta" data-act="et-ok" data-et-enter>Valider <kbd>Entrée</kbd></button></div>` : ""}
+    ${has ? `<div class="bigval">${esc(em)}</div>` : ""}
     <input class="field big" data-et-f="emitter" data-ac="emitters" data-ac-extra="${esc(cands.join("|"))}" autocomplete="off" ${has ? "" : "data-autofocus"} placeholder="${has ? "Ou un autre nom…" : "Banque, employeur, école, organisme…"}">
-    ${cands.length ? `<div class="chips">${cands.map((x) => `<button type="button" class="chip" data-act="et-set" data-f="emitter" data-v="${esc(x)}" data-next="1">${esc(x)}</button>`).join("")}</div>` : ""}</div>`;
+    ${cands.length ? `<div class="chips">${cands.map((x) => `<button type="button" class="chip" data-act="et-set" data-f="emitter" data-v="${esc(x)}" data-next="1">${esc(x)}</button>`).join("")}</div>` : ""}
+    <div class="etacts"><button type="button" class="cta" data-act="et-emit" data-et-enter>Continuer <kbd>Entrée</kbd></button><button type="button" class="ghost" data-act="et-ok">Je ne sais pas</button></div></div>`;
 }
 function stepNom(p) {
   const T = S.st.types[p.type] || {};
@@ -191,7 +192,7 @@ function stepNom(p) {
     <div class="etacts"><button type="button" class="cta" data-act="c-ok" data-id="${p.id}" data-et-enter>Ranger <kbd>Entrée</kbd></button></div></div>`;
 }
 function etOptions(p) {
-  if (!S.et.opts) return `<div class="etfoot"><button type="button" class="linkbtn" data-act="et-later">← Plus tard</button><button type="button" class="linkbtn" data-act="et-opts">Options</button></div>`;
+  if (!S.et.opts) return `<div class="etfoot"><button type="button" class="linkbtn" data-act="et-later">← Plus tard</button><button type="button" class="linkbtn danger" data-act="c-discard" data-id="${p.id}" title="Pas important : il quitte Trier et ne reviendra pas. Annulable ; suppression définitive dans Réglages › Pièces écartées.">Écarter cette pièce <kbd>E</kbd></button><button type="button" class="linkbtn" data-act="et-opts">Options</button></div>`;
   const it = (act, label, extra = "") => `<button type="button" class="optrow" data-act="${act}" data-id="${p.id}" ${extra}>${label}</button>`;
   return `<div class="etfoot"><button type="button" class="linkbtn" data-act="et-later">← Plus tard</button><button type="button" class="linkbtn on" data-act="et-opts">Fermer les options</button></div>
     <div class="optbox">
@@ -244,7 +245,7 @@ async function etSet(id, f, v, next) {
 document.addEventListener("click", async (e) => {
   const a = e.target.closest("[data-act]"); if (!a) return;
   const act = a.dataset.act;
-  if (!["et-usage", "et-go", "et-set", "et-ok", "et-pick", "et-opts", "et-later", "et-props", "c-fix"].includes(act)) return;
+  if (!["et-usage", "et-go", "et-set", "et-ok", "et-emit", "et-pick", "et-opts", "et-later", "et-props", "c-fix"].includes(act)) return;
   e.stopImmediatePropagation();
   const p = (S.inbox || []).find((x) => x.id === (a.dataset.id || S.et.id)) || queue()[0];
   if (act === "et-props") { await api("/api/settings", { propositions: !PROPS() }); S.et.opts = false; S.et.id = null; return load(); }
@@ -258,6 +259,11 @@ document.addEventListener("click", async (e) => {
     const q = (S.inbox || []).find((x) => x.id === p.id); if (q) { S.et.step = "usage"; etNext(q); } return;
   }
   if (act === "et-ok") return etNext(p);
+  if (act === "et-emit") {   // Continuer : le nom tapé s'il y en a un, sinon la proposition affichée, sinon on avance sans émetteur
+    const f = document.querySelector('.etbig [data-et-f="emitter"]'), v = f ? f.value.trim() : "";
+    if (v) { f.dataset.done = "1"; return etSet(p.id, "emitter", v, true); }
+    return etNext(p);
+  }
   if (act === "et-pick") { S.et.pick = true; TP.card = null; return render(); }
   if (act === "et-go" || act === "c-fix") {
     const s = act === "c-fix" ? "nom" : a.dataset.s;
@@ -267,7 +273,7 @@ document.addEventListener("click", async (e) => {
   if (act === "et-set") return etSet(p.id, a.dataset.f, a.dataset.v, !!a.dataset.next);
 }, true);
 document.addEventListener("change", (e) => {
-  const el = e.target.closest && e.target.closest("[data-et-f]"); if (!el || !S.et.id) return;
+  const el = e.target.closest && e.target.closest("[data-et-f]"); if (!el || !S.et.id || el.dataset.done) return;
   const v = el.value.trim(); if (!v && el.dataset.etF !== "detail") return;
   etSet(S.et.id, el.dataset.etF, v, el.dataset.etF === "emitter" && S.et.step === "emetteur");
 });
@@ -282,6 +288,7 @@ document.addEventListener("keydown", (e) => {
   const click = (sel) => { const b = document.querySelector(sel); if (b && !b.disabled) { e.preventDefault(); e.stopImmediatePropagation(); b.click(); } };
   if (e.key === "Enter") return click("[data-et-enter]");
   if (e.key === "u" || e.key === "U") return click('[data-act=et-usage][data-u=utile]');
+  if (e.key === "e" || e.key === "E") return click('[data-act=c-discard]');
   if (e.key === "a" || e.key === "A") return click('[data-act=et-usage][data-u=archive]');
   if (e.key === "ArrowDown") return click("[data-act=et-pick]");
   if (e.key === "ArrowRight" && !p.usage) { e.preventDefault(); e.stopImmediatePropagation(); return toast("D'abord : utile aujourd'hui (U) ou archives (A) ?"); }
