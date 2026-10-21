@@ -30,7 +30,7 @@ function homeView() {
     <p class="lead" style="margin:4px 0 0">${c.docs ? `Le reste est rangé. ${c.docs} ${plural(c.docs, "document")} à jour.` : "Ton bureau est prêt à recevoir tes premiers papiers."}</p></div></div>
   <div class="today">${items.join("") || `<div class="card" style="padding:18px">Rien d'urgent. Profite.</div>`}</div>
   <button class="calcard" data-go="cal"><div class="calhead"><span class="oi">${IC.calendar}</span><div class="grow"><b>Prochaines échéances</b><small>${ev.slice(0, 3).map((e) => `${esc(e.t)} · ${+e.d.slice(8)} ${M_[+e.d.slice(5, 7) - 1]}`).join("  ·  ") || "Aucune date connue pour l'instant : elles sont lues dans tes documents."}</small></div><span class="go">Calendrier ›</span></div><div class="mstrip">${strip}</div></button>
-  <div class="tiles">
+  <div class="tiles hometiles">
     <button class="tile" data-go="trier"><div class="top2"><span class="oi">${IC.inbox}</span><span class="num">${c.inbox}</span></div><b>Trier</b><small>ce qui vient d'arriver</small></button>
     <button class="tile" data-go="docs"><div class="top2"><span class="oi">${IC.folder}</span><span class="num">${c.docs}</span></div><b>Documents</b><small>une seule version de chaque</small></button>
     <button class="tile" data-go="dossiers"><div class="top2"><span class="oi">${IC.send}</span><span class="num">${c.dossiers}</span></div><b>Dossiers</b><small>à préparer ou en cours</small></button>

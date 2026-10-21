@@ -46,7 +46,7 @@ DOC_FIELDS = ("id", "suivi", "type", "label", "person", "country", "cat", "sub",
 DOSSIER_FIELDS = ("id", "template", "recipient", "country", "created_at", "state", "assign", "folder", "zip", "manifest",
                   "finalized_at", "sent_at")
 PROFILE_KEYS = ("owner", "propositions", "countries", "privacy", "disabled_packs", "holders", "guide", "mail", "orgs_done", "notify", "plus_done", "trusted", "mail_host", "mail_port", "respect_folders", "owner_aliases", "fiche")          # suivent l'utilisateur sur tous ses appareils
-DEVICE_KEYS = ("theme", "analyse_version", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic", "navigateur", "ai_banc", "mail_guide")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
+DEVICE_KEYS = ("theme", "analyse_version", "use_ollama", "ollama_model", "ai_mode", "ai_engine", "ai_bench", "ai_never", "maj_auto", "maj_last", "mail_auto", "mail_days", "mail_saved", "diagnostic", "navigateur", "ai_banc", "mail_guide", "mail_rules", "mail_known")      # use_ollama / ollama_model : IA locale activée / modèle (noms historiques)                      # propres à cet appareil
 # Niveaux de confidentialité par défaut (catégorie -> local | autorisation | externe). Un document non trié est « local ».
 DEFAULT_PRIVACY = {"01": "local", "04": "local", "05": "local", "06": "local", "09": "local", "10": "local", "13": "local",
                    "02": "autorisation", "03": "autorisation", "07": "autorisation", "12": "autorisation", "14": "autorisation",
@@ -174,7 +174,7 @@ class Bureau:
             write_json(self.device_settings_path, {"format": FORMAT, **{k: o[k] for k in DEVICE_KEYS if k in o}})
             os.replace(old, old + ".migre")
         self.newer_data = False
-        self.settings = {"countries": ["FR", "NZ"], "propositions": False, "analyse_version": "", "use_ollama": False, "ollama_model": "", "owner": "", "ai_mode": "texte", "ai_engine": "auto", "ai_bench": {}, "ai_never": False, "maj_auto": False, "maj_last": "", "navigateur": "", "ai_banc": {}, "mail_guide": {},
+        self.settings = {"countries": ["FR", "NZ"], "propositions": False, "analyse_version": "", "use_ollama": False, "ollama_model": "", "owner": "", "ai_mode": "texte", "ai_engine": "auto", "ai_bench": {}, "ai_never": False, "maj_auto": False, "maj_last": "", "navigateur": "", "ai_banc": {}, "mail_guide": {}, "mail_rules": {}, "mail_known": [],
                          "privacy": dict(DEFAULT_PRIVACY), "disabled_packs": [],
                          "holders": [], "guide": {"etape": 0, "fini": False, "masque": False},
                          "mail": "", "mail_host": "", "mail_port": 993, "mail_auto": False, "mail_days": 90, "mail_saved": False,
@@ -835,7 +835,28 @@ class Bureau:
         finally:
             self._mail_close(M)
         self._mail_cache = {i["key"]: i for i in items}
-        return {"ok": True, "items": [{k: i[k] for k in ("key", "filename", "size", "from", "from_addr", "subject", "date")} for i in items]}
+        return {"ok": True, "items": self._mail_triage(items)}
+
+    def _mail_triage(self, items):
+        """Arbitrage local (aucune connexion) : papiers administratifs / à toi de voir / écartés, avec les raisons."""
+        from . import liens
+        s = self.settings
+        T = mail.triage(items, s.get("mail_rules") or {}, s.get("mail_known") or [], [s.get("mail") or ""], liens.hosts())
+        return [{k: i.get(k) for k in ("key", "filename", "size", "from", "from_addr", "subject", "date", "group", "why")} for i in T]
+
+    def mail_rule(self, addr, rule):
+        """« Toujours accepter » / « toujours ignorer » un expéditeur (adresse ou domaine) ; "" retire la règle. Réglage de cet appareil."""
+        addr = (addr or "").strip().lower()
+        if not addr or rule not in ("accepter", "ignorer", ""):
+            return {"ok": False, "msg": "Règle invalide."}
+        R = dict(self.settings.get("mail_rules") or {})
+        if rule:
+            R[addr] = rule
+        else:
+            R.pop(addr, None)
+        self.save_settings({"mail_rules": R})
+        cache = getattr(self, "_mail_cache", {}) or {}
+        return {"ok": True, "rules": R, "items": self._mail_triage(list(cache.values()))}
 
     def mail_import(self, keys, consent=False):
         """Copie les pièces jointes choisies dans Trier. Le mail reste intact (lu en lecture seule, jamais marqué lu)."""
@@ -848,6 +869,8 @@ class Bureau:
         except (ValueError, sortie.SortieRefusee) as e:
             return {"ok": False, "msg": str(e)}
         added, dup, failed = 0, 0, 0
+        known = set(self.settings.get("mail_known") or [])
+        n_known = len(known)
         try:
             for it in want:
                 try:
@@ -863,10 +886,14 @@ class Bureau:
                     iid = self.add_upload(it["filename"], data, source="Adresse admin" + (f" · {it['from']}" if it.get("from") else ""))
                     added += 1 if iid else 0
                 self.db.execute("INSERT OR REPLACE INTO mail_seen VALUES(?,?,?,?)", (it["key"], now(), h, iid))
+                if it.get("from_addr"):
+                    known.add(it["from_addr"].lower())
                 self.db.commit()
                 cache.pop(it["key"], None)
         finally:
             self._mail_close(M)
+            if len(known) != n_known:
+                self.save_settings({"mail_known": sorted(known)[-500:]})
         return {"ok": True, "added": added, "dup": dup, "failed": failed}
 
     def mail_auto_run(self):
@@ -876,7 +903,11 @@ class Bureau:
         r = self.mail_scan(consent=True)
         if not r.get("ok") or not r["items"]:
             return dict(r, added=0)
-        return self.mail_import([i["key"] for i in r["items"]], consent=True)
+        keys = [i["key"] for i in r["items"] if i.get("group") == "admin"]   # le reste attend ton avis
+        wait = sum(1 for i in r["items"] if i.get("group") == "voir")
+        if not keys:
+            return {"ok": True, "added": 0, "waiting": wait}
+        return dict(self.mail_import(keys, consent=True), waiting=wait)
 
     def mail_forget(self):
         if self.settings.get("mail"):

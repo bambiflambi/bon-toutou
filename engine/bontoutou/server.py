@@ -314,6 +314,8 @@ class H(BaseHTTPRequestHandler):
                 return self._json(B.mail_import(data.get("keys") or [], consent=data.get("consent") is True))
             if p == "/api/mail/auto":
                 return self._json(B.mail_auto_run())
+            if p == "/api/mail/rule":
+                return self._json(B.mail_rule(data.get("addr"), data.get("rule", "")))
             if p == "/api/mail/forget":
                 return self._json(B.mail_forget())
             if p == "/api/terminate":

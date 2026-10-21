@@ -163,7 +163,8 @@ def attachments(bs, prefix=""):
     if is_doc and not (mtype.startswith("image/") and size < 20000 and disp != "attachment"):  # logos et signatures : ignorés
         if not name:
             name = "piece-jointe." + ("pdf" if mtype == "application/pdf" else mtype.split("/")[-1])
-        out.append({"part": part, "filename": name, "mime": mtype, "size": size, "encoding": enc})
+        out.append({"part": part, "filename": name, "mime": mtype, "size": size, "encoding": enc,
+                    "inline": bool(mtype.startswith("image/") and disp != "attachment")})
     return out
 
 
@@ -175,7 +176,8 @@ def header_info(raw):
     except Exception:
         date = ""
     return {"from": frm[0] or frm[1], "from_addr": frm[1], "subject": _decode(h.get("Subject", "")),
-            "date": date, "message_id": (h.get("Message-ID") or "").strip()}
+            "date": date, "message_id": (h.get("Message-ID") or "").strip(),
+            "bulk": bool(h.get("List-Unsubscribe") or h.get("List-Id") or (h.get("Precedence") or "").lower() in ("bulk", "list"))}
 
 
 def decode_part(data, encoding):
@@ -196,7 +198,7 @@ def scan(M, days=90, seen=(), limit=300):
     out = []
     for i in range(0, len(uids), 40):
         chunk = b",".join(uids[i:i + 40]).decode()
-        typ, data = M.uid("FETCH", chunk, "(UID BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)])")
+        typ, data = M.uid("FETCH", chunk, "(UID BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID LIST-UNSUBSCRIBE LIST-ID PRECEDENCE)])")
         if typ != "OK":
             continue
         groups = []   # un groupe d'éléments par message
@@ -237,3 +239,86 @@ def fetch(M, uid, part, encoding):
         if isinstance(item, tuple):
             return decode_part(item[1], encoding)
     raise RuntimeError("Pièce jointe introuvable")
+
+
+# ---------- arbitrage : papiers administratifs / à toi de voir / écartés (v0.10.4) ----------
+FREE_MAIL = {"gmail.com", "googlemail.com", "hotmail.com", "hotmail.fr", "outlook.com", "outlook.fr", "live.com", "live.fr", "msn.com",
+             "yahoo.com", "yahoo.fr", "icloud.com", "me.com", "mac.com", "orange.fr", "wanadoo.fr", "free.fr", "sfr.fr", "neuf.fr",
+             "laposte.net", "gmx.fr", "gmx.com", "gmx.de", "proton.me", "protonmail.com", "aol.com", "ik.me", "etik.com", "ikmail.com",
+             "xtra.co.nz", "bigpond.com"}
+OFFICIAL = re.compile(r"(\.gouv\.fr|\.gov(\.[a-z]{2})?|\.govt\.nz|\.gc\.ca|\.europa\.eu|\.admin\.ch|\.gob\.es|\.gov\.pt|\.gov\.it|"
+                      r"ameli\.fr|caf\.fr|msa\.fr|urssaf\.fr|francetravail\.fr|pole-emploi\.fr|info-retraite\.fr|lassuranceretraite\.fr|"
+                      r"agirc-arrco\.fr|impots\.gouv\.fr|ants\.gouv\.fr|edf\.fr|engie\.fr|totalenergies\.fr|ird\.govt\.nz|nzta\.govt\.nz)$")
+ADMIN_KW = re.compile(r"facture|avis|attestation|certificat|contrat|quittance|relev[eé]|bulletin|fiche de paie|bail|assurance|"
+                      r"échéanc|echeanc|imp[oô]t|déclaration|declaration|visa|grant|acknowledg|invoice|receipt|statement|policy|"
+                      r"payslip|tax|permis|passeport|passport|carte|identit|diplôme|diplome|ordonnance|remboursement|mutuelle|"
+                      r"prélèvement|prelevement|rib|iban|bordereau|convocation|décision|decision|notification|confirmation", re.I)
+CAMERA = re.compile(r"^(dsc|img|pxl|dcim|photo|whatsapp image|screenshot|capture d.?[ée]cran|image)[\s_\-\.]|^image\s*\.", re.I)
+SIGNATURE = re.compile(r"^(image|outlook|logo|banner|banniere|signature)[\-_]?\d*\.(png|jpe?g|gif)$", re.I)
+GROUPS = ("admin", "voir", "ecarte")
+
+
+def domain_of(addr):
+    return (addr or "").rsplit("@", 1)[-1].lower().strip()
+
+
+def triage(items, rules=None, known=(), own=(), official_hosts=()):
+    """Range chaque pièce jointe dans un groupe, avec ses raisons en mots :
+    admin = papiers administratifs (cochés d'avance), voir = à toi de voir (non cochés), ecarte = écartés (repliés).
+    rules : {adresse ou domaine: "accepter" | "ignorer"} ; known : expéditeurs déjà acceptés ; own : tes adresses."""
+    rules = {k.lower(): v for k, v in (rules or {}).items()}
+    known = {k.lower() for k in known}
+    own = {k.lower() for k in own if k}
+    off = {h.lower()[4:] if h.lower().startswith("www.") else h.lower() for h in official_hosts}
+    seen = {}
+    out = []
+    for it in items:
+        it = dict(it)
+        addr = (it.get("from_addr") or "").lower()
+        dom = domain_of(addr)
+        why, score, group = [], 0, None
+        rule = rules.get(addr) or rules.get(dom)
+        dupkey = (addr, (it.get("filename") or "").lower(), int(it.get("size") or 0))
+        name = it.get("filename") or ""
+        text = (it.get("subject") or "") + " " + name
+        is_img = (it.get("mime") or "").startswith("image/") or bool(re.search(r"\.(jpe?g|png|gif|heic|heif|tiff?)$", name, re.I))
+        if rule == "ignorer":
+            group, why = "ecarte", ["tu as choisi d'ignorer cet expéditeur"]
+        elif dupkey in seen:
+            group, why = "ecarte", ["en double (même pièce jointe déjà dans la liste)"]
+        elif it.get("inline"):
+            group, why = "ecarte", ["image dans le corps du mail (signature, logo)"]
+        elif is_img and (int(it.get("size") or 0) < 40000 or SIGNATURE.match(name)):
+            group, why = "ecarte", ["petite image ou image de signature"]
+        seen.setdefault(dupkey, True)
+        if group is None:
+            me = addr in own
+            official = bool(dom and (OFFICIAL.search(dom) or any(dom == h or dom.endswith("." + h) for h in off)))
+            particular = dom in FREE_MAIL and not me
+            if rule == "accepter":
+                score += 5; why.append("expéditeur toujours accepté")
+            if me:
+                score += 3; why.append("envoyé par toi")
+            if official:
+                score += 3; why.append("organisme officiel")
+            if addr in known and rule != "accepter":
+                score += 3; why.append("expéditeur déjà accepté")
+            if not is_img:
+                score += 2; why.append("document PDF")
+            if ADMIN_KW.search(text):
+                score += 1; why.append("mots administratifs dans l'objet")
+            if particular:
+                score -= 2; why.append("envoyé par un particulier")
+            if is_img and CAMERA.search(name):
+                score -= 2; why.append("photo ou capture d'écran")
+            if it.get("bulk"):
+                why.append("lettre d'information")
+            group = "admin" if score >= 3 else "voir"
+            if group == "admin" and rule != "accepter" and ((particular and addr not in known) or it.get("bulk")):
+                group = "voir"
+        it.update(group=group, why=why, score=score)
+        out.append(it)
+    order = {g: i for i, g in enumerate(GROUPS)}
+    out.sort(key=lambda x: x.get("date") or "", reverse=True)
+    out.sort(key=lambda x: (order[x["group"]], -(x.get("score") or 0)))
+    return out

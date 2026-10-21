@@ -201,7 +201,7 @@ async function pdfDraw() {
     const P = S.pdf, page = await P.doc.getPage(P.page);
     const cv = document.getElementById("cpdfc"); if (!cv || document.getElementById("cpdf").dataset.id !== id) return;
     if (cv.dataset.drawn === id + ":" + P.page) return;   // déjà affichée : on ne la redessine pas (plus de clignotement pendant que l'IA lit)
-    const v0 = page.getViewport({ scale: 1 }), r = window.devicePixelRatio || 1;
+    const v0 = page.getViewport({ scale: 1 }), r = (window.devicePixelRatio || 1) * (parseFloat(getComputedStyle(document.body).zoom) || 1);   // net aussi en grand écran (zoom)
     const fit = Math.min((box.clientWidth - 24) / v0.width, (Math.max(420, box.clientHeight) - (P.n > 1 ? 72 : 24)) / v0.height);   // la page entière, flèches comprises
     const vp = page.getViewport({ scale: fit * r });
     cv.width = vp.width; cv.height = vp.height; cv.style.width = Math.round(v0.width * fit) + "px";

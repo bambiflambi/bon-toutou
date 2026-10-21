@@ -133,5 +133,21 @@ check(not r["ok"] and "mot de passe" in r["msg"].lower(), "après oubli : il fau
 b.save_settings({"mail": "autre@ik.me"})
 check(not b.settings["mail_saved"], "changer d'adresse : il faut la retester")
 
+
+# v0.10.4 : arbitrage des pièces jointes (tout en local)
+_I = [dict(key="1", filename="Grant Notification.pdf", mime="application/pdf", size=60000, from_addr="no.reply@homeaffairs.gov.au", subject="IMMI Grant Notification"),
+      dict(key="2", filename="image002.jpg", mime="image/jpeg", size=27000, from_addr="a@banque-privee.com", subject="Lettre", inline=True),
+      dict(key="3", filename="Analyse.pdf", mime="application/pdf", size=315000, from_addr="a@banque-privee.com", subject="Vue du marché", bulk=True),
+      dict(key="4", filename="DSC_0778.jpg", mime="image/jpeg", size=868000, from_addr="ami.fictif@gmail.com", subject="Photos"),
+      dict(key="5", filename="DSC_0778.jpg", mime="image/jpeg", size=868000, from_addr="ami.fictif@gmail.com", subject="Photos"),
+      dict(key="6", filename="facture.pdf", mime="application/pdf", size=90000, from_addr="ami.fictif@gmail.com", subject="Facture du loyer"),
+      dict(key="7", filename="releve.pdf", mime="application/pdf", size=90000, from_addr="moi.admin@ik.me", subject="Relevé")]
+G = {x["key"]: x["group"] for x in mail.triage(_I, own=["moi.admin@ik.me"])}
+check(G["1"] == "admin" and G["7"] == "admin", "arbitrage : organisme officiel et pièce envoyée par toi = papiers administratifs")
+check(G["2"] == "ecarte" and G["5"] == "ecarte", "arbitrage : signature dans le corps du mail et doublon écartés")
+check(G["3"] == "voir" and G["4"] == "voir" and G["6"] == "voir", "arbitrage : lettre d'information, photo et pièce d'un particulier = à toi de voir")
+G2 = {x["key"]: x["group"] for x in mail.triage(_I, rules={"ami.fictif@gmail.com": "accepter", "banque-privee.com": "ignorer"})}
+check(G2["6"] == "admin" and G2["3"] == "ecarte", "arbitrage : « toujours accepter » (adresse) et « toujours ignorer » (domaine) respectés")
+check(all(x["why"] for x in mail.triage(_I)), "arbitrage : chaque pièce a sa raison en mots")
 print("\nRÉSULTAT :", "OK" if not fails else f"{fails} échec(s)")
 sys.exit(1 if fails else 0)

@@ -38,11 +38,7 @@ function mailView() {
     <label class="consent"><input type="checkbox" id="ml_auto" ${M.auto ? "checked" : ""}> Relever à l'ouverture de Bon toutou (les nouvelles pièces jointes arrivent dans Trier ; tu valides toujours)</label>
     <div class="acts" style="margin-top:12px"><button class="cta small" data-act="ml-scan">${IC.sync} Voir les pièces jointes des ${M.days} derniers jours</button></div>
     ${L.msg ? `<div class="hint warn">${esc(L.msg)}</div>` : ""}</div>
-  ${items ? (items.length ? `<div class="label" style="margin:22px 0 8px">${items.length} ${plural(items.length, "pièce jointe nouvelle", "pièces jointes nouvelles")} · seuls les noms ont été lus</div>
-    <div class="card">${items.map((i) => `<label class="row" style="cursor:pointer"><input type="checkbox" data-mlk="${esc(i.key)}" ${sel.has(i.key) ? "checked" : ""}>
-      <div class="grow"><b class="fname">${esc(i.filename)}</b><div class="sub">${esc(i.from || i.from_addr)} · ${esc(i.subject || "(sans objet)")} · ${frd(i.date)} · ${ko(i.size)}</div></div></label>`).join("")}
-      <div class="bfoot"><span class="sub">Copiées dans Trier : le mail reste tel quel dans ta boîte.</span><button class="cta small" data-act="ml-import" ${sel.size ? "" : "disabled"}>Copier ${sel.size} dans Trier</button></div></div>`
-    : `<div class="card" style="padding:18px;margin-top:14px">Rien de nouveau : toutes les pièces jointes récentes sont déjà passées par Trier.</div>`) : ""}
+  ${items ? mlGroups(items, sel) : ""}
   ${never}`;
 }
 
@@ -84,7 +80,7 @@ document.addEventListener("click", async (e) => {
     const r = await api("/api/mail/scan", { consent: true });
     L.busy = "";
     if (!r.ok) { L.msg = r.msg; return render(); }
-    L.items = r.items; L.sel = new Set(r.items.map((i) => i.key)); return render();
+    L.items = r.items; L.sel = new Set(r.items.filter((i) => i.group === "admin").map((i) => i.key)); L.showEc = false; return render();
   }
   if (act === "ml-import") {
     const keys = [...L.sel];
@@ -106,6 +102,50 @@ async function mailAutoOnce() {
   const s = S.st.settings;
   if (!(s.mail_auto && s.mail_saved)) return;
   const r = await api("/api/mail/auto", {});
-  if (r.ok && r.added) { await load(); toast(`${r.added} ${plural(r.added, "pièce jointe arrivée", "pièces jointes arrivées")} dans Trier depuis ton adresse admin`); }
+  if (r.ok && r.added) { await load(); toast(`${r.added} ${plural(r.added, "pièce jointe arrivée", "pièces jointes arrivées")} dans Trier depuis ton adresse admin${r.waiting ? ` · ${r.waiting} attendent ton avis (Réglages › Adresse admin)` : ""}`); }
+  else if (r.ok && r.waiting) toast(`${r.waiting} ${plural(r.waiting, "pièce jointe attend", "pièces jointes attendent")} ton avis : Réglages › Adresse admin`);
   else if (r.ok === false && r.msg) toast("Adresse admin : " + r.msg);
 }
+
+/* v0.10.4 : les pièces jointes en trois groupes (papiers administratifs / à toi de voir / écartés), raisons en mots */
+const ML_G = { admin: ["Papiers administratifs", "Cochés d'avance : organismes officiels, expéditeurs déjà acceptés, documents PDF."],
+  voir: ["À toi de voir", "Pas cochés : envoyés par un particulier, lettres d'information, photos. Coche ce qui est un vrai papier."],
+  ecarte: ["Écartés", "Signatures, logos, doublons et expéditeurs ignorés. Rien n'est supprimé de ta boîte."] };
+function mlRow(i, sel) {
+  const R = (S.st.settings.mail_rules || {})[(i.from_addr || "").toLowerCase()];
+  return `<div class="mlrow"><label class="mlpick"><input type="checkbox" data-mlk="${esc(i.key)}" ${sel.has(i.key) ? "checked" : ""} aria-label="Copier ${esc(i.filename)}">
+    <div class="grow"><b class="mlname">${esc(i.filename)}</b><div class="sub">${esc(i.from || i.from_addr)} · ${esc(i.subject || "(sans objet)")} · ${frd(i.date)} · ${ko(i.size)}</div>
+      <div class="mlwhy">${(i.why || []).map((w) => `<span>${esc(w)}</span>`).join("")}</div></div></label>
+    ${i.from_addr ? `<div class="mlact">${R ? `<button class="linkbtn" data-act="ml-rule" data-a="${esc(i.from_addr)}" data-r="">${R === "accepter" ? "toujours accepté" : "toujours ignoré"} · annuler</button>`
+      : `<button class="linkbtn" data-act="ml-rule" data-a="${esc(i.from_addr)}" data-r="accepter">Toujours accepter</button><button class="linkbtn" data-act="ml-rule" data-a="${esc(i.from_addr)}" data-r="ignorer">Toujours ignorer</button>`}</div>` : ""}</div>`;
+}
+function mlGroups(items, sel) {
+  if (!items.length) return `<div class="card" style="padding:18px;margin-top:14px">Rien de nouveau : toutes les pièces jointes récentes sont déjà passées par Trier.</div>`;
+  const by = { admin: [], voir: [], ecarte: [] };
+  items.forEach((i) => (by[i.group || "voir"] || by.voir).push(i));
+  const sec = (g) => { const L = by[g]; if (!L.length) return "";
+    const fold = g === "ecarte" && !S.ml.showEc;
+    return `<div class="mlsec ${g}"><div class="mlhead"><div><b>${ML_G[g][0]} · ${L.length}</b><div class="sub">${ML_G[g][1]}</div></div>
+      ${g === "ecarte" ? `<button class="ghost small" data-act="ml-ec">${fold ? "Afficher" : "Masquer"}</button>` : `<button class="linkbtn" data-act="ml-all" data-g="${g}">${L.every((i) => sel.has(i.key)) ? "Tout décocher" : "Tout cocher"}</button>`}</div>
+      ${fold ? "" : `<div class="card">${L.map((i) => mlRow(i, sel)).join("")}</div>`}</div>`; };
+  return `<div class="label" style="margin:22px 0 8px">${items.length} ${plural(items.length, "pièce jointe nouvelle", "pièces jointes nouvelles")} · seuls les noms ont été lus</div>
+    ${sec("admin")}${sec("voir")}${sec("ecarte")}
+    <div class="mlbar"><span class="sub">Copiées dans Trier : le mail reste tel quel dans ta boîte.</span><button class="cta" data-act="ml-import" ${sel.size ? "" : "disabled"}>Copier ${sel.size} dans Trier</button></div>`;
+}
+document.addEventListener("click", async (e) => {
+  const a = e.target.closest("[data-act]"); if (!a) return;
+  const act = a.dataset.act, L = S.ml;
+  if (act === "ml-ec") { L.showEc = !L.showEc; return render(); }
+  if (act === "ml-all") { const G = (L.items || []).filter((i) => i.group === a.dataset.g), all = G.every((i) => L.sel.has(i.key));
+    G.forEach((i) => (all ? L.sel.delete(i.key) : L.sel.add(i.key))); return render(); }
+  if (act === "ml-rule") {
+    const r = await api("/api/mail/rule", { addr: a.dataset.a, rule: a.dataset.r });
+    if (!r.ok) return toast(r.msg || "Impossible");
+    S.st.settings.mail_rules = r.rules;
+    const before = new Map((L.items || []).map((i) => [i.key, i.group]));
+    L.items = r.items;
+    L.items.forEach((i) => { if (before.get(i.key) !== i.group) { if (i.group === "admin") L.sel.add(i.key); else L.sel.delete(i.key); } });
+    render();
+    return toast(a.dataset.r === "accepter" ? "Expéditeur toujours accepté" : a.dataset.r === "ignorer" ? "Expéditeur toujours ignoré" : "Règle retirée");
+  }
+});

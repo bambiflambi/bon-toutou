@@ -15,6 +15,15 @@ const MW_HELP = {
   Yahoo: { url: "https://login.yahoo.com/account/security", btn: "Ouvrir la sécurité Yahoo", code: "un mot de passe d'application",
     steps: ["Connecte-toi à ton compte Yahoo.", "<b>Générer un mot de passe d'application</b>, nommé « Bon toutou ».", "Copie le code affiché."] },
 };
+// validation en deux étapes : obligatoire avant de pouvoir créer le code (Gmail, iCloud)
+const MW_TFA = {
+  Gmail: { url: "https://myaccount.google.com/signinoptions/two-step-verification", btn: "Ouvrir la validation en deux étapes",
+    steps: ["Ouvre la page Google ci-dessous et connecte-toi.", "Clique sur <b>Activer la validation en deux étapes</b>.", "Ajoute ton <b>numéro de téléphone</b> (SMS) ou l'app <b>Google Authenticator</b>.", "Reviens ici et clique sur « C'est activé »."],
+    robot: "Si Google affiche un <b>robot</b> et « Le paramètre que vous recherchez n'est pas disponible pour votre compte », c'est que cette étape manque. Une clé d'accès (passkey) seule ne suffit pas : ajoute un téléphone." },
+  iCloud: { url: "https://account.apple.com/", btn: "Ouvrir mon compte Apple",
+    steps: ["Ouvre ton compte Apple et connecte-toi.", "<b>Connexion et sécurité</b> → <b>Authentification à deux facteurs</b>.", "Active-la avec ton numéro de téléphone.", "Reviens ici et clique sur « C'est activé »."],
+    robot: "Sans authentification à deux facteurs, Apple n'affiche pas « Mots de passe pour app »." },
+};
 const MW_DEFAULT = { code: "ton mot de passe de messagerie",
   steps: ["Si ta messagerie propose un « mot de passe d'application », crée-en un nommé « Bon toutou » : c'est plus sûr, et tu peux le supprimer à tout moment.", "Sinon, utilise ton mot de passe de messagerie habituel.", "Vérifie que l'accès <b>IMAP</b> est autorisé dans les réglages de ta messagerie."] };
 const mwHelp = (M) => MW_HELP[M.provider] || MW_DEFAULT;
@@ -51,7 +60,19 @@ function mwView() {
     <input class="obinput" id="mw_addr" type="email" inputmode="email" autocomplete="email" spellcheck="false" placeholder="ex. camille.admin@ik.me" value="${esc(addr)}">
     ${err}${cta("Continuer", "mw-addr")}
     <p class="obnote">Gmail, iCloud, Infomaniak, Yahoo, Orange, Free, SFR, La Poste et la plupart des autres. Pas encore : Outlook / Hotmail.</p>`;
-  if (i === 3) b = `<h1>Crée un code pour Bon toutou</h1>
+  const TFA = MW_TFA[M.provider];
+  if (i === 3 && TFA && !w.tfa) b = !w.tfaHelp ? `<h1>As-tu activé la validation en deux étapes ?</h1>
+    <p class="oblead">${esc(M.provider)} ne donne un code pour les apps qu'aux comptes protégés par une deuxième étape : un SMS ou une app sur ton téléphone.</p>
+    <div class="obchoices">
+      <button class="obchoice main" data-act="mw-tfa-yes"><span class="ci">${IC.check}</span><span><b>Oui, elle est activée</b><small>On passe à la création du code.</small></span></button>
+      <button class="obchoice" data-act="mw-tfa-no"><span class="ci">${IC.shield}</span><span><b>Non, ou je ne sais pas</b><small>Je t'explique comment l'activer : 2 minutes.</small></span></button></div>`
+    : `<h1>Active la validation en deux étapes</h1>
+    <p class="oblead">Elle protège ton compte, et elle est obligatoire pour créer le code de Bon toutou.</p>
+    <ol class="obsteps">${TFA.steps.map((x) => `<li><span>${x}</span></li>`).join("")}</ol>
+    <div class="obinfo">${TFA.robot}</div>
+    <button class="obghost obwide" data-ext="${esc(TFA.url)}">${esc(TFA.btn)} ↗</button>
+    ${cta("C'est activé", "mw-tfa-yes")}`;
+  else if (i === 3) b = `<h1>Crée un code pour Bon toutou</h1>
     <p class="oblead">${esc(M.provider || "Ta messagerie")} te donne ${H.code} rien que pour moi. Tu pourras le supprimer à tout moment, sans toucher à ton vrai mot de passe.</p>
     ${H.pre ? `<div class="obinfo">${H.pre}</div>` : ""}
     <ol class="obsteps">${H.steps.map((x) => `<li><span>${x}</span></li>`).join("")}</ol>
@@ -104,8 +125,14 @@ window.addEventListener("click", async (e) => {
   const goTo = (i) => { w.i = i; w.err = ""; w.focus = true; render(); };
   if (act === "mw-create") { w.from = 1; return goTo(1); }
   if (act === "mw-have") { w.from = 0; return goTo(2); }
-  if (act === "mw-prev") return goTo(w.i === 2 ? (w.from || 0) : Math.max(0, w.i - 1));
+  if (act === "mw-prev") {
+    if (w.i === 3 && w.tfaHelp) { w.tfaHelp = false; return render(); }
+    if (w.i === 3 && w.tfa && MW_TFA[(S.mst || {}).provider]) { w.tfa = false; return render(); }
+    return goTo(w.i === 2 ? (w.from || 0) : Math.max(0, w.i - 1));
+  }
   if (act === "mw-next") return goTo(w.i + 1);
+  if (act === "mw-tfa-yes") { w.tfa = true; w.tfaHelp = false; return goTo(3); }
+  if (act === "mw-tfa-no") { w.tfaHelp = true; w.focus = true; return render(); }
   if (act === "mw-show") { w.show = !w.show; return render(); }
   if (act === "mw-addr") {
     const v = (w.addr !== undefined ? w.addr : S.st.settings.mail || "").trim();

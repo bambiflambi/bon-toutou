@@ -71,6 +71,8 @@ Une app locale qui range les papiers administratifs dans un vrai dossier (choisi
 
 - **v0.10.3** : `static/mailwiz.js` (après brancher.js) : assistant `S.mw` (0 choix, 1 Infomaniak, 2 adresse, 3 code selon `MW_HELP[provider]`, 4 coller + accord → `/api/mail/connect`, 5 relié), affiché tant que `mail_status.saved` est faux ; l'ancien guide `mailGuide` de brancher.js est retiré.
 
+- **v0.10.4** : `mail.triage(items, rules, known, own, official_hosts)` (groupes `admin` / `voir` / `ecarte` + `why` en mots : `inline`, petites images / `SIGNATURE`, doublons (adresse, nom, taille), en-têtes `List-Unsubscribe` / `List-Id` / `Precedence` → `bulk`, `OFFICIAL` + hôtes des packs, `FREE_MAIL` = particulier, `CAMERA`, `ADMIN_KW`) ; `Bureau._mail_triage`, `mail_rule` (réglage appareil `mail_rules` {adresse ou domaine: accepter|ignorer}), `mail_known` (expéditeurs déjà importés) ; route `/api/mail/rule` ; `mail_auto_run` n'importe que `admin` (renvoie `waiting`). UI `adresse.js` : `mlGroups` / `mlRow`. `mailwiz.js` : `MW_TFA` (validation en deux étapes Gmail / iCloud avant le code). CSS : `:where(svg:not([width]))` (icônes à la taille du texte), `body{zoom}` par paliers ≥ 1500 / 1800 / 2300 / 3000 px et `.wrap` élargi ; `pdfDraw` tient compte du zoom ; `.tiles.hometiles`.
+
 ## Architecture (détail)
 - `bontoutou/server.py` : serveur HTTP de la bibliothèque standard, **127.0.0.1 uniquement**, API JSON + fichiers statiques.
 - `bontoutou/core.py` : classe `Bureau`, qui gère les chemins, l'index SQLite, le journal (annuler), le tri (`register` / `proposal` / `validate`), les documents, les dossiers (`resolve` / `finalize` / `mark_sent`), les archives et `rebuild_index`.

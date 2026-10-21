@@ -2,6 +2,17 @@
 
 Les mises à jour ne sont jamais obligatoires. Une nouvelle version lit toujours les données des anciennes.
 
+## 0.10.4 — Le tri des pièces jointes, et l'app à la taille de ton écran
+- **Les pièces jointes en trois groupes**, avec la raison en mots pour chacune :
+  - **Papiers administratifs** (cochés d'avance) : organismes officiels, expéditeurs déjà acceptés, PDF aux mots administratifs, pièces que tu t'es envoyées toi-même ;
+  - **À toi de voir** (pas cochés) : pièces envoyées par un particulier, lettres d'information, photos et captures d'écran ;
+  - **Écartés** (repliés) : images dans le corps du mail (signatures, logos), petites images, doublons, expéditeurs ignorés. Rien n'est supprimé de ta boîte.
+- **« Toujours accepter » / « Toujours ignorer »** sur chaque expéditeur : Bon toutou s'en souvient (sur cet ordinateur) et retrie la liste aussitôt. Un expéditeur dont tu as déjà copié une pièce est reconnu la fois suivante.
+- **Relève à l'ouverture** : seuls les papiers administratifs arrivent tout seuls dans Trier ; un message dit combien attendent ton avis.
+- **Gmail et iCloud** : l'assistant demande d'abord si la validation en deux étapes est activée, et explique comment l'activer en 4 étapes. Il prévient aussi : si Google affiche un robot et « paramètre non disponible », c'est cette étape qui manque.
+- **Tailles corrigées** : une icône ne peut plus remplir tout un bouton (« Voir les pièces jointes » était géant).
+- **Grand écran** : l'app s'agrandit avec l'écran (plus large et plus lisible à partir de 1500 pixels de large) ; les cases d'Aujourd'hui gardent leurs quatre colonnes ; l'aperçu PDF reste net.
+
 ## 0.10.3 — Relier son adresse e-mail, pas à pas
 - **Réglages › Adresse admin refait comme l'accueil** : une question par écran, gros caractères, barre « Étape 1 sur 3 ».
   1. « Une adresse rien que pour tes papiers » : **Créer une adresse gratuite** (Infomaniak, Suisse) ou **J'ai déjà une adresse**.
